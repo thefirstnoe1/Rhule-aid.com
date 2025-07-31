@@ -14,6 +14,8 @@ For this project to deploy correctly, you need to set up the following repositor
 
 | Secret Name | Description | Example Value |
 |-------------|-------------|---------------|
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API Token with Pages:Edit permissions | `your-cloudflare-api-token` |
+| `CLOUDFLARE_ACCOUNT_ID` | Your Cloudflare Account ID | `your-account-id` |
 | `DATABASE_ID` | Cloudflare D1 Database ID | `dbed4dc5-b282-40b0-a196-d90ea7cc74e0` |
 | `SCHEDULE_CACHE_ID` | KV Namespace ID for schedule caching | `b6ba8e644c1447699ef2dfbd88e0527e` |
 | `ROSTER_CACHE_ID` | KV Namespace ID for roster caching | `2d472c3e9eee4576952c9496876a8e5f` |
@@ -33,6 +35,13 @@ For this project to deploy correctly, you need to set up the following repositor
 
 ### How to Find Your IDs:
 
+**Cloudflare API Credentials:**
+- **API Token**: Go to [Cloudflare API Tokens](https://dash.cloudflare.com/profile/api-tokens) → Create Token → Custom Token with these permissions:
+  - `Account:Cloudflare Pages:Edit`
+  - `Zone:Zone:Read` (if using custom domains)
+- **Account ID**: Found in the right sidebar of any Cloudflare dashboard page
+
+**Resource IDs:**
 - **D1 Database ID**: Run `wrangler d1 list` or check your Cloudflare dashboard
 - **KV Namespace IDs**: Run `wrangler kv:namespace list` or check your Cloudflare dashboard
 
