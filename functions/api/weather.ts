@@ -1,21 +1,41 @@
 // Cloudflare Pages Function: /functions/api/weather.ts
-// Provides weather information for game days in Lincoln, NE
+// Provides weather information using National Weather Service API for Lincoln, NE
 
-interface WeatherInfo {
-  gameDate: string;
-  opponent: string;
-  location: string;
-  temperature: {
-    high: number;
-    low: number;
-    gameTime: number;
-  };
-  conditions: string;
-  precipitation: number;
+interface CurrentConditions {
+  temperature: number;
+  temperatureUnit: string;
+  humidity: number;
   windSpeed: number;
   windDirection: string;
-  humidity: number;
-  recommendation: string;
+  conditions: string;
+  lastUpdated: string;
+}
+
+interface DailyForecast {
+  date: string;
+  name: string;
+  temperature: number;
+  temperatureUnit: string;
+  temperatureTrend: string | null;
+  windSpeed: string;
+  windDirection: string;
+  shortForecast: string;
+  detailedForecast: string;
+  isDaytime: boolean;
+  precipitationProbability: number;
+  isGameDay?: boolean;
+}
+
+interface WeatherResponse {
+  success: boolean;
+  data: {
+    location: string;
+    current: CurrentConditions;
+    forecast: DailyForecast[];
+    lastUpdated: string;
+    cached: boolean;
+  };
+  error?: string;
 }
 
 export const onRequestGet = async (context: any) => {
@@ -32,109 +52,205 @@ export const onRequestGet = async (context: any) => {
   }
 
   try {
-    const url = new URL(request.url);
-    const gameDate = url.searchParams.get('date');
-    
-    if (!gameDate) {
-      return Response.json({
-        success: false,
-        error: 'Game date parameter required'
-      }, { 
-        status: 400,
-        headers: corsHeaders 
-      });
-    }
-
-    // Check cache (1 hour cache for weather)
-    const cacheKey = `weather-${gameDate}`;
+    // Check cache (4 hour cache for weather as requested)
+    const cacheKey = 'weather-lincoln-ne';
     const cached = await env.WEATHER_CACHE?.get(cacheKey, 'json');
     
-    if (cached && cached.timestamp && (Date.now() - cached.timestamp) < 3600000) {
+    if (cached && cached.timestamp && (Date.now() - cached.timestamp) < 14400000) { // 4 hours
       return Response.json({
         success: true,
-        data: cached.data,
-        cached: true,
-        lastUpdated: new Date(cached.timestamp).toISOString()
+        data: {
+          ...cached.data,
+          cached: true
+        }
       }, { headers: corsHeaders });
     }
 
-    // Fetch weather data
-    const weatherData = await fetchWeatherForGame(gameDate, env.WEATHER_API_KEY);
+    // Fetch fresh weather data
+    const weatherData = await fetchLincolnWeather();
     
-    // Cache the result
+    // Check for upcoming game days to mark in forecast
+    const gameData = await fetchUpcomingGames();
+    const enrichedWeatherData = await enrichWithGameDays(weatherData, gameData);
+    
+    // Cache the result for 4 hours
     await env.WEATHER_CACHE?.put(cacheKey, JSON.stringify({
-      data: weatherData,
+      data: enrichedWeatherData,
       timestamp: Date.now()
     }));
 
     return Response.json({
       success: true,
-      data: weatherData,
-      cached: false,
-      lastUpdated: new Date().toISOString()
+      data: {
+        ...enrichedWeatherData,
+        cached: false
+      }
     }, { headers: corsHeaders });
 
   } catch (error) {
     console.error('Weather fetch error:', error);
     
-    // Return fallback weather data
-    const fallbackUrl = new URL(request.url);
     return Response.json({
-      success: true,
-      data: getFallbackWeather(fallbackUrl.searchParams.get('date')),
-      cached: false,
-      fallback: true,
-      message: 'Using estimated weather data'
-    }, { headers: corsHeaders });
+      success: false,
+      error: 'Unable to fetch weather data',
+      data: getFallbackWeather()
+    }, { 
+      status: 500,
+      headers: corsHeaders 
+    });
   }
 };
 
-async function fetchWeatherForGame(gameDate: string, apiKey?: string): Promise<WeatherInfo> {
-  if (!apiKey) {
-    throw new Error('Weather API key not configured');
-  }
+async function fetchLincolnWeather() {
+  // Lincoln, NE coordinates: 40.8136° N, 96.7026° W
+  const lat = 40.8136;
+  const lon = -96.7026;
+  
+  // User agent as required by NWS API
+  const userAgent = 'RhuleAid.com Weather App (contact@rhuleaid.com)';
+  
+  const headers = {
+    'User-Agent': userAgent,
+    'Accept': 'application/geo+json'
+  };
 
-  // Use Wunderground API for weather data
-  const response = await fetch(
-    `https://api.weather.com/v1/forecast/daily/10day?geocode=40.8136,-96.7026&format=json&units=e&language=en-US&apiKey=${apiKey}`
+  // Step 1: Get the forecast office and grid coordinates
+  const pointsResponse = await fetch(
+    `https://api.weather.gov/points/${lat},${lon}`,
+    { headers }
   );
 
-  if (!response.ok) {
-    throw new Error(`Weather API error: ${response.status}`);
+  if (!pointsResponse.ok) {
+    throw new Error(`NWS Points API error: ${pointsResponse.status}`);
   }
 
-  const data = await response.json();
+  const pointsData = await pointsResponse.json();
+  const forecastUrl = pointsData.properties.forecast;
+  const observationStationsUrl = pointsData.properties.observationStations;
+
+  // Step 2: Get current conditions from nearest observation station
+  const stationsResponse = await fetch(observationStationsUrl, { headers });
+  const stationsData = await stationsResponse.json();
+  const nearestStation = stationsData.features[0]?.id;
+
+  let currentConditions: CurrentConditions;
   
-  // Find forecast closest to game date
-  const gameDateTime = new Date(gameDate);
-  const forecasts = data.forecasts;
-  
-  if (!forecasts || forecasts.length === 0) {
-    throw new Error('No weather forecast data available');
+  if (nearestStation) {
+    try {
+      const obsResponse = await fetch(
+        `https://api.weather.gov/stations/${nearestStation}/observations/latest`,
+        { headers }
+      );
+      const obsData = await obsResponse.json();
+      const props = obsData.properties;
+
+      currentConditions = {
+        temperature: Math.round(convertCelsiusToFahrenheit(props.temperature.value) || 70),
+        temperatureUnit: 'F',
+        humidity: Math.round(props.relativeHumidity.value || 50),
+        windSpeed: Math.round(convertMpsToMph(props.windSpeed.value) || 5),
+        windDirection: props.windDirection.value ? getWindDirection(props.windDirection.value) : 'Variable',
+        conditions: props.textDescription || 'Partly Cloudy',
+        lastUpdated: props.timestamp
+      };
+    } catch (err) {
+      console.warn('Could not fetch current conditions, using fallback');
+      currentConditions = getFallbackCurrent();
+    }
+  } else {
+    currentConditions = getFallbackCurrent();
   }
 
-  // Find the forecast for the game date
-  const targetForecast = forecasts.find((forecast: any) => {
-    const forecastDate = new Date(forecast.fcst_valid_local);
-    return forecastDate.toDateString() === gameDateTime.toDateString();
-  }) || forecasts[0]; // Fallback to first forecast if exact date not found
+  // Step 3: Get 7-day forecast
+  const forecastResponse = await fetch(forecastUrl, { headers });
+  
+  if (!forecastResponse.ok) {
+    throw new Error(`NWS Forecast API error: ${forecastResponse.status}`);
+  }
+
+  const forecastData = await forecastResponse.json();
+  const periods = forecastData.properties.periods.slice(0, 14); // Get 7 days (day/night periods)
+
+  const forecast: DailyForecast[] = [];
+  
+  // Group day/night periods into daily forecasts
+  for (let i = 0; i < periods.length; i += 2) {
+    const dayPeriod = periods[i];
+    const nightPeriod = periods[i + 1];
+    
+    if (dayPeriod) {
+      forecast.push({
+        date: dayPeriod.startTime.split('T')[0],
+        name: dayPeriod.name,
+        temperature: dayPeriod.temperature,
+        temperatureUnit: dayPeriod.temperatureUnit,
+        temperatureTrend: dayPeriod.temperatureTrend,
+        windSpeed: dayPeriod.windSpeed,
+        windDirection: dayPeriod.windDirection,
+        shortForecast: dayPeriod.shortForecast,
+        detailedForecast: dayPeriod.detailedForecast,
+        isDaytime: dayPeriod.isDaytime,
+        precipitationProbability: extractPrecipitationProbability(dayPeriod.detailedForecast)
+      });
+    }
+  }
 
   return {
-    gameDate: gameDate,
-    opponent: 'TBD', // Would be passed in or looked up
     location: 'Lincoln, NE',
-    temperature: {
-      high: Math.round(targetForecast.max_temp || targetForecast.day?.hi || 75),
-      low: Math.round(targetForecast.min_temp || targetForecast.night?.lo || 55),
-      gameTime: Math.round((targetForecast.max_temp + targetForecast.min_temp) / 2 || 65)
-    },
-    conditions: targetForecast.day?.phrase_32char || targetForecast.narrative || 'Partly Cloudy',
-    precipitation: Math.round((targetForecast.day?.pop || targetForecast.pop || 0)),
-    windSpeed: Math.round(targetForecast.day?.wspd || targetForecast.wspd || 5),
-    windDirection: targetForecast.day?.wdir_cardinal || targetForecast.wdir_cardinal || 'Variable',
-    humidity: targetForecast.day?.rh || targetForecast.rh || 65,
-    recommendation: generateWeatherRecommendation(targetForecast)
+    current: currentConditions,
+    forecast: forecast,
+    lastUpdated: new Date().toISOString(),
+    cached: false
   };
+}
+
+async function fetchUpcomingGames() {
+  try {
+    // Fetch schedule from our existing API
+    const response = await fetch('https://rhule-aid.com/api/schedule');
+    const data = await response.json();
+    
+    if (data.success && data.data) {
+      const now = new Date();
+      return data.data.filter((game: any) => {
+        const gameDate = new Date(game.date);
+        return gameDate > now && gameDate <= new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // Next 7 days
+      });
+    }
+  } catch (error) {
+    console.warn('Could not fetch upcoming games:', error);
+  }
+  return [];
+}
+
+async function enrichWithGameDays(weatherData: any, gameData: any[]) {
+  const enrichedForecast = weatherData.forecast.map((day: DailyForecast) => {
+    const dayDate = day.date;
+    const hasGame = gameData.some(game => {
+      const gameDate = new Date(game.date).toISOString().split('T')[0];
+      return gameDate === dayDate;
+    });
+    
+    return {
+      ...day,
+      isGameDay: hasGame
+    };
+  });
+
+  return {
+    ...weatherData,
+    forecast: enrichedForecast
+  };
+}
+
+function convertCelsiusToFahrenheit(celsius: number | null): number | null {
+  if (celsius === null) return null;
+  return (celsius * 9/5) + 32;
+}
+
+function convertMpsToMph(mps: number | null): number | null {
+  if (mps === null) return null;
+  return mps * 2.237;
 }
 
 function getWindDirection(degrees: number): string {
@@ -143,57 +259,71 @@ function getWindDirection(degrees: number): string {
   return directions[Math.round(degrees / 22.5) % 16];
 }
 
-function generateWeatherRecommendation(forecast: any): string {
-  const temp = forecast.max_temp || forecast.day?.hi || 70;
-  const conditions = (forecast.day?.phrase_32char || forecast.narrative || '').toLowerCase();
-  const precipitation = forecast.day?.pop || forecast.pop || 0;
-  
-  if (precipitation > 70) {
-    return "Bring rain gear and waterproof clothing. Consider arriving early for covered parking.";
-  } else if (temp < 32) {
-    return "Bundle up! Bring layers, hand warmers, and insulated boots. Very cold game day conditions.";
-  } else if (temp < 50) {
-    return "Cool weather expected. Dress in layers and bring a warm jacket or blanket.";
-  } else if (temp > 85) {
-    return "Hot game day! Bring sunscreen, stay hydrated, and wear light-colored clothing.";
-  } else if (conditions.includes('wind') || (forecast.day?.wspd || forecast.wspd || 0) > 15) {
-    return "Windy conditions expected. Secure any loose items and dress accordingly.";
-  } else {
-    return "Great weather for football! Perfect conditions for tailgating and cheering on the Huskers.";
-  }
+function extractPrecipitationProbability(detailedForecast: string): number {
+  const match = detailedForecast.match(/(\d+)%.*(?:rain|precipitation|showers|storms)/i);
+  return match ? parseInt(match[1]) : 0;
 }
 
-function getFallbackWeather(gameDate: string | null): WeatherInfo {
-  // Provide reasonable estimates based on Nebraska climate patterns
-  const date = gameDate ? new Date(gameDate) : new Date();
-  const month = date.getMonth();
+function getFallbackCurrent(): CurrentConditions {
+  const now = new Date();
+  const month = now.getMonth();
   
-  let temp, conditions, recommendation;
-  
+  // Seasonal defaults for Nebraska
+  let temp, conditions;
   if (month >= 8 && month <= 9) { // Aug-Sep
-    temp = { high: 82, low: 58, gameTime: 75 };
-    conditions = "partly cloudy";
-    recommendation = "Pleasant fall weather. Perfect for tailgating!";
+    temp = 75;
+    conditions = 'Partly Cloudy';
   } else if (month >= 10 && month <= 11) { // Oct-Nov  
-    temp = { high: 65, low: 42, gameTime: 55 };
-    conditions = "cool and crisp";
-    recommendation = "Cool weather expected. Bring layers and a warm jacket.";
+    temp = 55;
+    conditions = 'Cool and Crisp';
+  } else if (month >= 2 && month <= 4) { // Mar-May
+    temp = 65;
+    conditions = 'Pleasant';
   } else {
-    temp = { high: 45, low: 28, gameTime: 38 };
-    conditions = "cold";
-    recommendation = "Cold weather game! Bundle up and bring hand warmers.";
+    temp = 45;
+    conditions = 'Cold';
   }
 
   return {
-    gameDate: gameDate || new Date().toISOString(),
-    opponent: 'TBD',
-    location: 'Lincoln, NE',
     temperature: temp,
-    conditions: conditions,
-    precipitation: 20,
+    temperatureUnit: 'F',
+    humidity: 60,
     windSpeed: 8,
     windDirection: 'NW',
-    humidity: 65,
-    recommendation: recommendation
+    conditions: conditions,
+    lastUpdated: now.toISOString()
+  };
+}
+
+function getFallbackWeather() {
+  const current = getFallbackCurrent();
+  const forecast: DailyForecast[] = [];
+  
+  // Generate 7 days of fallback forecast
+  for (let i = 0; i < 7; i++) {
+    const date = new Date();
+    date.setDate(date.getDate() + i);
+    
+    forecast.push({
+      date: date.toISOString().split('T')[0],
+      name: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : date.toLocaleDateString('en-US', { weekday: 'long' }),
+      temperature: current.temperature + (Math.random() - 0.5) * 10,
+      temperatureUnit: 'F',
+      temperatureTrend: null,
+      windSpeed: '5 to 10 mph',
+      windDirection: 'NW',
+      shortForecast: 'Partly Cloudy',
+      detailedForecast: 'Partly cloudy skies. Pleasant weather for outdoor activities.',
+      isDaytime: true,
+      precipitationProbability: 20
+    });
+  }
+
+  return {
+    location: 'Lincoln, NE',
+    current: current,
+    forecast: forecast,
+    lastUpdated: new Date().toISOString(),
+    cached: false
   };
 }

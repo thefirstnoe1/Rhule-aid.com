@@ -424,6 +424,158 @@
             color: var(--secondary-text);
         }
 
+        /* Weather Section */
+        .weather-section {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+            margin-bottom: 40px;
+        }
+
+        .weather-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 15px;
+        }
+
+        .weather-title {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: var(--text-color);
+            margin: 0;
+        }
+
+        .weather-location {
+            font-size: 0.9em;
+            color: var(--secondary-text);
+        }
+
+        .current-weather {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 25px;
+            margin-bottom: 30px;
+            align-items: center;
+        }
+
+        .current-temp {
+            font-size: 3.5em;
+            font-weight: bold;
+            color: var(--accent-color);
+            text-align: center;
+        }
+
+        .current-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+        }
+
+        .weather-detail {
+            text-align: center;
+        }
+
+        .weather-detail-label {
+            font-size: 0.8em;
+            color: var(--secondary-text);
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            font-weight: 500;
+        }
+
+        .weather-detail-value {
+            font-size: 1.1em;
+            color: var(--text-color);
+            font-weight: 600;
+        }
+
+        .forecast-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 15px;
+        }
+
+        .forecast-day {
+            background: rgba(220, 38, 38, 0.05);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .forecast-day:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .forecast-day.game-day {
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(220, 38, 38, 0.05));
+            border: 2px solid var(--accent-color);
+            position: relative;
+        }
+
+        .forecast-day.game-day::before {
+            content: "🏈 GAME DAY!";
+            position: absolute;
+            top: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--accent-color);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.7em;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        .forecast-day-name {
+            font-size: 0.9em;
+            font-weight: 600;
+            color: var(--text-color);
+            margin-bottom: 8px;
+        }
+
+        .forecast-temp {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: var(--accent-color);
+            margin-bottom: 5px;
+        }
+
+        .forecast-condition {
+            font-size: 0.8em;
+            color: var(--secondary-text);
+            margin-bottom: 5px;
+        }
+
+        .forecast-precipitation {
+            font-size: 0.75em;
+            color: var(--accent-color);
+            font-weight: 500;
+        }
+
+        .weather-loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--secondary-text);
+        }
+
+        .weather-error {
+            text-align: center;
+            padding: 20px;
+            background: rgba(220, 38, 38, 0.1);
+            border-radius: 10px;
+            color: var(--accent-color);
+            margin-bottom: 20px;
+        }
+
         /* Loading State */
         .loading {
             text-align: center;
@@ -485,6 +637,25 @@
 
             .gameday-container {
                 padding: 20px 15px;
+            }
+
+            .current-weather {
+                grid-template-columns: 1fr;
+                gap: 20px;
+                text-align: center;
+            }
+
+            .current-details {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .forecast-grid {
+                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            }
+
+            .forecast-day.game-day::before {
+                font-size: 0.6em;
+                padding: 1px 6px;
             }
         }
     </style>
@@ -669,6 +840,22 @@
                 <div class="stat-description">Leading the Charge</div>
             </div>
         </div>
+
+        <!-- Weather Section -->
+        <div class="weather-section">
+            <div class="weather-header">
+                <span style="font-size: 1.5em;">🌤️</span>
+                <div>
+                    <h3 class="weather-title">Game Day Weather</h3>
+                    <p class="weather-location">Lincoln, NE</p>
+                </div>
+            </div>
+            
+            <div id="weatherContent" class="weather-loading">
+                <div class="spinner"></div>
+                <p>Loading weather information...</p>
+            </div>
+        </div>
     </main>
 
     <script>
@@ -726,6 +913,9 @@
                 console.log('Game date/time in CDT:', gameDateTime.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
                 
                 startCountdown(gameDateTime);
+
+                // Load weather information
+                loadWeather();
 
             } catch (error) {
                 console.error('Error loading game day:', error);
@@ -1029,6 +1219,101 @@
                 console.error('Dark mode init error:', error);
                 // Fallback to light mode
                 document.documentElement.setAttribute('data-theme', 'light');
+            }
+        }
+
+        // Weather Functions
+        async function loadWeather() {
+            try {
+                console.log('Loading weather information...');
+                
+                const response = await fetch('/api/weather');
+                const data = await response.json();
+                
+                if (!data.success) {
+                    throw new Error(data.error || 'Weather data not available');
+                }
+
+                displayWeather(data.data);
+
+            } catch (error) {
+                console.error('Error loading weather:', error);
+                displayWeatherError();
+            }
+        }
+
+        function displayWeather(weatherData) {
+            const weatherContent = document.getElementById('weatherContent');
+            
+            const current = weatherData.current;
+            const forecast = weatherData.forecast.slice(0, 7); // Show 7 days
+            
+            const currentHTML = `
+                <div class="current-weather">
+                    <div class="current-temp">${current.temperature}°${current.temperatureUnit}</div>
+                    <div class="current-details">
+                        <div class="weather-detail">
+                            <div class="weather-detail-label">Conditions</div>
+                            <div class="weather-detail-value">${current.conditions}</div>
+                        </div>
+                        <div class="weather-detail">
+                            <div class="weather-detail-label">Humidity</div>
+                            <div class="weather-detail-value">${current.humidity}%</div>
+                        </div>
+                        <div class="weather-detail">
+                            <div class="weather-detail-label">Wind</div>
+                            <div class="weather-detail-value">${current.windDirection} ${current.windSpeed} mph</div>
+                        </div>
+                        <div class="weather-detail">
+                            <div class="weather-detail-label">Last Updated</div>
+                            <div class="weather-detail-value">${formatTime(current.lastUpdated)}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            const forecastHTML = `
+                <h4 style="margin: 20px 0 15px 0; color: var(--text-color); font-size: 1.2em;">7-Day Forecast</h4>
+                <div class="forecast-grid">
+                    ${forecast.map(day => `
+                        <div class="forecast-day ${day.isGameDay ? 'game-day' : ''}">
+                            <div class="forecast-day-name">${day.name}</div>
+                            <div class="forecast-temp">${day.temperature}°${day.temperatureUnit}</div>
+                            <div class="forecast-condition">${day.shortForecast}</div>
+                            ${day.precipitationProbability > 0 ? 
+                                `<div class="forecast-precipitation">${day.precipitationProbability}% chance of rain</div>` : 
+                                '<div class="forecast-precipitation">No precipitation</div>'
+                            }
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            weatherContent.innerHTML = currentHTML + forecastHTML;
+        }
+
+        function displayWeatherError() {
+            const weatherContent = document.getElementById('weatherContent');
+            weatherContent.innerHTML = `
+                <div class="weather-error">
+                    <p>Unable to load weather data. Please try again later.</p>
+                    <button onclick="loadWeather()" style="margin-top: 10px; padding: 8px 16px; background: var(--accent-color); color: white; border: none; border-radius: 5px; cursor: pointer;">
+                        Retry
+                    </button>
+                </div>
+            `;
+        }
+
+        function formatTime(timestamp) {
+            try {
+                const date = new Date(timestamp);
+                return date.toLocaleTimeString('en-US', { 
+                    hour: 'numeric', 
+                    minute: '2-digit',
+                    timeZone: 'America/Chicago'
+                });
+            } catch (error) {
+                return 'Unknown';
             }
         }
 
