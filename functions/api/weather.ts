@@ -212,9 +212,17 @@ async function fetchLincolnWeather() {
   }
   
   const stationsData = await stationsResponse.json();
-  const nearestStation = stationsData.features[0]?.id;
+  const nearestStationUrl = stationsData.features[0]?.id;
   
-  console.log('Nearest observation station:', nearestStation);
+  console.log('Nearest observation station URL:', nearestStationUrl);
+
+  if (!nearestStationUrl) {
+    throw new Error('No observation station available');
+  }
+
+  // Extract just the station code from the full URL
+  const nearestStation = nearestStationUrl.split('/').pop();
+  console.log('Extracted station code:', nearestStation);
 
   let currentConditions: CurrentConditions;
   
