@@ -53,7 +53,7 @@ export const onRequestGet = async (context: any) => {
 
   try {
     // Check cache (4 hour cache for weather as requested)
-    const cacheKey = 'weather-lincoln-ne';
+    const cacheKey = 'weather-lincoln-ne-v2'; // Updated cache key to bust old cache
     const cached = await env.WEATHER_CACHE?.get(cacheKey, 'json');
     
     if (cached && cached.timestamp && (Date.now() - cached.timestamp) < 14400000) { // 4 hours
@@ -199,7 +199,7 @@ async function fetchLincolnWeather() {
         temperature: Math.round(tempFahrenheit || 70),
         temperatureUnit: 'F',
         humidity: Math.round(props.relativeHumidity.value || 50),
-        windSpeed: Math.round(convertMpsToMph(props.windSpeed.value) || 5),
+        windSpeed: Math.round(convertKmhToMph(props.windSpeed.value) || 5),
         windDirection: props.windDirection.value ? getWindDirection(props.windDirection.value) : 'Variable',
         conditions: props.textDescription || 'Partly Cloudy',
         lastUpdated: props.timestamp
@@ -398,6 +398,11 @@ function convertCelsiusToFahrenheit(celsius: number | null): number | null {
 function convertMpsToMph(mps: number | null): number | null {
   if (mps === null) return null;
   return mps * 2.237;
+}
+
+function convertKmhToMph(kmh: number | null): number | null {
+  if (kmh === null) return null;
+  return kmh * 0.621371;
 }
 
 function getWindDirection(degrees: number): string {
