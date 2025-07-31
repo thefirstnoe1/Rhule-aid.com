@@ -31,6 +31,7 @@ jobs:
           sed -i 's/\$ROSTER_CACHE_ID/${{ secrets.ROSTER_CACHE_ID }}/g' wrangler.toml
           sed -i 's/\$NEWS_CACHE_ID/${{ secrets.NEWS_CACHE_ID }}/g' wrangler.toml
           sed -i 's/\$WEATHER_CACHE_ID/${{ secrets.WEATHER_CACHE_ID }}/g' wrangler.toml
+          sed -i 's/\$OPENWEATHER_API_KEY/${{ secrets.OPENWEATHER_API_KEY }}/g' wrangler.toml
 
       - name: Deploy to Cloudflare Pages
         run: wrangler pages deploy public --project-name=rhule-aid

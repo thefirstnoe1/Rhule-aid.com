@@ -21,6 +21,7 @@ For this project to deploy correctly, you need to set up the following repositor
 | `ROSTER_CACHE_ID` | KV Namespace ID for roster caching | `2d472c3e9eee4576952c9496876a8e5f` |
 | `NEWS_CACHE_ID` | KV Namespace ID for news caching | `44fa2bcea61241cf8af0cd346d53505d` |
 | `WEATHER_CACHE_ID` | KV Namespace ID for weather caching | `cc8345020c464041b7ce0af0ad277dba` |
+| `OPENWEATHER_API_KEY` | OpenWeatherMap API key for fallback weather data | `your-openweathermap-api-key` |
 
 ### Local Development Setup:
 
@@ -44,6 +45,11 @@ For this project to deploy correctly, you need to set up the following repositor
 **Resource IDs:**
 - **D1 Database ID**: Run `wrangler d1 list` or check your Cloudflare dashboard
 - **KV Namespace IDs**: Run `wrangler kv:namespace list` or check your Cloudflare dashboard
+
+**OpenWeatherMap API:**
+- **API Key**: Sign up at [OpenWeatherMap](https://openweathermap.org/api) → Get free API key
+  - Used as fallback when National Weather Service API fails
+  - Free tier includes 1,000 API calls per day (sufficient for caching setup)
 
 ### CI/CD Integration:
 

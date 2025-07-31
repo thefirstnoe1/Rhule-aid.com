@@ -88,16 +88,41 @@ export const onRequestGet = async (context: any) => {
     }, { headers: corsHeaders });
 
   } catch (error) {
-    console.error('Weather fetch error:', error);
+    console.error('NWS Weather fetch error:', error);
     
-    return Response.json({
-      success: false,
-      error: 'Unable to fetch weather data',
-      data: getFallbackWeather()
-    }, { 
-      status: 500,
-      headers: corsHeaders 
-    });
+    // Try OpenWeatherMap as fallback
+    try {
+      console.log('Attempting OpenWeatherMap fallback...');
+      const cacheKey = 'weather-lincoln-ne';
+      const fallbackWeatherData = await fetchOpenWeatherMapFallback(env.OPENWEATHER_API_KEY);
+      
+      // Cache the fallback result for 1 hour (shorter than normal due to fallback status)
+      await env.WEATHER_CACHE?.put(cacheKey, JSON.stringify({
+        data: fallbackWeatherData,
+        timestamp: Date.now()
+      }));
+
+      return Response.json({
+        success: true,
+        data: {
+          ...fallbackWeatherData,
+          cached: false,
+          source: 'OpenWeatherMap (fallback)'
+        }
+      }, { headers: corsHeaders });
+      
+    } catch (fallbackError) {
+      console.error('OpenWeatherMap fallback error:', fallbackError);
+      
+      return Response.json({
+        success: false,
+        error: 'Unable to fetch weather data from primary or fallback sources',
+        data: getHardcodedFallbackWeather()
+      }, { 
+        status: 500,
+        headers: corsHeaders 
+      });
+    }
   }
 };
 
@@ -234,6 +259,98 @@ async function fetchLincolnWeather() {
   };
 }
 
+async function fetchOpenWeatherMapFallback(apiKey: string) {
+  if (!apiKey) {
+    throw new Error('OpenWeatherMap API key not configured');
+  }
+
+  // Lincoln, NE coordinates
+  const lat = 40.8206;
+  const lon = -96.7056;
+  
+  // Fetch current weather and forecast from OpenWeatherMap
+  const [currentResponse, forecastResponse] = await Promise.all([
+    fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=imperial`),
+    fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${apiKey}&units=imperial`)
+  ]);
+
+  if (!currentResponse.ok) {
+    throw new Error(`OpenWeatherMap current weather error: ${currentResponse.status}`);
+  }
+  
+  if (!forecastResponse.ok) {
+    throw new Error(`OpenWeatherMap forecast error: ${forecastResponse.status}`);
+  }
+
+  const [currentData, forecastData] = await Promise.all([
+    currentResponse.json(),
+    forecastResponse.json()
+  ]);
+
+  // Process current conditions
+  const current: CurrentConditions = {
+    temperature: Math.round(currentData.main.temp),
+    temperatureUnit: 'F',
+    humidity: currentData.main.humidity,
+    windSpeed: Math.round(currentData.wind?.speed || 0),
+    windDirection: getWindDirection(currentData.wind?.deg || 0),
+    conditions: currentData.weather[0]?.description || 'Unknown',
+    lastUpdated: new Date().toISOString()
+  };
+
+  // Process 7-day forecast from 5-day/3-hour forecast
+  const forecast: DailyForecast[] = [];
+  const dailyForecasts = new Map();
+
+  // Group forecasts by date and take the midday reading for each day
+  forecastData.list.forEach((item: any) => {
+    const date = item.dt_txt.split(' ')[0];
+    const hour = new Date(item.dt_txt).getHours();
+    
+    // Use midday forecast (around 12 PM) for daily temp
+    if (hour >= 12 && hour <= 15) {
+      if (!dailyForecasts.has(date) || hour === 12) {
+        dailyForecasts.set(date, item);
+      }
+    }
+  });
+
+  // Convert to our format (limit to 7 days)
+  let dayCount = 0;
+  for (const [date, item] of dailyForecasts) {
+    if (dayCount >= 7) break;
+    
+    const forecastDate = new Date(date);
+    const dayName = dayCount === 0 ? 'Today' : 
+                   dayCount === 1 ? 'Tomorrow' : 
+                   forecastDate.toLocaleDateString('en-US', { weekday: 'long' });
+
+    forecast.push({
+      date: date,
+      name: dayName,
+      temperature: Math.round(item.main.temp),
+      temperatureUnit: 'F',
+      temperatureTrend: null,
+      windSpeed: `${Math.round(item.wind?.speed || 0)} mph`,
+      windDirection: getWindDirection(item.wind?.deg || 0),
+      shortForecast: item.weather[0]?.main || 'Unknown',
+      detailedForecast: item.weather[0]?.description || 'No description available',
+      isDaytime: true,
+      precipitationProbability: Math.round((item.pop || 0) * 100)
+    });
+    
+    dayCount++;
+  }
+
+  return {
+    location: 'Lincoln, NE',
+    current: current,
+    forecast: forecast,
+    lastUpdated: new Date().toISOString(),
+    cached: false
+  };
+}
+
 async function fetchUpcomingGames() {
   try {
     // Fetch schedule from our existing API
@@ -325,7 +442,7 @@ function getFallbackCurrent(): CurrentConditions {
   };
 }
 
-function getFallbackWeather() {
+function getHardcodedFallbackWeather() {
   const current = getFallbackCurrent();
   const forecast: DailyForecast[] = [];
   
