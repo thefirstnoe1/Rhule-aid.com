@@ -116,11 +116,14 @@ export const onRequestGet = async (context: any) => {
 
   } catch (error) {
     console.error('NWS Weather fetch error:', error);
+    console.log('Attempting OpenWeatherMap fallback due to NWS failure...');
     
     // Try OpenWeatherMap as fallback
     try {
       console.log('Attempting OpenWeatherMap fallback...');
       const fallbackWeatherData = await fetchOpenWeatherMapFallback(env.OPENWEATHER_API_KEY);
+      
+      console.log('OpenWeatherMap fallback successful, current temp:', fallbackWeatherData.current.temperature);
       
       // Cache the fallback result with separate keys but shorter duration due to fallback status
       const fallbackCurrentKey = 'weather-current-fallback-lincoln-ne';
@@ -155,8 +158,7 @@ export const onRequestGet = async (context: any) => {
       
       return Response.json({
         success: false,
-        error: 'Unable to fetch weather data from primary or fallback sources',
-        data: getHardcodedFallbackWeather()
+        error: 'Unable to fetch weather data from primary or fallback sources'
       }, { 
         status: 500,
         headers: corsHeaders 
@@ -234,8 +236,13 @@ async function fetchLincolnWeather() {
       const tempFahrenheit = convertCelsiusToFahrenheit(props.temperature.value);
       console.log('Converted temperature:', tempFahrenheit);
 
+      // Only use the data if we have valid temperature data
+      if (tempFahrenheit === null || isNaN(tempFahrenheit)) {
+        throw new Error('Invalid temperature data from observation station');
+      }
+
       currentConditions = {
-        temperature: Math.round(tempFahrenheit || 70),
+        temperature: Math.round(tempFahrenheit),
         temperatureUnit: 'F',
         humidity: Math.round(props.relativeHumidity.value || 50),
         windSpeed: Math.round(convertKmhToMph(props.windSpeed.value) || 5),
@@ -247,12 +254,12 @@ async function fetchLincolnWeather() {
       console.log('Final current conditions:', currentConditions);
     } catch (err) {
       console.error('Error fetching current conditions:', err);
-      console.warn('Could not fetch current conditions, using fallback');
-      currentConditions = getFallbackCurrent();
+      console.warn('Current conditions failed, will use OpenWeatherMap fallback');
+      throw err; // Throw the error to trigger OpenWeatherMap fallback instead of hardcoded data
     }
   } else {
-    console.warn('No observation station found, using fallback');
-    currentConditions = getFallbackCurrent();
+    console.warn('No observation station found, will use OpenWeatherMap fallback');
+    throw new Error('No observation station available');
   }
 
   // Step 3: Get 7-day forecast
@@ -453,68 +460,4 @@ function getWindDirection(degrees: number): string {
 function extractPrecipitationProbability(detailedForecast: string): number {
   const match = detailedForecast.match(/(\d+)%.*(?:rain|precipitation|showers|storms)/i);
   return match ? parseInt(match[1]) : 0;
-}
-
-function getFallbackCurrent(): CurrentConditions {
-  const now = new Date();
-  const month = now.getMonth(); // 0-based (July = 6)
-  
-  // Seasonal defaults for Nebraska
-  let temp, conditions;
-  if (month >= 5 && month <= 8) { // Jun-Sep (summer)
-    temp = 75;
-    conditions = 'Partly Cloudy';
-  } else if (month >= 9 && month <= 11) { // Oct-Dec (fall)  
-    temp = 55;
-    conditions = 'Cool and Crisp';
-  } else if (month >= 2 && month <= 4) { // Mar-May (spring)
-    temp = 65;
-    conditions = 'Pleasant';
-  } else { // Dec-Feb (winter)
-    temp = 35;
-    conditions = 'Cold';
-  }
-
-  return {
-    temperature: temp,
-    temperatureUnit: 'F',
-    humidity: 60,
-    windSpeed: 8,
-    windDirection: 'NW',
-    conditions: conditions,
-    lastUpdated: now.toISOString()
-  };
-}
-
-function getHardcodedFallbackWeather() {
-  const current = getFallbackCurrent();
-  const forecast: DailyForecast[] = [];
-  
-  // Generate 7 days of fallback forecast
-  for (let i = 0; i < 7; i++) {
-    const date = new Date();
-    date.setDate(date.getDate() + i);
-    
-    forecast.push({
-      date: date.toISOString().split('T')[0],
-      name: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : date.toLocaleDateString('en-US', { weekday: 'long' }),
-      temperature: current.temperature + (Math.random() - 0.5) * 10,
-      temperatureUnit: 'F',
-      temperatureTrend: null,
-      windSpeed: '5 to 10 mph',
-      windDirection: 'NW',
-      shortForecast: 'Partly Cloudy',
-      detailedForecast: 'Partly cloudy skies. Pleasant weather for outdoor activities.',
-      isDaytime: true,
-      precipitationProbability: 20
-    });
-  }
-
-  return {
-    location: 'Lincoln, NE',
-    current: current,
-    forecast: forecast,
-    lastUpdated: new Date().toISOString(),
-    cached: false
-  };
 }
