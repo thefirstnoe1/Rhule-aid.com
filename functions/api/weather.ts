@@ -79,7 +79,7 @@ export const onRequestGet = async (context: any) => {
       }, { headers: corsHeaders });
     }
 
-    // Fetch fresh weather data
+    // Fetch fresh weather data from NWS
     const weatherData = await fetchLincolnWeather();
     
     // Check for upcoming game days to mark in forecast
@@ -116,49 +116,58 @@ export const onRequestGet = async (context: any) => {
 
   } catch (error) {
     console.error('NWS Weather fetch error:', error);
-    console.log('Attempting OpenWeatherMap fallback due to NWS failure...');
     
-    // Try OpenWeatherMap as fallback
-    try {
-      console.log('Attempting OpenWeatherMap fallback...');
-      const fallbackWeatherData = await fetchOpenWeatherMapFallback(env.OPENWEATHER_API_KEY);
-      
-      console.log('OpenWeatherMap fallback successful, current temp:', fallbackWeatherData.current.temperature);
-      
-      // Cache the fallback result with separate keys but shorter duration due to fallback status
-      const fallbackCurrentKey = 'weather-current-fallback-lincoln-ne';
-      const fallbackForecastKey = 'weather-forecast-fallback-lincoln-ne';
-      
-      await Promise.all([
-        env.WEATHER_CACHE?.put(fallbackCurrentKey, JSON.stringify({
-          data: fallbackWeatherData.current,
-          timestamp: Date.now()
-        })),
-        env.WEATHER_CACHE?.put(fallbackForecastKey, JSON.stringify({
-          data: {
-            location: fallbackWeatherData.location,
-            forecast: fallbackWeatherData.forecast,
-            lastUpdated: fallbackWeatherData.lastUpdated
-          },
-          timestamp: Date.now()
-        }))
-      ]);
+    // Only use OpenWeatherMap as a true last resort
+    if (env.OPENWEATHER_API_KEY) {
+      console.log('NWS failed, attempting OpenWeatherMap fallback...');
+      try {
+        const fallbackWeatherData = await fetchOpenWeatherMapFallback(env.OPENWEATHER_API_KEY);
+        
+        console.log('OpenWeatherMap fallback successful');
+        
+        // Cache the fallback result with separate keys but shorter duration due to fallback status
+        const fallbackCurrentKey = 'weather-current-fallback-lincoln-ne';
+        const fallbackForecastKey = 'weather-forecast-fallback-lincoln-ne';
+        
+        await Promise.all([
+          env.WEATHER_CACHE?.put(fallbackCurrentKey, JSON.stringify({
+            data: fallbackWeatherData.current,
+            timestamp: Date.now()
+          })),
+          env.WEATHER_CACHE?.put(fallbackForecastKey, JSON.stringify({
+            data: {
+              location: fallbackWeatherData.location,
+              forecast: fallbackWeatherData.forecast,
+              lastUpdated: fallbackWeatherData.lastUpdated
+            },
+            timestamp: Date.now()
+          }))
+        ]);
 
-      return Response.json({
-        success: true,
-        data: {
-          ...fallbackWeatherData,
-          cached: false,
-          source: 'OpenWeatherMap (fallback)'
-        }
-      }, { headers: corsHeaders });
-      
-    } catch (fallbackError) {
-      console.error('OpenWeatherMap fallback error:', fallbackError);
-      
+        return Response.json({
+          success: true,
+          data: {
+            ...fallbackWeatherData,
+            cached: false,
+            source: 'OpenWeatherMap (NWS failed)'
+          }
+        }, { headers: corsHeaders });
+        
+      } catch (fallbackError) {
+        console.error('OpenWeatherMap fallback also failed:', fallbackError);
+        return Response.json({
+          success: false,
+          error: 'Unable to fetch weather data from NWS or OpenWeatherMap'
+        }, { 
+          status: 500,
+          headers: corsHeaders 
+        });
+      }
+    } else {
+      console.error('No OpenWeatherMap API key available for fallback');
       return Response.json({
         success: false,
-        error: 'Unable to fetch weather data from primary or fallback sources'
+        error: 'NWS weather data unavailable and no fallback configured'
       }, { 
         status: 500,
         headers: corsHeaders 
@@ -224,30 +233,43 @@ async function fetchLincolnWeather() {
       const obsData = await obsResponse.json();
       const props = obsData.properties;
       
+      // Handle potential null values more gracefully
+      const tempCelsius = props.temperature?.value;
+      const humidity = props.relativeHumidity?.value;
+      const windSpeedValue = props.windSpeed?.value;
+      const windDirValue = props.windDirection?.value;
+      const description = props.textDescription;
+
       console.log('Raw observation data:', {
-        tempCelsius: props.temperature.value,
-        tempUnit: props.temperature.unitCode,
-        humidity: props.relativeHumidity.value,
-        windSpeed: props.windSpeed.value,
-        textDescription: props.textDescription,
+        tempCelsius: tempCelsius,
+        tempUnit: props.temperature?.unitCode,
+        humidity: humidity,
+        windSpeed: windSpeedValue,
+        windDirection: windDirValue,
+        textDescription: description,
         timestamp: props.timestamp
       });
 
-      const tempFahrenheit = convertCelsiusToFahrenheit(props.temperature.value);
+      // Check if we have valid temperature data
+      if (tempCelsius === null || tempCelsius === undefined) {
+        console.warn('Temperature data is null/undefined from observation station');
+        throw new Error('No valid temperature data from observation station');
+      }
+
+      const tempFahrenheit = convertCelsiusToFahrenheit(tempCelsius);
       console.log('Converted temperature:', tempFahrenheit);
 
-      // Only use the data if we have valid temperature data
       if (tempFahrenheit === null || isNaN(tempFahrenheit)) {
-        throw new Error('Invalid temperature data from observation station');
+        throw new Error('Invalid temperature conversion result');
       }
 
       currentConditions = {
         temperature: Math.round(tempFahrenheit),
         temperatureUnit: 'F',
-        humidity: Math.round(props.relativeHumidity.value || 50),
-        windSpeed: Math.round(convertKmhToMph(props.windSpeed.value) || 5),
-        windDirection: props.windDirection.value ? getWindDirection(props.windDirection.value) : 'Variable',
-        conditions: props.textDescription || 'Partly Cloudy',
+        humidity: Math.round(humidity || 50),
+        windSpeed: Math.round(convertKmhToMph(windSpeedValue) || 5),
+        windDirection: windDirValue ? getWindDirection(windDirValue) : 'Variable',
+        conditions: description || 'Partly Cloudy',
         lastUpdated: props.timestamp
       };
       
@@ -348,23 +370,40 @@ async function fetchOpenWeatherMapFallback(apiKey: string) {
   const forecast: DailyForecast[] = [];
   const dailyForecasts = new Map();
 
-  // Group forecasts by date and take the midday reading for each day
+  // Group forecasts by date and find the maximum temperature and representative conditions for each day
   forecastData.list.forEach((item: any) => {
     const date = item.dt_txt.split(' ')[0];
     const hour = new Date(item.dt_txt).getHours();
     
-    // Use midday forecast (around 12 PM) for daily temp
-    if (hour >= 12 && hour <= 15) {
-      if (!dailyForecasts.has(date) || hour === 12) {
-        dailyForecasts.set(date, item);
-      }
+    if (!dailyForecasts.has(date)) {
+      dailyForecasts.set(date, {
+        maxTemp: item.main.temp,
+        maxTempItem: item,
+        middayItem: null
+      });
+    }
+    
+    const daily = dailyForecasts.get(date);
+    
+    // Update max temperature if this is higher
+    if (item.main.temp > daily.maxTemp) {
+      daily.maxTemp = item.main.temp;
+      daily.maxTempItem = item;
+    }
+    
+    // Store midday item for weather conditions (more representative of the day)
+    if (hour >= 12 && hour <= 15 && !daily.middayItem) {
+      daily.middayItem = item;
     }
   });
 
   // Convert to our format (limit to 7 days)
   let dayCount = 0;
-  for (const [date, item] of dailyForecasts) {
+  for (const [date, daily] of dailyForecasts) {
     if (dayCount >= 7) break;
+    
+    // Use midday conditions if available, otherwise use max temp conditions
+    const conditionsItem = daily.middayItem || daily.maxTempItem;
     
     const forecastDate = new Date(date);
     const dayName = dayCount === 0 ? 'Today' : 
@@ -374,15 +413,15 @@ async function fetchOpenWeatherMapFallback(apiKey: string) {
     forecast.push({
       date: date,
       name: dayName,
-      temperature: Math.round(item.main.temp),
+      temperature: Math.round(daily.maxTemp), // Use maximum temperature for the day
       temperatureUnit: 'F',
       temperatureTrend: null,
-      windSpeed: `${Math.round(item.wind?.speed || 0)} mph`,
-      windDirection: getWindDirection(item.wind?.deg || 0),
-      shortForecast: item.weather[0]?.main || 'Unknown',
-      detailedForecast: item.weather[0]?.description || 'No description available',
+      windSpeed: `${Math.round(conditionsItem.wind?.speed || 0)} mph`,
+      windDirection: getWindDirection(conditionsItem.wind?.deg || 0),
+      shortForecast: conditionsItem.weather[0]?.main || 'Unknown',
+      detailedForecast: conditionsItem.weather[0]?.description || 'No description available',
       isDaytime: true,
-      precipitationProbability: Math.round((item.pop || 0) * 100)
+      precipitationProbability: Math.round((conditionsItem.pop || 0) * 100)
     });
     
     dayCount++;
