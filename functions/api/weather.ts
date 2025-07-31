@@ -130,8 +130,16 @@ async function fetchLincolnWeather() {
 
   // Step 2: Get current conditions from nearest observation station
   const stationsResponse = await fetch(observationStationsUrl, { headers });
+  
+  if (!stationsResponse.ok) {
+    console.error(`Failed to fetch observation stations: ${stationsResponse.status}`);
+    throw new Error(`Observation stations API error: ${stationsResponse.status}`);
+  }
+  
   const stationsData = await stationsResponse.json();
   const nearestStation = stationsData.features[0]?.id;
+  
+  console.log('Nearest observation station:', nearestStation);
 
   let currentConditions: CurrentConditions;
   
@@ -141,11 +149,29 @@ async function fetchLincolnWeather() {
         `https://api.weather.gov/stations/${nearestStation}/observations/latest`,
         { headers }
       );
+      
+      if (!obsResponse.ok) {
+        console.error(`Observations API error: ${obsResponse.status}`);
+        throw new Error(`Observations API error: ${obsResponse.status}`);
+      }
+      
       const obsData = await obsResponse.json();
       const props = obsData.properties;
+      
+      console.log('Raw observation data:', {
+        tempCelsius: props.temperature.value,
+        tempUnit: props.temperature.unitCode,
+        humidity: props.relativeHumidity.value,
+        windSpeed: props.windSpeed.value,
+        textDescription: props.textDescription,
+        timestamp: props.timestamp
+      });
+
+      const tempFahrenheit = convertCelsiusToFahrenheit(props.temperature.value);
+      console.log('Converted temperature:', tempFahrenheit);
 
       currentConditions = {
-        temperature: Math.round(convertCelsiusToFahrenheit(props.temperature.value) || 70),
+        temperature: Math.round(tempFahrenheit || 70),
         temperatureUnit: 'F',
         humidity: Math.round(props.relativeHumidity.value || 50),
         windSpeed: Math.round(convertMpsToMph(props.windSpeed.value) || 5),
@@ -153,11 +179,15 @@ async function fetchLincolnWeather() {
         conditions: props.textDescription || 'Partly Cloudy',
         lastUpdated: props.timestamp
       };
+      
+      console.log('Final current conditions:', currentConditions);
     } catch (err) {
+      console.error('Error fetching current conditions:', err);
       console.warn('Could not fetch current conditions, using fallback');
       currentConditions = getFallbackCurrent();
     }
   } else {
+    console.warn('No observation station found, using fallback');
     currentConditions = getFallbackCurrent();
   }
 
@@ -266,21 +296,21 @@ function extractPrecipitationProbability(detailedForecast: string): number {
 
 function getFallbackCurrent(): CurrentConditions {
   const now = new Date();
-  const month = now.getMonth();
+  const month = now.getMonth(); // 0-based (July = 6)
   
   // Seasonal defaults for Nebraska
   let temp, conditions;
-  if (month >= 8 && month <= 9) { // Aug-Sep
+  if (month >= 5 && month <= 8) { // Jun-Sep (summer)
     temp = 75;
     conditions = 'Partly Cloudy';
-  } else if (month >= 10 && month <= 11) { // Oct-Nov  
+  } else if (month >= 9 && month <= 11) { // Oct-Dec (fall)  
     temp = 55;
     conditions = 'Cool and Crisp';
-  } else if (month >= 2 && month <= 4) { // Mar-May
+  } else if (month >= 2 && month <= 4) { // Mar-May (spring)
     temp = 65;
     conditions = 'Pleasant';
-  } else {
-    temp = 45;
+  } else { // Dec-Feb (winter)
+    temp = 35;
     conditions = 'Cold';
   }
 
