@@ -52,15 +52,28 @@ export const onRequestGet = async (context: any) => {
   }
 
   try {
-    // Check cache (4 hour cache for weather as requested)
-    const cacheKey = 'weather-lincoln-ne-v2'; // Updated cache key to bust old cache
-    const cached = await env.WEATHER_CACHE?.get(cacheKey, 'json');
+    // Check cache for current conditions (5 minutes) and forecast (12 hours) separately
+    const currentCacheKey = 'weather-current-lincoln-ne-v2';
+    const forecastCacheKey = 'weather-forecast-lincoln-ne-v2';
     
-    if (cached && cached.timestamp && (Date.now() - cached.timestamp) < 14400000) { // 4 hours
+    const [cachedCurrent, cachedForecast] = await Promise.all([
+      env.WEATHER_CACHE?.get(currentCacheKey, 'json'),
+      env.WEATHER_CACHE?.get(forecastCacheKey, 'json')
+    ]);
+    
+    const now = Date.now();
+    const currentCacheValid = cachedCurrent && cachedCurrent.timestamp && (now - cachedCurrent.timestamp) < 300000; // 5 minutes
+    const forecastCacheValid = cachedForecast && cachedForecast.timestamp && (now - cachedForecast.timestamp) < 43200000; // 12 hours
+    
+    // If both are cached and valid, return cached data
+    if (currentCacheValid && forecastCacheValid) {
       return Response.json({
         success: true,
         data: {
-          ...cached.data,
+          location: cachedForecast.data.location,
+          current: cachedCurrent.data,
+          forecast: cachedForecast.data.forecast,
+          lastUpdated: cachedForecast.data.lastUpdated,
           cached: true
         }
       }, { headers: corsHeaders });
@@ -73,11 +86,25 @@ export const onRequestGet = async (context: any) => {
     const gameData = await fetchUpcomingGames();
     const enrichedWeatherData = await enrichWithGameDays(weatherData, gameData);
     
-    // Cache the result for 4 hours
-    await env.WEATHER_CACHE?.put(cacheKey, JSON.stringify({
-      data: enrichedWeatherData,
-      timestamp: Date.now()
-    }));
+    // Cache current conditions for 5 minutes
+    if (!currentCacheValid) {
+      await env.WEATHER_CACHE?.put(currentCacheKey, JSON.stringify({
+        data: enrichedWeatherData.current,
+        timestamp: now
+      }));
+    }
+    
+    // Cache forecast for 12 hours
+    if (!forecastCacheValid) {
+      await env.WEATHER_CACHE?.put(forecastCacheKey, JSON.stringify({
+        data: {
+          location: enrichedWeatherData.location,
+          forecast: enrichedWeatherData.forecast,
+          lastUpdated: enrichedWeatherData.lastUpdated
+        },
+        timestamp: now
+      }));
+    }
 
     return Response.json({
       success: true,
@@ -93,14 +120,26 @@ export const onRequestGet = async (context: any) => {
     // Try OpenWeatherMap as fallback
     try {
       console.log('Attempting OpenWeatherMap fallback...');
-      const cacheKey = 'weather-lincoln-ne';
       const fallbackWeatherData = await fetchOpenWeatherMapFallback(env.OPENWEATHER_API_KEY);
       
-      // Cache the fallback result for 1 hour (shorter than normal due to fallback status)
-      await env.WEATHER_CACHE?.put(cacheKey, JSON.stringify({
-        data: fallbackWeatherData,
-        timestamp: Date.now()
-      }));
+      // Cache the fallback result with separate keys but shorter duration due to fallback status
+      const fallbackCurrentKey = 'weather-current-fallback-lincoln-ne';
+      const fallbackForecastKey = 'weather-forecast-fallback-lincoln-ne';
+      
+      await Promise.all([
+        env.WEATHER_CACHE?.put(fallbackCurrentKey, JSON.stringify({
+          data: fallbackWeatherData.current,
+          timestamp: Date.now()
+        })),
+        env.WEATHER_CACHE?.put(fallbackForecastKey, JSON.stringify({
+          data: {
+            location: fallbackWeatherData.location,
+            forecast: fallbackWeatherData.forecast,
+            lastUpdated: fallbackWeatherData.lastUpdated
+          },
+          timestamp: Date.now()
+        }))
+      ]);
 
       return Response.json({
         success: true,
