@@ -24,13 +24,16 @@ jobs:
       - name: Install Wrangler
         run: npm install -g wrangler@latest
 
+      - name: Substitute environment variables in wrangler.toml
+        run: |
+          sed -i 's/\$DATABASE_ID/${{ secrets.DATABASE_ID }}/g' wrangler.toml
+          sed -i 's/\$SCHEDULE_CACHE_ID/${{ secrets.SCHEDULE_CACHE_ID }}/g' wrangler.toml
+          sed -i 's/\$ROSTER_CACHE_ID/${{ secrets.ROSTER_CACHE_ID }}/g' wrangler.toml
+          sed -i 's/\$NEWS_CACHE_ID/${{ secrets.NEWS_CACHE_ID }}/g' wrangler.toml
+          sed -i 's/\$WEATHER_CACHE_ID/${{ secrets.WEATHER_CACHE_ID }}/g' wrangler.toml
+
       - name: Deploy to Cloudflare Pages
         run: wrangler pages deploy public --project-name=rhule-aid
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          DATABASE_ID: ${{ secrets.DATABASE_ID }}
-          SCHEDULE_CACHE_ID: ${{ secrets.SCHEDULE_CACHE_ID }}
-          ROSTER_CACHE_ID: ${{ secrets.ROSTER_CACHE_ID }}
-          NEWS_CACHE_ID: ${{ secrets.NEWS_CACHE_ID }}
-          WEATHER_CACHE_ID: ${{ secrets.WEATHER_CACHE_ID }}
