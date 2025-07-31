@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Day - Nebraska Football</title>
+    <link rel="icon" type="image/png" href="images/favicon-rhuleaid.png">
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        /* MOBILE MENU - COMPLETE OVERRIDE WITH MAXIMUM SPECIFICITY */
+        
+        /* Hide mobile toggle by default, show only on mobile */
+        .mobile-menu-toggle {
+            display: none;
+        }
+        
+        @media screen and (max-width: 768px) {
+            /* Force show mobile toggle button - right aligned */
+            .mobile-menu-toggle {
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                background: rgba(255,255,255,0.2) !important;
+                border: 2px solid white !important;
+                color: white !important;
+                padding: 12px !important;
+                border-radius: 8px !important;
+                cursor: pointer !important;
+                font-size: 18px !important;
+                font-weight: bold !important;
+                min-width: 48px !important;
+                min-height: 48px !important;
+                z-index: 10001 !important;
+                margin-left: auto !important;
+            }
+            
+            /* Ensure header actions are right-aligned */
+            .header-actions {
+                display: flex !important;
+                gap: 10px !important;
+                align-items: center !important;
+                margin-left: auto !important;
+            }
+            
+            /* Hide desktop navigation on mobile */
+            body .site-header .header-content .header-left .site-nav {
+                display: none !important;
+                position: absolute !important;
+                top: 100% !important;
+                right: 0 !important;
+                left: auto !important;
+                background: #dc2626 !important;
+                padding: 20px !important;
+                border-radius: 0 0 15px 15px !important;
+                box-shadow: 0 8px 25px rgba(0,0,0,0.4) !important;
+                z-index: 10000 !important;
+                margin: 0 !important;
+                width: 280px !important;
+                max-width: 90vw !important;
+                box-sizing: border-box !important;
+                transform: translateX(100%) !important;
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            }
+            
+            /* Show navigation when active - slide in from right */
+            body .site-header .header-content .header-left .site-nav.mobile-active {
+                display: block !important;
+                transform: translateX(0) !important;
+            }
+            
+            /* Force navigation list to be vertical and left-aligned */
+            body .site-header .header-content .header-left .site-nav ul {
+                display: block !important;
+                flex-direction: column !important;
+                gap: 0 !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                list-style: none !important;
+                text-align: left !important;
+                align-items: stretch !important;
+                justify-content: flex-start !important;
+            }
+            
+            /* Force navigation items to be full width blocks */
+            body .site-header .header-content .header-left .site-nav li {
+                display: block !important;
+                margin: 0 0 8px 0 !important;
+                width: 100% !important;
+                text-align: left !important;
+            }
+            
+            /* Force navigation links to be left-aligned blocks with slide animation */
+            body .site-header .header-content .header-left .site-nav a {
+                display: block !important;
+                padding: 16px 20px !important;
+                color: white !important;
+                text-decoration: none !important;
+                border-radius: 10px !important;
+                text-align: left !important;
+                background: rgba(0,0,0,0.1) !important;
+                border: 1px solid transparent !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+                margin: 0 !important;
+                font-size: 16px !important;
+                font-weight: 500 !important;
+                transition: all 0.2s ease !important;
+                transform: translateX(0) !important;
+            }
+            
+            /* Hover and active states with left slide effect */
+            body .site-header .header-content .header-left .site-nav a:hover {
+                background: rgba(255,255,255,0.15) !important;
+                border-color: rgba(255,255,255,0.2) !important;
+                transform: translateX(-8px) !important;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.2) !important;
+            }
+            
+            body .site-header .header-content .header-left .site-nav a.active {
+                background: rgba(255,255,255,0.25) !important;
+                border-color: rgba(255,255,255,0.3) !important;
+                font-weight: 600 !important;
+                box-shadow: 0 2px 12px rgba(0,0,0,0.3) !important;
+            }
+            
+            /* Ensure header container allows positioning */
+            .site-header {
+                position: relative !important;
+            }
+            
+            .header-content {
+                position: relative !important;
+                display: flex !important;
+                justify-content: space-between !important;
+                align-items: center !important;
+            }
+            
+            /* Adjust header left section for mobile */
+            .header-left {
+                display: flex !important;
+                align-items: center !important;
+                flex: 1 !important;
+            }
+        }
+        
+        body {
+            min-height: 100vh;
+        }
+
+        /* Remove the old header styles since we're using global styles.css */
+
+        /* Main Content */
+        .gameday-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .page-title {
+            text-align: center;
+            font-size: 3em;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: var(--accent-color);
+        }
+
+        .page-subtitle {
+            text-align: center;
+            font-size: 1.2em;
+            color: var(--secondary-text);
+            margin-bottom: 40px;
+        }
+
+        /* Game Info Section */
+        .game-info {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 40px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+            text-align: center;
+        }
+
+        .next-game {
+            font-size: 1.5em;
+            margin-bottom: 30px;
+            color: var(--accent-color);
+            font-weight: 600;
+        }
+
+        .teams {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 60px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .team {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            width: 180px;
+            flex-shrink: 0;
+        }
+
+        .team-logo {
+            width: 100px;
+            height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .team-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .team-name {
+            font-size: 1.8em;
+            font-weight: bold;
+            text-align: center;
+            line-height: 1.2;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            hyphens: auto;
+            width: 100%;
+            color: var(--text-color);
+            min-height: 2.4em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Responsive team name handling */
+        @media (max-width: 768px) {
+            .team-name {
+                font-size: 1.4em;
+                min-height: 2.1em;
+            }
+            
+            .team {
+                width: 150px;
+            }
+            
+            .team-logo {
+                width: 80px;
+                height: 80px;
+            }
+
+            .team-logo img {
+                width: 100%;
+                height: 100%;
+                object-fit: contain;
+            }
+
+            .vs {
+                margin-top: 40px;
+                font-size: 1.8em;
+            }
+
+            .teams {
+                gap: 30px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .team-name {
+                font-size: 1.2em;
+                min-height: 1.8em;
+            }
+            
+            .teams {
+                gap: 20px;
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .vs {
+                margin-top: 0;
+                order: 1;
+            }
+
+            .team:first-child {
+                order: 0;
+            }
+
+            .team:last-child {
+                order: 2;
+            }
+        }
+
+        .vs {
+            font-size: 2em;
+            font-weight: bold;
+            color: var(--accent-color);
+            align-self: flex-start;
+            margin-top: 50px;
+            flex-shrink: 0;
+        }
+
+        .game-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .game-detail {
+            background: var(--hover-bg);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+        }
+
+        .detail-label {
+            font-size: 0.9em;
+            color: var(--accent-color);
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .detail-value {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: var(--text-color);
+        }
+
+        /* Countdown Section */
+        .countdown-section {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 40px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+        }
+
+        .countdown-title {
+            text-align: center;
+            font-size: 2em;
+            margin-bottom: 15px;
+            color: var(--accent-color);
+            font-weight: 600;
+        }
+
+        .countdown-subtitle {
+            text-align: center;
+            font-size: 1.2em;
+            color: var(--secondary-text);
+            margin-bottom: 30px;
+        }
+
+        .countdown {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .countdown-item {
+            background: var(--hover-bg);
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            border: 2px solid var(--accent-color);
+        }
+
+        .countdown-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: var(--accent-color);
+            display: block;
+        }
+
+        .countdown-label {
+            font-size: 0.9em;
+            margin-top: 5px;
+            color: var(--secondary-text);
+            font-weight: 500;
+        }
+
+        /* Quick Stats */
+        .quick-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+            text-align: center;
+        }
+
+        .stat-title {
+            font-size: 1.1em;
+            margin-bottom: 15px;
+            color: var(--accent-color);
+            font-weight: 600;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: var(--text-color);
+        }
+
+        .stat-description {
+            font-size: 0.9em;
+            color: var(--secondary-text);
+        }
+
+        /* Loading State */
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--secondary-text);
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--border-color);
+            border-top: 4px solid var(--accent-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Error State */
+        .error {
+            text-align: center;
+            padding: 40px 20px;
+            background: var(--card-bg);
+            border-radius: 15px;
+            border: 2px solid var(--accent-color);
+            color: var(--accent-color);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .nav-links {
+                display: none;
+            }
+
+            .page-title {
+                font-size: 2em;
+            }
+
+            .teams {
+                flex-direction: column;
+                gap: 20px;
+                align-items: center;
+            }
+
+            .vs {
+                order: 1;
+                margin-top: 0;
+                align-self: center;
+            }
+
+            .countdown {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .gameday-container {
+                padding: 20px 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header Navigation -->
+    <header class="site-header">
+        <div class="container">
+            <div class="header-content">
+                <div class="header-left">
+                    <div class="site-logo">
+                        <a href="index.html">
+                            <img src="./images/logos/nebraska-logo.png" alt="Nebraska Logo" class="site-nav-logo">
+                            <h1 class="site-title">Nebraska Cornhuskers</h1>
+                        </a>
+                    </div>
+                    <nav class="site-nav" id="site-nav">
+                        <ul>
+                            <li><a href="index.html">🏠 Home</a></li>
+                            <li><a href="schedule.html">📅 Schedule</a></li>
+                            <li><a href="roster.html">👥 Roster</a></li>
+                            <li><a href="news.html">📰 News</a></li>
+                            <li><a href="rhule-aid.html">🍺 Rhule-aid</a></li>
+                            <li><a href="gameday.html" class="active">🏈 Game Day</a></li>
+                        </ul>
+                    </nav>
+                </div>
+                <div class="header-actions">
+                    <button class="dark-mode-toggle" onclick="toggleDarkMode()" title="Toggle Dark Mode">
+                        <span class="dark-mode-icon">🌙</span>
+                    </button>
+                    <button class="mobile-menu-toggle" 
+                            id="mobile-menu-btn"
+                            onclick="handleMobileMenuToggle(this)"
+                            title="Toggle Navigation Menu">☰</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <script>
+        // BULLETPROOF MOBILE MENU FUNCTIONALITY
+        
+        // Global variables to prevent conflicts
+        window.mobileMenuOpen = false;
+        
+        function handleMobileMenuToggle(button) {
+            console.log('Mobile menu toggle clicked!', window.mobileMenuOpen);
+            
+            try {
+                // Find the button and navigation
+                var btn = button || document.getElementById('mobile-menu-btn') || document.querySelector('.mobile-menu-toggle');
+                var nav = document.querySelector('.site-nav');
+                
+                if (!btn) {
+                    console.error('Mobile menu button not found!');
+                    return;
+                }
+                
+                if (!nav) {
+                    console.error('Navigation not found!');
+                    return;
+                }
+                
+                console.log('Button:', btn, 'Nav:', nav);
+                
+                // Toggle the active state
+                window.mobileMenuOpen = !window.mobileMenuOpen;
+                
+                if (window.mobileMenuOpen) {
+                    nav.classList.add('mobile-active');
+                    console.log('Menu opened - added mobile-active class');
+                } else {
+                    nav.classList.remove('mobile-active');
+                    console.log('Menu closed - removed mobile-active class');
+                }
+                
+                console.log('Nav classes after toggle:', nav.className);
+                
+            } catch (error) {
+                console.error('Error in handleMobileMenuToggle:', error);
+            }
+        }
+        
+        // Fallback function for any existing toggleMobileMenu calls
+        function toggleMobileMenu() {
+            console.log('Legacy toggleMobileMenu called - redirecting to handleMobileMenuToggle');
+            handleMobileMenuToggle();
+        }
+        
+        // Close menu when clicking outside
+        document.addEventListener('click', function(event) {
+            if (window.mobileMenuOpen) {
+                var nav = document.querySelector('.site-nav');
+                var btn = document.querySelector('.mobile-menu-toggle');
+                
+                if (nav && btn && !nav.contains(event.target) && !btn.contains(event.target)) {
+                    window.mobileMenuOpen = false;
+                    nav.classList.remove('mobile-active');
+                    console.log('Menu closed by outside click');
+                }
+            }
+        });
+        
+        // Close menu on window resize to desktop
+        window.addEventListener('resize', function() {
+            if (window.innerWidth > 768 && window.mobileMenuOpen) {
+                var nav = document.querySelector('.site-nav');
+                if (nav) {
+                    window.mobileMenuOpen = false;
+                    nav.classList.remove('mobile-active');
+                    console.log('Menu closed due to window resize');
+                }
+            }
+        });
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            var btn = document.querySelector('.mobile-menu-toggle');
+            var nav = document.querySelector('.site-nav');
+            
+            console.log('Mobile menu initialized:', {
+                button: !!btn,
+                navigation: !!nav,
+                windowWidth: window.innerWidth
+            });
+        });
+    </script>
+
+    <!-- Main Content -->
+    <main class="gameday-container">
+        <!-- Title/Countdown Section -->
+        <div id="countdownSection" class="countdown-section">
+            <h2 id="countdownTitle" class="countdown-title">🏈 GAME DAY</h2>
+            <p id="countdownSubtitle" class="countdown-subtitle">Get ready for Nebraska Cornhuskers football!</p>
+            <div id="countdownDisplay" class="countdown" style="display: none;">
+                <div class="countdown-item">
+                    <span id="days" class="countdown-number">--</span>
+                    <div class="countdown-label">Days</div>
+                </div>
+                <div class="countdown-item">
+                    <span id="hours" class="countdown-number">--</span>
+                    <div class="countdown-label">Hours</div>
+                </div>
+                <div class="countdown-item">
+                    <span id="minutes" class="countdown-number">--</span>
+                    <div class="countdown-label">Minutes</div>
+                </div>
+                <div class="countdown-item">
+                    <span id="seconds" class="countdown-number">--</span>
+                    <div class="countdown-label">Seconds</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Info Section -->
+        <div id="gameInfo" class="loading">
+            <div class="spinner"></div>
+            <p>Loading next game information...</p>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="quick-stats">
+            <div class="stat-card">
+                <div class="stat-title">🏟️ Memorial Stadium</div>
+                <div class="stat-value">85,458</div>
+                <div class="stat-description">Seating Capacity</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-title">🎯 This Season</div>
+                <div class="stat-value" id="seasonRecord">--</div>
+                <div class="stat-description">Win-Loss Record</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-title">🏆 Conference</div>
+                <div class="stat-value">Big Ten</div>
+                <div class="stat-description">Championship Goals</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-title">👨‍💼 Head Coach</div>
+                <div class="stat-value">Matt Rhule</div>
+                <div class="stat-description">Leading the Charge</div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let countdownInterval;
+        let nextGame = null;
+
+        // Load game day information
+        async function loadGameDay() {
+            try {
+                console.log('Loading game day information...');
+                
+                // Fetch schedule data
+                const response = await fetch('/api/schedule');
+                const data = await response.json();
+                
+                if (!data.success || !data.data || data.data.length === 0) {
+                    throw new Error('No schedule data available');
+                }
+
+                console.log('Schedule data loaded:', data.data.length, 'games');
+
+                // Find the next upcoming game
+                const now = new Date();
+                const upcomingGames = data.data.filter(game => {
+                    const gameDate = new Date(game.date);
+                    return gameDate > now;
+                }).sort((a, b) => new Date(a.date) - new Date(b.date));
+
+                if (upcomingGames.length === 0) {
+                    displayNoUpcomingGames();
+                    return;
+                }
+
+                nextGame = upcomingGames[0];
+                console.log('Next game found:', nextGame);
+
+                displayGameInfo(nextGame);
+                
+                // Create proper game datetime for countdown
+                let gameDateTime;
+                if (nextGame.time === 'TBD' || nextGame.time === 'TBA' || !nextGame.time) {
+                    // For TBD games, use noon on the game date in EDT
+                    const edtString = nextGame.date + ' 12:00 PM';
+                    const edtDate = new Date(edtString + ' EDT');
+                    gameDateTime = edtDate;
+                } else {
+                    // Source times are in EDT (Eastern Daylight Time)
+                    // Create the game time in EDT first
+                    const edtString = nextGame.date + ' ' + nextGame.time;
+                    const edtDate = new Date(edtString + ' EDT');
+                    gameDateTime = edtDate;
+                }
+                
+                console.log('Game date/time in EDT:', gameDateTime);
+                console.log('Game date/time in CDT:', gameDateTime.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+                
+                startCountdown(gameDateTime);
+
+            } catch (error) {
+                console.error('Error loading game day:', error);
+                displayError('Failed to load game information. Please try again later.');
+            }
+        }
+
+        function formatGameTimeFromEDT(timeString) {
+            // Handle TBD, TBA or missing time
+            if (!timeString || timeString.toLowerCase() === 'tba' || timeString.toLowerCase() === 'tbd' || timeString.trim() === '') {
+                return 'TBD';
+            }
+            
+            try {
+                // Clean the time string and handle different formats
+                let cleanTime = timeString.trim();
+                
+                // Handle common time formats and convert to 24-hour for better parsing
+                if (cleanTime.match(/^\d{1,2}:\d{2}\s*(AM|PM)$/i)) {
+                    // Format: "3:30 PM" 
+                    const timeMatch = cleanTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+                    if (timeMatch) {
+                        let hours = parseInt(timeMatch[1]);
+                        const minutes = timeMatch[2];
+                        const ampm = timeMatch[3].toUpperCase();
+                        
+                        if (ampm === 'PM' && hours !== 12) {
+                            hours += 12;
+                        } else if (ampm === 'AM' && hours === 12) {
+                            hours = 0;
+                        }
+                        
+                        cleanTime = `${hours.toString().padStart(2, '0')}:${minutes}`;
+                    }
+                } else if (cleanTime.match(/^\d{1,2}\s*(AM|PM)$/i)) {
+                    // Format: "3 PM"
+                    const timeMatch = cleanTime.match(/^(\d{1,2})\s*(AM|PM)$/i);
+                    if (timeMatch) {
+                        let hours = parseInt(timeMatch[1]);
+                        const ampm = timeMatch[2].toUpperCase();
+                        
+                        if (ampm === 'PM' && hours !== 12) {
+                            hours += 12;
+                        } else if (ampm === 'AM' && hours === 12) {
+                            hours = 0;
+                        }
+                        
+                        cleanTime = `${hours.toString().padStart(2, '0')}:00`;
+                    }
+                }
+                
+                // Create date with ISO format for better cross-browser compatibility
+                // Source times are in EDT (UTC-4), convert to CDT (America/Chicago)
+                const isoDateString = `2025-09-01T${cleanTime}:00-04:00`; // Eastern Daylight Time (UTC-4)
+                const gameDate = new Date(isoDateString);
+                
+                // Check if date is valid
+                if (isNaN(gameDate.getTime())) {
+                    console.warn('Invalid date created from time:', timeString, 'cleaned to:', cleanTime);
+                    return 'TBD';
+                }
+                
+                // Convert to CDT and display
+                return gameDate.toLocaleTimeString('en-US', { 
+                    hour: 'numeric', 
+                    minute: '2-digit',
+                    timeZone: 'America/Chicago',
+                    timeZoneName: 'short'
+                });
+            } catch (error) {
+                console.error('Error formatting time:', timeString, error);
+                return 'TBD';
+            }
+        }
+
+        function displayGameInfo(game) {
+            const gameInfoDiv = document.getElementById('gameInfo');
+            
+            // Format date
+            const gameDate = new Date(game.date);
+            const dateOptions = { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                timeZone: 'America/Chicago'
+            };
+
+            const formattedDate = gameDate.toLocaleDateString('en-US', dateOptions);
+            
+            // Format time using the same logic as schedule page
+            const formattedTime = formatGameTimeFromEDT(game.time);
+
+            // Get opponent logo using the same service as schedule page
+            const opponentLogoUrl = `/api/logo?team=${encodeURIComponent(game.opponent)}`;
+
+            gameInfoDiv.innerHTML = `
+                <div class="game-info">
+                    <div class="next-game">Next Game</div>
+                    
+                    <div class="teams">
+                        <div class="team">
+                            <div class="team-logo">
+                                <img src="./images/logos/nebraska-logo.png" 
+                                     alt="Nebraska">
+                            </div>
+                            <div class="team-name">Nebraska</div>
+                        </div>
+                        
+                        <div class="vs">VS</div>
+                        
+                        <div class="team">
+                            <div class="team-logo">
+                                <img src="${opponentLogoUrl}" 
+                                     alt="${game.opponent}"
+                                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                <div style="background: #666; color: white; width: 100px; height: 100px; border-radius: 50%; display: none; align-items: center; justify-content: center; font-size: 1.2em; font-weight: bold;">${game.opponent.charAt(0)}</div>
+                            </div>
+                            <div class="team-name">${game.opponent}</div>
+                        </div>
+                    </div>
+
+                    <div class="game-details">
+                        <div class="game-detail">
+                            <div class="detail-label">📅 Date</div>
+                            <div class="detail-value">${formattedDate}</div>
+                        </div>
+                        <div class="game-detail">
+                            <div class="detail-label">⏰ Time</div>
+                            <div class="detail-value">${formattedTime}</div>
+                        </div>
+                        <div class="game-detail">
+                            <div class="detail-label">🏟️ Location</div>
+                            <div class="detail-value">${game.location || 'TBD'}</div>
+                        </div>
+                        <div class="game-detail">
+                            <div class="detail-label">${game.isHome ? '🏠' : '✈️'} Game Type</div>
+                            <div class="detail-value">${game.isHome ? 'Home' : 'Away'}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Show countdown section
+            document.getElementById('countdownSection').style.display = 'block';
+        }
+
+        function displayNoUpcomingGames() {
+            const gameInfoDiv = document.getElementById('gameInfo');
+            gameInfoDiv.innerHTML = `
+                <div class="game-info">
+                    <div class="next-game">🏈 Season Complete</div>
+                    <p style="font-size: 1.2em; margin-top: 20px;">
+                        No upcoming games scheduled. Check back for next season!
+                    </p>
+                    <p style="margin-top: 15px; opacity: 0.8;">
+                        Go Big Red! 🌽
+                    </p>
+                </div>
+            `;
+        }
+
+        function displayError(message) {
+            const gameInfoDiv = document.getElementById('gameInfo');
+            gameInfoDiv.innerHTML = `
+                <div class="error">
+                    <h3>❌ Error</h3>
+                    <p>${message}</p>
+                    <button onclick="loadGameDay()" style="margin-top: 15px; padding: 10px 20px; background: #d00000; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                        Try Again
+                    </button>
+                </div>
+            `;
+        }
+
+        function startCountdown(gameDateTime) {
+            const targetDate = new Date(gameDateTime);
+            
+            function updateCountdown() {
+                const now = new Date();
+                const difference = targetDate - now;
+
+                if (difference <= 0) {
+                    // Game has started or passed - show game day
+                    document.getElementById('countdownTitle').innerHTML = '🏈 GAME DAY';
+                    document.getElementById('countdownSubtitle').innerHTML = 'Go Big Red! The game is here!';
+                    document.getElementById('countdownDisplay').style.display = 'none';
+                    
+                    if (countdownInterval) {
+                        clearInterval(countdownInterval);
+                    }
+                    return;
+                }
+
+                const days = Math.floor(difference / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((difference % (1000 * 60)) / 1000);
+
+                // Show countdown title and display
+                document.getElementById('countdownTitle').innerHTML = '⏰ Countdown to Kickoff';
+                document.getElementById('countdownSubtitle').innerHTML = 'Nebraska Cornhuskers Football';
+                document.getElementById('countdownDisplay').style.display = 'grid';
+                
+                // Update the countdown numbers
+                document.getElementById('days').textContent = days.toString().padStart(2, '0');
+                document.getElementById('hours').textContent = hours.toString().padStart(2, '0');
+                document.getElementById('minutes').textContent = minutes.toString().padStart(2, '0');
+                document.getElementById('seconds').textContent = seconds.toString().padStart(2, '0');
+            }
+
+            // Update immediately and then every second
+            updateCountdown();
+            countdownInterval = setInterval(updateCountdown, 1000);
+        }
+
+        // Update season record (placeholder)
+        function updateSeasonRecord() {
+            // This could be enhanced to fetch real record data
+            document.getElementById('seasonRecord').textContent = '0-0';
+        }
+
+        // Mobile menu toggle function
+        function toggleMobileMenu() {
+            const nav = document.getElementById('site-nav');
+            nav.classList.toggle('active');
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Game Day page loaded');
+            loadGameDay();
+            updateSeasonRecord();
+        });
+
+        // Cleanup interval when page unloads
+        window.addEventListener('beforeunload', function() {
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+            }
+        });
+
+        // Dark Mode Functions - Safari/iOS Compatible
+        function toggleDarkMode() {
+            try {
+                var html = document.documentElement;
+                var currentTheme = html.getAttribute('data-theme');
+                var newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                
+                html.setAttribute('data-theme', newTheme);
+                
+                // Safe localStorage handling for Safari
+                try {
+                    localStorage.setItem('theme', newTheme);
+                } catch (e) {
+                    console.warn('localStorage not available:', e);
+                }
+                
+                // Update the icon
+                var icon = document.querySelector('.dark-mode-icon');
+                if (icon) {
+                    icon.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+                }
+            } catch (error) {
+                console.error('Dark mode toggle error:', error);
+            }
+        }
+
+        // Initialize dark mode on page load
+        function initDarkMode() {
+            try {
+                var savedTheme = null;
+                var prefersDark = false;
+                
+                // Safe localStorage access
+                try {
+                    savedTheme = localStorage.getItem('theme');
+                } catch (e) {
+                    console.warn('localStorage not available:', e);
+                }
+                
+                // Safe media query check
+                try {
+                    if (window.matchMedia) {
+                        prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    }
+                } catch (e) {
+                    console.warn('matchMedia not available:', e);
+                }
+                
+                var theme = savedTheme || (prefersDark ? 'dark' : 'light');
+                
+                document.documentElement.setAttribute('data-theme', theme);
+                
+                // Update the icon
+                var icon = document.querySelector('.dark-mode-icon');
+                if (icon) {
+                    icon.textContent = theme === 'dark' ? '☀️' : '🌙';
+                }
+            } catch (error) {
+                console.error('Dark mode init error:', error);
+                // Fallback to light mode
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        }
+
+        // Initialize dark mode when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Game Day page loaded');
+            initDarkMode();
+            loadGameDay();
+            updateSeasonRecord();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roster - Nebraska Cornhuskers</title>
+    <link rel="icon" type="image/png" href="images/favicon-rhuleaid.png">
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        /* MOBILE MENU - COMPLETE OVERRIDE WITH MAXIMUM SPECIFICITY */
+        
+        /* Hide mobile toggle by default, show only on mobile */
+        .mobile-menu-toggle {
+            display: none;
+        }
+        
+        @media screen and (max-width: 768px) {
+            /* Force show mobile toggle button - right aligned */
+            .mobile-menu-toggle {
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                background: rgba(255,255,255,0.2) !important;
+                border: 2px solid white !important;
+                color: white !important;
+                padding: 12px !important;
+                border-radius: 8px !important;
+                cursor: pointer !important;
+                font-size: 18px !important;
+                font-weight: bold !important;
+                min-width: 48px !important;
+                min-height: 48px !important;
+                z-index: 10001 !important;
+                margin-left: auto !important;
+            }
+            
+            /* Ensure header actions are right-aligned */
+            .header-actions {
+                display: flex !important;
+                gap: 10px !important;
+                align-items: center !important;
+                margin-left: auto !important;
+            }
+            
+            /* Hide desktop navigation on mobile */
+            body .site-header .header-content .header-left .site-nav {
+                display: none !important;
+                position: absolute !important;
+                top: 100% !important;
+                right: 0 !important;
+                left: auto !important;
+                background: #dc2626 !important;
+                padding: 20px !important;
+                border-radius: 0 0 15px 15px !important;
+                box-shadow: 0 8px 25px rgba(0,0,0,0.4) !important;
+                z-index: 10000 !important;
+                margin: 0 !important;
+                width: 280px !important;
+                max-width: 90vw !important;
+                box-sizing: border-box !important;
+                transform: translateX(100%) !important;
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            }
+            
+            /* Show navigation when active - slide in from right */
+            body .site-header .header-content .header-left .site-nav.mobile-active {
+                display: block !important;
+                transform: translateX(0) !important;
+            }
+            
+            /* Force navigation list to be vertical and left-aligned */
+            body .site-header .header-content .header-left .site-nav ul {
+                display: block !important;
+                flex-direction: column !important;
+                gap: 0 !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                list-style: none !important;
+                text-align: left !important;
+                align-items: stretch !important;
+                justify-content: flex-start !important;
+            }
+            
+            /* Force navigation items to be full width blocks */
+            body .site-header .header-content .header-left .site-nav li {
+                display: block !important;
+                margin: 0 0 8px 0 !important;
+                width: 100% !important;
+                text-align: left !important;
+            }
+            
+            /* Force navigation links to be left-aligned blocks with slide animation */
+            body .site-header .header-content .header-left .site-nav a {
+                display: block !important;
+                padding: 16px 20px !important;
+                color: white !important;
+                text-decoration: none !important;
+                border-radius: 10px !important;
+                text-align: left !important;
+                background: rgba(0,0,0,0.1) !important;
+                border: 1px solid transparent !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+                margin: 0 !important;
+                font-size: 16px !important;
+                font-weight: 500 !important;
+                transition: all 0.2s ease !important;
+                transform: translateX(0) !important;
+            }
+            
+            /* Hover and active states with left slide effect */
+            body .site-header .header-content .header-left .site-nav a:hover {
+                background: rgba(255,255,255,0.15) !important;
+                border-color: rgba(255,255,255,0.2) !important;
+                transform: translateX(-8px) !important;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.2) !important;
+            }
+            
+            body .site-header .header-content .header-left .site-nav a.active {
+                background: rgba(255,255,255,0.25) !important;
+                border-color: rgba(255,255,255,0.3) !important;
+                font-weight: 600 !important;
+                box-shadow: 0 2px 12px rgba(0,0,0,0.3) !important;
+            }
+            
+            /* Ensure header container allows positioning */
+            .site-header {
+                position: relative !important;
+            }
+            
+            .header-content {
+                position: relative !important;
+                display: flex !important;
+                justify-content: space-between !important;
+                align-items: center !important;
+            }
+            
+            /* Adjust header left section for mobile */
+            .header-left {
+                display: flex !important;
+                align-items: center !important;
+                flex: 1 !important;
+            }
+        }
+        
+        .roster-hero {
+            background: var(--hero-bg);
+            color: var(--hero-text);
+            padding: 60px 20px;
+            text-align: center;
+            margin-top: 0;
+        }
+        
+        .roster-content {
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+        
+        .filters {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: var(--shadow);
+            margin-bottom: 30px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--border-color);
+        }
+        
+        .filter-btn {
+            padding: 8px 16px;
+            border: 2px solid var(--accent-color);
+            background: var(--card-bg);
+            color: var(--accent-color);
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .filter-btn:hover,
+        .filter-btn.active {
+            background: var(--accent-color);
+            color: white;
+        }
+        
+        .search-box {
+            padding: 10px 15px;
+            border: 2px solid var(--accent-color);
+            border-radius: 25px;
+            font-size: 1em;
+            width: 250px;
+            max-width: 100%;
+            background: var(--card-bg);
+            color: var(--text-color);
+        }
+        
+        .search-box::placeholder {
+            color: var(--secondary-text);
+        }
+        
+        .roster-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        
+        .player-card {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: var(--shadow);
+            border-left: 4px solid var(--accent-color);
+            transition: transform 0.3s;
+            text-align: center;
+            border: 1px solid var(--border-color);
+        }
+        
+        .player-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        
+        .player-number {
+            font-size: 3em;
+            font-weight: bold;
+            color: var(--accent-color);
+            margin-bottom: 10px;
+        }
+        
+        .player-name {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: var(--text-color);
+            margin-bottom: 10px;
+        }
+        
+        .player-position {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: var(--secondary-text);
+            margin-bottom: 15px;
+            padding: 5px 15px;
+            background: var(--hover-bg);
+            border-radius: 20px;
+            display: inline-block;
+            border: 1px solid var(--border-color);
+        }
+        
+        .player-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+            font-size: 0.9em;
+        }
+        
+        .detail-item {
+            text-align: left;
+        }
+        
+        .detail-label {
+            color: var(--secondary-text);
+            font-weight: 600;
+        }
+        
+        .detail-value {
+            color: var(--text-color);
+        }
+        
+        .position-offense { border-left-color: #28a745; }
+        .position-defense { border-left-color: #dc3545; }
+        .position-special { border-left-color: #ffc107; }
+        
+        .stats-summary {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+            text-align: center;
+        }
+        
+        .stat-item {
+            padding: 15px;
+            background: var(--hover-bg);
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: var(--accent-color);
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            color: var(--secondary-text);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        @media (max-width: 768px) {
+            .roster-hero {
+                padding: 40px 20px;
+            }
+            
+            .filters {
+                flex-direction: column;
+            }
+            
+            .search-box {
+                width: 100%;
+            }
+            
+            .roster-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .player-details {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="site-header">
+        <div class="container">
+            <div class="header-content">
+                <div class="header-left">
+                    <div class="site-logo">
+                        <a href="index.html">
+                            <img src="./images/logos/nebraska-logo.png" alt="Nebraska Logo" class="site-nav-logo">
+                            <h1 class="site-title">Nebraska Cornhuskers</h1>
+                        </a>
+                    </div>
+                    <nav class="site-nav" id="site-nav">
+                        <ul>
+                            <li><a href="index.html">🏠 Home</a></li>
+                            <li><a href="schedule.html">📅 Schedule</a></li>
+                            <li><a href="roster.html" class="active">👥 Roster</a></li>
+                            <li><a href="news.html">📰 News</a></li>
+                            <li><a href="rhule-aid.html">🍺 Rhule-aid</a></li>
+                            <li><a href="gameday.html">🏈 Game Day</a></li>
+                        </ul>
+                    </nav>
+                </div>
+                <div class="header-actions">
+                    <button class="dark-mode-toggle" onclick="toggleDarkMode()" title="Toggle Dark Mode">
+                        <span class="dark-mode-icon">🌙</span>
+                    </button>
+                    <button class="mobile-menu-toggle" 
+                            id="mobile-menu-btn"
+                            onclick="handleMobileMenuToggle(this)"
+                            title="Toggle Navigation Menu">☰</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <script>
+        // BULLETPROOF MOBILE MENU FUNCTIONALITY
+        
+        // Global variables to prevent conflicts
+        window.mobileMenuOpen = false;
+        
+        function handleMobileMenuToggle(button) {
+            console.log('Mobile menu toggle clicked!', window.mobileMenuOpen);
+            
+            try {
+                // Find the button and navigation
+                var btn = button || document.getElementById('mobile-menu-btn') || document.querySelector('.mobile-menu-toggle');
+                var nav = document.querySelector('.site-nav');
+                
+                if (!btn) {
+                    console.error('Mobile menu button not found!');
+                    return;
+                }
+                
+                if (!nav) {
+                    console.error('Navigation not found!');
+                    return;
+                }
+                
+                console.log('Button:', btn, 'Nav:', nav);
+                
+                // Toggle the active state
+                window.mobileMenuOpen = !window.mobileMenuOpen;
+                
+                if (window.mobileMenuOpen) {
+                    nav.classList.add('mobile-active');
+                    console.log('Menu opened - added mobile-active class');
+                } else {
+                    nav.classList.remove('mobile-active');
+                    console.log('Menu closed - removed mobile-active class');
+                }
+                
+                console.log('Nav classes after toggle:', nav.className);
+                
+            } catch (error) {
+                console.error('Error in handleMobileMenuToggle:', error);
+            }
+        }
+        
+        // Fallback function for any existing toggleMobileMenu calls
+        function toggleMobileMenu() {
+            console.log('Legacy toggleMobileMenu called - redirecting to handleMobileMenuToggle');
+            handleMobileMenuToggle();
+        }
+        
+        // Close menu when clicking outside
+        document.addEventListener('click', function(event) {
+            if (window.mobileMenuOpen) {
+                var nav = document.querySelector('.site-nav');
+                var btn = document.querySelector('.mobile-menu-toggle');
+                
+                if (nav && btn && !nav.contains(event.target) && !btn.contains(event.target)) {
+                    window.mobileMenuOpen = false;
+                    nav.classList.remove('mobile-active');
+                    console.log('Menu closed by outside click');
+                }
+            }
+        });
+        
+        // Close menu on window resize to desktop
+        window.addEventListener('resize', function() {
+            if (window.innerWidth > 768 && window.mobileMenuOpen) {
+                var nav = document.querySelector('.site-nav');
+                if (nav) {
+                    window.mobileMenuOpen = false;
+                    nav.classList.remove('mobile-active');
+                    console.log('Menu closed due to window resize');
+                }
+            }
+        });
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            var btn = document.querySelector('.mobile-menu-toggle');
+            var nav = document.querySelector('.site-nav');
+            
+            console.log('Mobile menu initialized:', {
+                button: !!btn,
+                navigation: !!nav,
+                windowWidth: window.innerWidth
+            });
+        });
+    </script>
+
+    <div class="roster-hero">
+        <h1 style="font-size: 3em; margin: 0 0 10px 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">2025 Roster</h1>
+        <p style="font-size: 1.3em; margin: 0; opacity: 0.9;">Nebraska Cornhuskers Football</p>
+    </div>
+
+    <div class="roster-content">
+        <div class="stats-summary">
+            <h2 style="text-align: center; color: var(--accent-color); margin-bottom: 25px;">Team Overview</h2>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-number" id="total-players">0</div>
+                    <div class="stat-label">Total Players</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="offense-count">0</div>
+                    <div class="stat-label">Offense</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="defense-count">0</div>
+                    <div class="stat-label">Defense</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="special-count">0</div>
+                    <div class="stat-label">Special Teams</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="filters">
+            <input type="text" class="search-box" placeholder="Search players..." id="search-input" oninput="filterPlayers()">
+            <button class="filter-btn active" onclick="filterByPosition('all')">All Players</button>
+            <button class="filter-btn" onclick="filterByPosition('offense')">Offense</button>
+            <button class="filter-btn" onclick="filterByPosition('defense')">Defense</button>
+            <button class="filter-btn" onclick="filterByPosition('special')">Special Teams</button>
+        </div>
+
+        <div id="roster-container" class="roster-grid">
+            <div class="loading" style="text-align: center; padding: 40px; color: var(--secondary-text); grid-column: 1 / -1;">
+                Loading roster...
+            </div>
+        </div>
+    </div>
+
+    <script src="js/script.js"></script>
+    <script>
+        let allPlayers = [];
+
+        // Function to load roster data from API
+        async function loadRosterData() {
+            try {
+                console.log('Loading roster data from API...');
+                const response = await fetch('/api/roster');
+                const result = await response.json();
+                
+                if (result.success && result.data) {
+                    console.log(`Loaded ${result.data.length} players from API`);
+                    return result.data.map(player => ({
+                        number: parseInt(player.number) || 0,
+                        name: player.name,
+                        position: player.position,
+                        year: player.class || 'N/A', // API uses 'class', we use 'year'
+                        height: player.height || 'N/A',
+                        weight: player.weight || 'N/A',
+                        hometown: player.hometown || 'N/A',
+                        category: '' // Will be set by categorizePlayer
+                    }));
+                } else {
+                    console.error('Failed to load roster data:', result.error);
+                    return [];
+                }
+            } catch (error) {
+                console.error('Error loading roster data:', error);
+                return [];
+            }
+        }
+
+        // Fallback roster data in case API fails
+        const sampleRoster = [
+            { number: 1, name: "Dylan Raiola", position: "QB", year: "Fr", height: "6'3\"", weight: "220", hometown: "Chandler, AZ", category: "offense" },
+            { number: 2, name: "Ceyair Wright", position: "CB", year: "Jr", height: "6'1\"", weight: "185", hometown: "Los Angeles, CA", category: "defense" },
+            { number: 3, name: "Rahmir Johnson", position: "RB", year: "Sr", height: "5'11\"", weight: "215", hometown: "Newark, NJ", category: "offense" },
+            { number: 4, name: "Dante Dowdell", position: "RB", year: "So", height: "6'1\"", weight: "225", hometown: "Pickerington, OH", category: "offense" },
+            { number: 5, name: "Isaiah Neyor", position: "WR", year: "Sr", height: "6'3\"", weight: "205", hometown: "Austin, TX", category: "offense" },
+            { number: 6, name: "Quinton Newsome", position: "CB", year: "Sr", height: "6'1\"", weight: "190", hometown: "IMG Academy, FL", category: "defense" },
+            { number: 7, name: "Jacory Barney Jr.", position: "WR", year: "Jr", height: "5'11\"", weight: "185", hometown: "Katy, TX", category: "offense" },
+            { number: 8, name: "Malachi Coleman", position: "WR", year: "So", height: "6'3\"", weight: "200", hometown: "East St. Louis, IL", category: "offense" },
+            { number: 9, name: "John Hohl", position: "P", year: "Jr", height: "6'1\"", weight: "195", hometown: "Papillion, NE", category: "special" },
+            { number: 10, name: "Nick Henrich", position: "QB", year: "Jr", height: "6'3\"", weight: "210", hometown: "Elkhorn, NE", category: "offense" },
+            { number: 11, name: "Janiran Bonner", position: "WR", year: "Fr", height: "6'2\"", weight: "190", hometown: "Tampa, FL", category: "offense" },
+            { number: 12, name: "Kwinten Ives", position: "S", year: "Sr", height: "6'2\"", weight: "200", hometown: "Las Vegas, NV", category: "defense" },
+            { number: 13, name: "Tristan Alvano", position: "K", year: "So", height: "5'11\"", weight: "180", hometown: "Kearney, NE", category: "special" },
+            { number: 14, name: "Thomas Fidone II", position: "TE", year: "Jr", height: "6'5\"", weight: "245", hometown: "Council Bluffs, IA", category: "offense" },
+            { number: 15, name: "Isaiah Garcia-Castaneda", position: "WR", year: "Fr", height: "6'0\"", weight: "175", hometown: "Gretna, NE", category: "offense" },
+            { number: 16, name: "Braxton Gottschalk", position: "QB", year: "Fr", height: "6'2\"", weight: "200", hometown: "West Point, NE", category: "offense" },
+            { number: 17, name: "Jaylen Lloyd", position: "WR", year: "Jr", height: "6'0\"", weight: "180", hometown: "Omaha, NE", category: "offense" },
+            { number: 18, name: "DeShon Singleton", position: "S", year: "Sr", height: "6'1\"", weight: "200", hometown: "Jacksonville, FL", category: "defense" },
+            { number: 19, name: "Tommi Hill", position: "CB", year: "So", height: "5'10\"", weight: "175", hometown: "Bellevue, NE", category: "defense" },
+            { number: 20, name: "Emmett Johnson", position: "RB", year: "So", height: "6'0\"", weight: "210", hometown: "Hinckley, MN", category: "offense" },
+            // Add more defensive players to balance the roster
+            { number: 21, name: "Nash Hutmacher", position: "DE", year: "Sr", height: "6'6\"", weight: "285", hometown: "Chamberlain, SD", category: "defense" },
+            { number: 22, name: "Ty Robinson", position: "DT", year: "Jr", height: "6'3\"", weight: "295", hometown: "Sunrise, FL", category: "defense" },
+            { number: 23, name: "MJ Sherman", position: "LB", year: "So", height: "6'2\"", weight: "235", hometown: "Cedar Rapids, IA", category: "defense" },
+            { number: 24, name: "Javin Wright", position: "CB", year: "Fr", height: "6'0\"", weight: "180", hometown: "Omaha, NE", category: "defense" },
+            { number: 25, name: "Isaac Gifford", position: "S", year: "Sr", height: "6'0\"", weight: "195", hometown: "Fremont, NE", category: "defense" }
+        ];
+
+        // Load roster on page load
+        // Function to ensure all players have correct categories based on position
+        function categorizePlayer(player) {
+            if (player.category) return player; // Already has category
+            
+            const position = player.position.toLowerCase();
+            
+            // Offense positions
+            if (['qb', 'rb', 'fb', 'wr', 'te', 'ot', 'og', 'c', 'ol', 'quarterback', 'running back', 'wide receiver', 'tight end', 'offensive lineman'].includes(position)) {
+                player.category = 'offense';
+            }
+            // Defense positions  
+            else if (['de', 'dt', 'nt', 'lb', 'olb', 'mlb', 'ilb', 'cb', 's', 'fs', 'ss', 'db', 'dl', 'linebacker', 'defensive back', 'defensive lineman', 'safety', 'cornerback'].includes(position)) {
+                player.category = 'defense';
+            }
+            // Special teams positions
+            else if (['k', 'p', 'ls', 'kr', 'pr', 'kicker', 'punter', 'long snapper', 'place kicker'].includes(position)) {
+                player.category = 'special';
+            }
+            // Default to offense if unknown
+            else {
+                console.log('Unknown position, defaulting to offense:', position);
+                player.category = 'offense';
+            }
+            
+            return player;
+        }
+
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Initialize dark mode first
+            initDarkMode();
+            
+            // Load roster data from API
+            const rosterData = await loadRosterData();
+            
+            if (rosterData.length > 0) {
+                // Ensure all players have proper categories
+                allPlayers = rosterData.map(categorizePlayer);
+                displayRoster(allPlayers);
+                updateStats();
+            } else {
+                // Fallback to sample data if API fails
+                console.log('API failed, using fallback sample data');
+                allPlayers = sampleRoster.map(categorizePlayer);
+                displayRoster(allPlayers);
+                updateStats();
+            }
+        });
+
+        function displayRoster(players) {
+            const container = document.getElementById('roster-container');
+            
+            if (!players || players.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: var(--secondary-text); grid-column: 1 / -1;">
+                        <h3>No players found</h3>
+                        <p>Try adjusting your search or filters.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = players.map(player => createPlayerCard(player)).join('');
+        }
+
+        function createPlayerCard(player) {
+            const positionClass = `position-${player.category}`;
+            
+            return `
+                <div class="player-card ${positionClass}" data-position="${player.category}" data-name="${player.name.toLowerCase()}">
+                    <div class="player-number">#${player.number}</div>
+                    <div class="player-name">${player.name}</div>
+                    <div class="player-position">${player.position}</div>
+                    
+                    <div class="player-details">
+                        <div class="detail-item">
+                            <div class="detail-label">Year</div>
+                            <div class="detail-value">${player.year}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Height</div>
+                            <div class="detail-value">${player.height}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Weight</div>
+                            <div class="detail-value">${player.weight}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Hometown</div>
+                            <div class="detail-value">${player.hometown}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function filterByPosition(category) {
+            // Update active button
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            let filteredPlayers = allPlayers;
+            if (category !== 'all') {
+                filteredPlayers = allPlayers.filter(player => player.category === category);
+            }
+            
+            // Also apply search filter if there's text in search box
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            if (searchTerm) {
+                filteredPlayers = filteredPlayers.filter(player => 
+                    player.name.toLowerCase().includes(searchTerm) ||
+                    player.position.toLowerCase().includes(searchTerm) ||
+                    player.number.toString().includes(searchTerm)
+                );
+            }
+            
+            displayRoster(filteredPlayers);
+            updateStatsForFilteredPlayers(filteredPlayers, category);
+        }
+
+        function filterPlayers() {
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            
+            let filteredPlayers = allPlayers;
+            
+            // Apply search filter
+            if (searchTerm) {
+                filteredPlayers = filteredPlayers.filter(player => 
+                    player.name.toLowerCase().includes(searchTerm) ||
+                    player.position.toLowerCase().includes(searchTerm) ||
+                    player.number.toString().includes(searchTerm) ||
+                    player.hometown.toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            // Also apply position filter if active
+            const activeFilter = document.querySelector('.filter-btn.active');
+            let category = 'all';
+            if (activeFilter) {
+                const buttonText = activeFilter.textContent.toLowerCase();
+                if (buttonText === 'offense') category = 'offense';
+                else if (buttonText === 'defense') category = 'defense';
+                else if (buttonText === 'special teams') category = 'special';
+                else category = 'all';
+            }
+            
+            if (category !== 'all') {
+                filteredPlayers = filteredPlayers.filter(player => player.category === category);
+            }
+            
+            displayRoster(filteredPlayers);
+            updateStatsForFilteredPlayers(filteredPlayers, category);
+        }
+
+        function updateStats() {
+            // This function updates stats based on ALL players (used on initial load)
+            const total = allPlayers.length;
+            const offense = allPlayers.filter(p => p.category === 'offense').length;
+            const defense = allPlayers.filter(p => p.category === 'defense').length;
+            const special = allPlayers.filter(p => p.category === 'special').length;
+            
+            document.getElementById('total-players').textContent = total;
+            document.getElementById('offense-count').textContent = offense;
+            document.getElementById('defense-count').textContent = defense;
+            document.getElementById('special-count').textContent = special;
+        }
+
+        function updateStatsForFilteredPlayers(filteredPlayers, activeCategory) {
+            // This function updates stats based on currently displayed players
+            if (activeCategory === 'all') {
+                // When showing all players, show the filtered count but also show category breakdowns
+                const total = filteredPlayers.length;
+                const offense = filteredPlayers.filter(p => p.category === 'offense').length;
+                const defense = filteredPlayers.filter(p => p.category === 'defense').length;
+                const special = filteredPlayers.filter(p => p.category === 'special').length;
+                
+                document.getElementById('total-players').textContent = total;
+                document.getElementById('offense-count').textContent = offense;
+                document.getElementById('defense-count').textContent = defense;
+                document.getElementById('special-count').textContent = special;
+            } else {
+                // When filtering by category, show the filtered count in that category, reset others to show full counts
+                const totalAll = allPlayers.length;
+                const offenseAll = allPlayers.filter(p => p.category === 'offense').length;
+                const defenseAll = allPlayers.filter(p => p.category === 'defense').length;
+                const specialAll = allPlayers.filter(p => p.category === 'special').length;
+                
+                document.getElementById('total-players').textContent = filteredPlayers.length;
+                
+                // Highlight the active category with filtered count, show full counts for others
+                if (activeCategory === 'offense') {
+                    document.getElementById('offense-count').textContent = filteredPlayers.length;
+                    document.getElementById('defense-count').textContent = defenseAll;
+                    document.getElementById('special-count').textContent = specialAll;
+                } else if (activeCategory === 'defense') {
+                    document.getElementById('offense-count').textContent = offenseAll;
+                    document.getElementById('defense-count').textContent = filteredPlayers.length;
+                    document.getElementById('special-count').textContent = specialAll;
+                } else if (activeCategory === 'special') {
+                    document.getElementById('offense-count').textContent = offenseAll;
+                    document.getElementById('defense-count').textContent = defenseAll;
+                    document.getElementById('special-count').textContent = filteredPlayers.length;
+                }
+            }
+        }
+
+        // Dark Mode Functions - Safari/iOS Compatible
+        function toggleDarkMode() {
+            try {
+                var html = document.documentElement;
+                var currentTheme = html.getAttribute('data-theme');
+                var newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                
+                html.setAttribute('data-theme', newTheme);
+                
+                // Safe localStorage handling for Safari
+                try {
+                    localStorage.setItem('theme', newTheme);
+                } catch (e) {
+                    console.warn('localStorage not available:', e);
+                }
+                
+                // Update the icon
+                var icon = document.querySelector('.dark-mode-icon');
+                if (icon) {
+                    icon.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+                }
+            } catch (error) {
+                console.error('Dark mode toggle error:', error);
+            }
+        }
+
+        // Initialize dark mode on page load
+        function initDarkMode() {
+            try {
+                var savedTheme = null;
+                var prefersDark = false;
+                
+                // Safe localStorage access
+                try {
+                    savedTheme = localStorage.getItem('theme');
+                } catch (e) {
+                    console.warn('localStorage not available:', e);
+                }
+                
+                // Safe media query check
+                try {
+                    if (window.matchMedia) {
+                        prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    }
+                } catch (e) {
+                    console.warn('matchMedia not available:', e);
+                }
+                
+                var theme = savedTheme || (prefersDark ? 'dark' : 'light');
+                
+                document.documentElement.setAttribute('data-theme', theme);
+                
+                // Update the icon
+                var icon = document.querySelector('.dark-mode-icon');
+                if (icon) {
+                    icon.textContent = theme === 'dark' ? '☀️' : '🌙';
+                }
+            } catch (error) {
+                console.error('Dark mode init error:', error);
+                // Fallback to light mode
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        }
+
+        // Initialize dark mode when page loads - Safari compatible
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initDarkMode);
+        } else {
+            initDarkMode();
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nebraska Cornhuskers Football</title>
+    <link rel="icon" type="image/png" href="images/favicon-rhuleaid.png">
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        /* MOBILE MENU - COMPLETE OVERRIDE WITH MAXIMUM SPECIFICITY */
+        
+        /* Hide mobile toggle by default, show only on mobile */
+        .mobile-menu-toggle {
+            display: none;
+        }
+        
+        @media screen and (max-width: 768px) {
+            /* Force show mobile toggle button - right aligned */
+            .mobile-menu-toggle {
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                background: rgba(255,255,255,0.2) !important;
+                border: 2px solid white !important;
+                color: white !important;
+                padding: 12px !important;
+                border-radius: 8px !important;
+                cursor: pointer !important;
+                font-size: 18px !important;
+                font-weight: bold !important;
+                min-width: 48px !important;
+                min-height: 48px !important;
+                z-index: 10001 !important;
+                margin-left: auto !important;
+            }
+            
+            /* Ensure header actions are right-aligned */
+            .header-actions {
+                display: flex !important;
+                gap: 10px !important;
+                align-items: center !important;
+                margin-left: auto !important;
+            }
+            
+            /* Hide desktop navigation on mobile */
+            body .site-header .header-content .header-left .site-nav {
+                display: none !important;
+                position: absolute !important;
+                top: 100% !important;
+                right: 0 !important;
+                left: auto !important;
+                background: #dc2626 !important;
+                padding: 20px !important;
+                border-radius: 0 0 15px 15px !important;
+                box-shadow: 0 8px 25px rgba(0,0,0,0.4) !important;
+                z-index: 10000 !important;
+                margin: 0 !important;
+                width: 280px !important;
+                max-width: 90vw !important;
+                box-sizing: border-box !important;
+                transform: translateX(100%) !important;
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            }
+            
+            /* Show navigation when active - slide in from right */
+            body .site-header .header-content .header-left .site-nav.mobile-active {
+                display: block !important;
+                transform: translateX(0) !important;
+            }
+            
+            /* Force navigation list to be vertical and left-aligned */
+            body .site-header .header-content .header-left .site-nav ul {
+                display: block !important;
+                flex-direction: column !important;
+                gap: 0 !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                list-style: none !important;
+                text-align: left !important;
+                align-items: stretch !important;
+                justify-content: flex-start !important;
+            }
+            
+            /* Force navigation items to be full width blocks */
+            body .site-header .header-content .header-left .site-nav li {
+                display: block !important;
+                margin: 0 0 8px 0 !important;
+                width: 100% !important;
+                text-align: left !important;
+            }
+            
+            /* Force navigation links to be left-aligned blocks with slide animation */
+            body .site-header .header-content .header-left .site-nav a {
+                display: block !important;
+                padding: 16px 20px !important;
+                color: white !important;
+                text-decoration: none !important;
+                border-radius: 10px !important;
+                text-align: left !important;
+                background: rgba(0,0,0,0.1) !important;
+                border: 1px solid transparent !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+                margin: 0 !important;
+                font-size: 16px !important;
+                font-weight: 500 !important;
+                transition: all 0.2s ease !important;
+                transform: translateX(0) !important;
+            }
+            
+            /* Hover and active states with left slide effect */
+            body .site-header .header-content .header-left .site-nav a:hover {
+                background: rgba(255,255,255,0.15) !important;
+                border-color: rgba(255,255,255,0.2) !important;
+                transform: translateX(-8px) !important;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.2) !important;
+            }
+            
+            body .site-header .header-content .header-left .site-nav a.active {
+                background: rgba(255,255,255,0.25) !important;
+                border-color: rgba(255,255,255,0.3) !important;
+                font-weight: 600 !important;
+                box-shadow: 0 2px 12px rgba(0,0,0,0.3) !important;
+            }
+            
+            /* Ensure header container allows positioning */
+            .site-header {
+                position: relative !important;
+            }
+            
+            .header-content {
+                position: relative !important;
+                display: flex !important;
+                justify-content: space-between !important;
+                align-items: center !important;
+            }
+            
+            /* Adjust header left section for mobile */
+            .header-left {
+                display: flex !important;
+                align-items: center !important;
+                flex: 1 !important;
+            }
+        }
+        
+        /* Hero Section */
+        .hero-section {
+            background: linear-gradient(135deg, rgba(208, 0, 0, 0.9), rgba(139, 0, 0, 0.9)), 
+                        url('images/memorial-stadium.jpg') center/cover;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .hero-content {
+            max-width: 800px;
+            padding: 0 20px;
+            z-index: 2;
+        }
+        
+        .hero-logo {
+            width: 150px;
+            height: 150px;
+            margin: 0 auto 30px;
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        .hero-title {
+            font-size: 4em;
+            font-weight: 900;
+            margin-bottom: 20px;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.5);
+            animation: slideInUp 1s ease-out;
+        }
+        
+        .hero-subtitle {
+            font-size: 1.5em;
+            margin-bottom: 40px;
+            opacity: 0.95;
+            animation: slideInUp 1s ease-out 0.3s both;
+        }
+        
+        .hero-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+            animation: slideInUp 1s ease-out 0.6s both;
+        }
+        
+        .hero-btn {
+            padding: 15px 30px;
+            font-size: 1.1em;
+            font-weight: 700;
+            text-decoration: none;
+            border-radius: 50px;
+            transition: all 0.3s;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background: var(--accent-color);
+            color: white;
+            border: 3px solid var(--accent-color);
+        }
+        
+        .btn-secondary {
+            background: transparent;
+            color: white;
+            border: 3px solid white;
+        }
+        
+        .hero-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        }
+        
+        .btn-primary:hover {
+            background: var(--card-bg);
+            border-color: var(--card-bg);
+            color: var(--text-color);
+        }
+        
+        .btn-secondary:hover {
+            background: var(--card-bg);
+            color: var(--accent-color);
+        }
+        
+        /* Quick Stats Section */
+        .quick-stats {
+            background: var(--bg-color);
+            padding: 80px 0;
+            position: relative;
+        }
+        
+        .stats-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        .section-title {
+            text-align: center;
+            font-size: 3em;
+            color: var(--accent-color);
+            margin-bottom: 50px;
+            font-weight: 900;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 40px;
+        }
+        
+        .stat-card {
+            text-align: center;
+            padding: 40px 20px;
+            background: var(--card-bg);
+            border-radius: 20px;
+            border-left: 5px solid var(--accent-color);
+            box-shadow: var(--shadow);
+            transition: transform 0.3s;
+            color: var(--text-color);
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-10px);
+        }
+        
+        .stat-number {
+            font-size: 4em;
+            font-weight: 900;
+            color: var(--accent-color);
+            margin-bottom: 10px;
+        }
+        
+        .stat-label {
+            font-size: 1.2em;
+            color: var(--secondary-text);
+            font-weight: 600;
+        }
+        
+        /* Features Grid */
+        .features-section {
+            background: var(--bg-color);
+            padding: 80px 0;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 40px;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        .feature-card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: var(--shadow);
+            text-align: center;
+            transition: transform 0.3s;
+            border-top: 5px solid var(--accent-color);
+            color: var(--text-color);
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .feature-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+        
+        .feature-title {
+            font-size: 1.5em;
+            color: var(--accent-color) !important;
+            margin-bottom: 15px;
+            font-weight: 700;
+        }
+        
+        .feature-description {
+            color: var(--secondary-text);
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+        
+        .feature-link {
+            color: var(--accent-color);
+            font-weight: 700;
+            text-decoration: none;
+            font-size: 1.1em;
+            transition: color 0.3s;
+        }
+        
+        .feature-link:hover {
+            color: var(--accent-color);
+            opacity: 0.8;
+        }
+        
+        /* News Section */
+        .news-section {
+            background: var(--bg-color);
+            padding: 80px 0;
+        }
+        
+        .news-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        .news-card {
+            background: var(--card-bg);
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            transition: transform 0.3s;
+            color: var(--text-color);
+        }
+        
+        .news-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .news-image {
+            width: 100%;
+            height: 200px;
+            background: linear-gradient(135deg, #d00000, #8b0000);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 2em;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .news-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s;
+        }
+
+        .news-card:hover .news-image img {
+            transform: scale(1.05);
+        }
+
+        /* Emoji fallback when no thumbnail */
+        .news-image.emoji-fallback {
+            background: linear-gradient(135deg, #d00000, #8b0000);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 2em;
+        }
+        
+        .news-content {
+            padding: 25px;
+        }
+        
+        .news-date {
+            color: var(--secondary-text);
+            font-size: 0.9em;
+            margin-bottom: 10px;
+        }
+        
+        .news-title {
+            font-size: 1.3em;
+            color: var(--accent-color) !important;
+            margin-bottom: 15px;
+            font-weight: 700;
+            line-height: 1.3;
+        }
+        
+        /* Ensure card headers are visible in dark mode */
+        .feature-card h3.feature-title,
+        .news-card h3.news-title {
+            color: var(--accent-color) !important;
+        }
+        
+        .news-excerpt {
+            color: var(--secondary-text);
+            line-height: 1.5;
+        }
+        
+        /* Animations */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            .hero-title {
+                font-size: 2.5em;
+            }
+            
+            .hero-subtitle {
+                font-size: 1.2em;
+            }
+            
+            .hero-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .hero-btn {
+                width: 250px;
+                text-align: center;
+            }
+            
+            .section-title {
+                font-size: 2em;
+                color: var(--accent-color);
+            }
+            
+            .stat-number {
+                font-size: 3em;
+            }
+            
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="site-header">
+        <div class="container">
+            <div class="header-content">
+                <div class="header-left">
+                    <div class="site-logo">
+                        <a href="index.html">
+                            <img src="./images/logos/nebraska-logo.png" alt="Nebraska Logo" class="site-nav-logo">
+                            <h1 class="site-title">Nebraska Cornhuskers</h1>
+                        </a>
+                    </div>
+                    <nav class="site-nav" id="site-nav">
+                        <ul>
+                            <li><a href="index.html" class="active">🏠 Home</a></li>
+                            <li><a href="schedule.html">📅 Schedule</a></li>
+                            <li><a href="roster.html">👥 Roster</a></li>
+                            <li><a href="news.html">📰 News</a></li>
+                            <li><a href="rhule-aid.html">🍺 Rhule-aid</a></li>
+                            <li><a href="gameday.html">🏈 Game Day</a></li>
+                        </ul>
+                    </nav>
+                </div>
+                <div class="header-actions">
+                    <button class="dark-mode-toggle" onclick="toggleDarkMode()" title="Toggle Dark Mode">
+                        <span class="dark-mode-icon">🌙</span>
+                    </button>
+                    <button class="mobile-menu-toggle" 
+                            id="mobile-menu-btn"
+                            onclick="handleMobileMenuToggle(this)"
+                            title="Toggle Navigation Menu">☰</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <script>
+        // BULLETPROOF MOBILE MENU FUNCTIONALITY
+        
+        // Global variables to prevent conflicts
+        window.mobileMenuOpen = false;
+        
+        function handleMobileMenuToggle(button) {
+            console.log('Mobile menu toggle clicked!', window.mobileMenuOpen);
+            
+            try {
+                // Find the button and navigation
+                var btn = button || document.getElementById('mobile-menu-btn') || document.querySelector('.mobile-menu-toggle');
+                var nav = document.querySelector('.site-nav');
+                
+                if (!btn) {
+                    console.error('Mobile menu button not found!');
+                    return;
+                }
+                
+                if (!nav) {
+                    console.error('Navigation not found!');
+                    return;
+                }
+                
+                console.log('Button:', btn, 'Nav:', nav);
+                
+                // Toggle the active state
+                window.mobileMenuOpen = !window.mobileMenuOpen;
+                
+                if (window.mobileMenuOpen) {
+                    nav.classList.add('mobile-active');
+                    console.log('Menu opened - added mobile-active class');
+                } else {
+                    nav.classList.remove('mobile-active');
+                    console.log('Menu closed - removed mobile-active class');
+                }
+                
+                console.log('Nav classes after toggle:', nav.className);
+                
+            } catch (error) {
+                console.error('Error in handleMobileMenuToggle:', error);
+            }
+        }
+        
+        // Fallback function for any existing toggleMobileMenu calls
+        function toggleMobileMenu() {
+            console.log('Legacy toggleMobileMenu called - redirecting to handleMobileMenuToggle');
+            handleMobileMenuToggle();
+        }
+        
+        // Close menu when clicking outside
+        document.addEventListener('click', function(event) {
+            if (window.mobileMenuOpen) {
+                var nav = document.querySelector('.site-nav');
+                var btn = document.querySelector('.mobile-menu-toggle');
+                
+                if (nav && btn && !nav.contains(event.target) && !btn.contains(event.target)) {
+                    window.mobileMenuOpen = false;
+                    nav.classList.remove('mobile-active');
+                    console.log('Menu closed by outside click');
+                }
+            }
+        });
+        
+        // Close menu on window resize to desktop
+        window.addEventListener('resize', function() {
+            if (window.innerWidth > 768 && window.mobileMenuOpen) {
+                var nav = document.querySelector('.site-nav');
+                if (nav) {
+                    window.mobileMenuOpen = false;
+                    nav.classList.remove('mobile-active');
+                    console.log('Menu closed due to window resize');
+                }
+            }
+        });
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            var btn = document.querySelector('.mobile-menu-toggle');
+            var nav = document.querySelector('.site-nav');
+            
+            console.log('Mobile menu initialized:', {
+                button: !!btn,
+                navigation: !!nav,
+                windowWidth: window.innerWidth
+            });
+        });
+    </script>
+
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <div class="hero-content">
+            <img src="./images/logos/nebraska-logo.png" alt="Nebraska Logo" class="hero-logo">
+            <h1 class="hero-title">GO BIG RED</h1>
+            <p class="hero-subtitle">Nebraska Cornhuskers Football • 2025 Season</p>
+            <div class="hero-buttons">
+                <a href="schedule.html" class="hero-btn btn-primary">VIEW SCHEDULE</a>
+                <a href="gameday.html" class="hero-btn btn-secondary">GAME DAY</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Quick Stats -->
+    <section class="quick-stats">
+        <div class="stats-container">
+            <h2 class="section-title">Season at a Glance</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number">2025</div>
+                    <div class="stat-label">Current Season</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">12</div>
+                    <div class="stat-label">Regular Season Games</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">3rd</div>
+                    <div class="stat-label">Year Under Rhule</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">85K+</div>
+                    <div class="stat-label">Memorial Stadium Capacity</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features -->
+    <section class="features-section">
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">📅</div>
+                <h3 class="feature-title">2025 Schedule</h3>
+                <p class="feature-description">
+                    View the complete 2025 football schedule with game times, locations, and TV networks. Filter by home/away games and conference matchups.
+                </p>
+                <a href="schedule.html" class="feature-link">View Schedule →</a>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">👥</div>
+                <h3 class="feature-title">Team Roster</h3>
+                <p class="feature-description">
+                    Meet the 2025 Nebraska Cornhuskers roster. Browse players by position, search by name, and view detailed player information and stats.
+                </p>
+                <a href="roster.html" class="feature-link">View Roster →</a>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">🏈</div>
+                <h3 class="feature-title">Game Day Central</h3>
+                <p class="feature-description">
+                    Your go-to destination for live game information, countdowns to upcoming games, and real-time updates during game day.
+                </p>
+                <a href="gameday.html" class="feature-link">Game Day →</a>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">🌽</div>
+                <h3 class="feature-title">Coach Rhule</h3>
+                <p class="feature-description">
+                    Learn about Head Coach Matt Rhule's journey, coaching philosophy, and his impact on Nebraska football program development.
+                </p>
+                <a href="rhule-aid.html" class="feature-link">Rhule-aid →</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Latest News -->
+    <section class="news-section">
+        <div class="stats-container">
+            <h2 class="section-title">Latest News</h2>
+            <div class="news-grid" id="home-news-grid">
+                <div class="news-card">
+                    <div class="news-image">📰</div>
+                    <div class="news-content">
+                        <div class="news-date">Loading...</div>
+                        <h3 class="news-title">Loading latest news...</h3>
+                        <p class="news-excerpt">Please wait while we fetch the latest news articles.</p>
+                    </div>
+                </div>
+            </div>
+            <div style="text-align: center; margin-top: 30px;">
+                <a href="news.html" class="hero-btn btn-primary">View All News</a>
+            </div>
+        </div>
+    </section>
+
+    <script src="js/script.js"></script>
+    <script>
+        // Load latest news on homepage
+        async function loadHomePageNews() {
+            try {
+                console.log('Loading news for homepage...');
+                const response = await fetch('/api/news');
+                const result = await response.json();
+                
+                if (result.success && result.data && result.data.length > 0) {
+                    console.log(`Loaded ${result.data.length} articles for homepage`);
+                    displayHomePageNews(result.data.slice(0, 3)); // Show only latest 3
+                } else {
+                    throw new Error(result.error || 'No news available');
+                }
+            } catch (error) {
+                console.error('Error loading homepage news:', error);
+                // Fall back to static content on error
+                const newsGrid = document.getElementById('home-news-grid');
+                newsGrid.innerHTML = `
+                    <div class="news-card">
+                        <div class="news-image">🏆</div>
+                        <div class="news-content">
+                            <div class="news-date">January 15, 2025</div>
+                            <h3 class="news-title">Nebraska Announces 2025 Spring Practice Schedule</h3>
+                            <p class="news-excerpt">The Cornhuskers will begin spring practice in March as they prepare for the 2025 season under Coach Matt Rhule.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="news-card">
+                        <div class="news-image">🎯</div>
+                        <div class="news-content">
+                            <div class="news-date">January 10, 2025</div>
+                            <h3 class="news-title">Recruiting Class Ranks Among Nation's Best</h3>
+                            <p class="news-excerpt">Coach Rhule and staff have assembled another strong recruiting class, continuing to build program depth and talent.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="news-card">
+                        <div class="news-image">🌟</div>
+                        <div class="news-content">
+                            <div class="news-date">January 5, 2025</div>
+                            <h3 class="news-title">Academic All-Big Ten Honors Continue</h3>
+                            <p class="news-excerpt">Nebraska student-athletes continue to excel in the classroom, earning recognition for academic achievement.</p>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function displayHomePageNews(articles) {
+            const newsGrid = document.getElementById('home-news-grid');
+            
+            newsGrid.innerHTML = articles.map((article, index) => {
+                // Format the date
+                const date = new Date(article.pubDate || article.date || Date.now());
+                const formattedDate = date.toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                });
+                
+                // Create excerpt from description/content
+                const excerpt = (article.description || article.content || article.title || '')
+                    .replace(/<[^>]+>/g, '') // Remove HTML tags
+                    .substring(0, 120) + (article.description && article.description.length > 120 ? '...' : '');
+                
+                // Create image/thumbnail HTML
+                let imageHtml;
+                if (article.thumbnail) {
+                    // Use thumbnail if available with proper fallback
+                    const emojis = ['🏈', '🏆', '🎯', '🌟', '⚡', '🔥'];
+                    const fallbackEmoji = emojis[index % emojis.length];
+                    
+                    imageHtml = `<div class="news-image" id="news-image-${index}">
+                        <img src="${article.thumbnail}" alt="${article.title}" loading="lazy" 
+                             onload="this.parentElement.style.backgroundImage='none';"
+                             onerror="this.parentElement.innerHTML='${fallbackEmoji}'; this.parentElement.className='news-image emoji-fallback';">
+                    </div>`;
+                } else {
+                    // Fallback to emoji
+                    const emojis = ['🏈', '🏆', '🎯', '🌟', '⚡', '🔥'];
+                    const emoji = emojis[index % emojis.length];
+                    imageHtml = `<div class="news-image emoji-fallback">${emoji}</div>`;
+                }
+                
+                return `
+                    <div class="news-card">
+                        ${imageHtml}
+                        <div class="news-content">
+                            <div class="news-date">${formattedDate}</div>
+                            <h3 class="news-title">
+                                <a href="${article.link || '#'}" target="_blank" style="color: inherit; text-decoration: none;">
+                                    ${article.title || 'Untitled Article'}
+                                </a>
+                            </h3>
+                            <p class="news-excerpt">${excerpt}</p>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Load news when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            loadHomePageNews();
+        });
+
+        // Dark Mode Functions - Safari/iOS Compatible
+        function toggleDarkMode() {
+            try {
+                var html = document.documentElement;
+                var currentTheme = html.getAttribute('data-theme');
+                var newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                
+                html.setAttribute('data-theme', newTheme);
+                
+                // Safe localStorage handling for Safari
+                try {
+                    localStorage.setItem('theme', newTheme);
+                } catch (e) {
+                    console.warn('localStorage not available:', e);
+                }
+                
+                // Update the icon
+                var icon = document.querySelector('.dark-mode-icon');
+                if (icon) {
+                    icon.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+                }
+            } catch (error) {
+                console.error('Dark mode toggle error:', error);
+            }
+        }
+
+        // Initialize dark mode on page load
+        function initDarkMode() {
+            try {
+                var savedTheme = null;
+                var prefersDark = false;
+                
+                // Safe localStorage access
+                try {
+                    savedTheme = localStorage.getItem('theme');
+                } catch (e) {
+                    console.warn('localStorage not available:', e);
+                }
+                
+                // Safe media query check
+                try {
+                    if (window.matchMedia) {
+                        prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    }
+                } catch (e) {
+                    console.warn('matchMedia not available:', e);
+                }
+                
+                var theme = savedTheme || (prefersDark ? 'dark' : 'light');
+                
+                document.documentElement.setAttribute('data-theme', theme);
+                
+                // Update the icon
+                var icon = document.querySelector('.dark-mode-icon');
+                if (icon) {
+                    icon.textContent = theme === 'dark' ? '☀️' : '🌙';
+                }
+            } catch (error) {
+                console.error('Dark mode init error:', error);
+                // Fallback to light mode
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        }
+
+        // Initialize dark mode when page loads - Safari compatible
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initDarkMode);
+        } else {
+            initDarkMode();
+        }
+    </script>
+</body>
+</html>

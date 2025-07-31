@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Schedule - Nebraska Cornhuskers</title>
+    <link rel="icon" type="image/png" href="images/favicon-rhuleaid.png">
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        /* MOBILE MENU - COMPLETE OVERRIDE WITH MAXIMUM SPECIFICITY */
+        
+        /* Hide mobile toggle by default, show only on mobile */
+        .mobile-menu-toggle {
+            display: none;
+        }
+        
+        @media screen and (max-width: 768px) {
+            /* Force show mobile toggle button - right aligned */
+            .mobile-menu-toggle {
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                background: rgba(255,255,255,0.2) !important;
+                border: 2px solid white !important;
+                color: white !important;
+                padding: 12px !important;
+                border-radius: 8px !important;
+                cursor: pointer !important;
+                font-size: 18px !important;
+                font-weight: bold !important;
+                min-width: 48px !important;
+                min-height: 48px !important;
+                z-index: 10001 !important;
+                margin-left: auto !important;
+            }
+            
+            /* Ensure header actions are right-aligned */
+            .header-actions {
+                display: flex !important;
+                gap: 10px !important;
+                align-items: center !important;
+                margin-left: auto !important;
+            }
+            
+            /* Hide desktop navigation on mobile */
+            body .site-header .header-content .header-left .site-nav {
+                display: none !important;
+                position: absolute !important;
+                top: 100% !important;
+                right: 0 !important;
+                left: auto !important;
+                background: #dc2626 !important;
+                padding: 20px !important;
+                border-radius: 0 0 15px 15px !important;
+                box-shadow: 0 8px 25px rgba(0,0,0,0.4) !important;
+                z-index: 10000 !important;
+                margin: 0 !important;
+                width: 280px !important;
+                max-width: 90vw !important;
+                box-sizing: border-box !important;
+                transform: translateX(100%) !important;
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            }
+            
+            /* Show navigation when active - slide in from right */
+            body .site-header .header-content .header-left .site-nav.mobile-active {
+                display: block !important;
+                transform: translateX(0) !important;
+            }
+            
+            /* Force navigation list to be vertical and left-aligned */
+            body .site-header .header-content .header-left .site-nav ul {
+                display: block !important;
+                flex-direction: column !important;
+                gap: 0 !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                list-style: none !important;
+                text-align: left !important;
+                align-items: stretch !important;
+                justify-content: flex-start !important;
+            }
+            
+            /* Force navigation items to be full width blocks */
+            body .site-header .header-content .header-left .site-nav li {
+                display: block !important;
+                margin: 0 0 8px 0 !important;
+                width: 100% !important;
+                text-align: left !important;
+            }
+            
+            /* Force navigation links to be left-aligned blocks with slide animation */
+            body .site-header .header-content .header-left .site-nav a {
+                display: block !important;
+                padding: 16px 20px !important;
+                color: white !important;
+                text-decoration: none !important;
+                border-radius: 10px !important;
+                text-align: left !important;
+                background: rgba(0,0,0,0.1) !important;
+                border: 1px solid transparent !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+                margin: 0 !important;
+                font-size: 16px !important;
+                font-weight: 500 !important;
+                transition: all 0.2s ease !important;
+                transform: translateX(0) !important;
+            }
+            
+            /* Hover and active states with left slide effect */
+            body .site-header .header-content .header-left .site-nav a:hover {
+                background: rgba(255,255,255,0.15) !important;
+                border-color: rgba(255,255,255,0.2) !important;
+                transform: translateX(-8px) !important;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.2) !important;
+            }
+            
+            body .site-header .header-content .header-left .site-nav a.active {
+                background: rgba(255,255,255,0.25) !important;
+                border-color: rgba(255,255,255,0.3) !important;
+                font-weight: 600 !important;
+                box-shadow: 0 2px 12px rgba(0,0,0,0.3) !important;
+            }
+            
+            /* Ensure header container allows positioning */
+            .site-header {
+                position: relative !important;
+            }
+            
+            .header-content {
+                position: relative !important;
+                display: flex !important;
+                justify-content: space-between !important;
+                align-items: center !important;
+            }
+            
+            /* Adjust header left section for mobile */
+            .header-left {
+                display: flex !important;
+                align-items: center !important;
+                flex: 1 !important;
+            }
+        }
+
+        .schedule-hero {
+            background: linear-gradient(135deg, #d00000, #8b0000);
+            color: white;
+            padding: 60px 20px;
+            text-align: center;
+            margin-top: 0;
+        }
+        
+        .schedule-content {
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+        
+        .filters {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: var(--shadow);
+            margin-bottom: 30px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--border-color);
+        }
+        
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .filter-btn {
+            padding: 8px 16px;
+            border: 2px solid var(--accent-color);
+            background: var(--card-bg);
+            color: var(--accent-color);
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .filter-btn:hover,
+        .filter-btn.active {
+            background: var(--accent-color);
+            color: white;
+        }
+        
+        .timezone-selector {
+            padding: 8px 12px;
+            border: 2px solid var(--accent-color);
+            border-radius: 8px;
+            background: var(--card-bg);
+            color: var(--text-color);
+            font-weight: 600;
+        }
+        
+        .games-container {
+            display: grid;
+            gap: 20px;
+        }
+        
+        .game-card {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: var(--shadow);
+            border-left: 4px solid var(--accent-color);
+            transition: transform 0.3s;
+            border: 1px solid var(--border-color);
+        }
+        
+        .game-card.home-game {
+            border-left-color: var(--accent-color);
+        }
+        
+        .game-card.away-game {
+            border-left-color: var(--secondary-text);
+        }
+        
+        .game-card.neutral-game {
+            border-left-color: var(--secondary-text);
+        }
+        
+        .game-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .game-date {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: var(--secondary-text);
+        }
+        
+        .game-status {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 600;
+        }
+        
+        .status-upcoming {
+            background: rgba(25, 118, 210, 0.1);
+            color: #1976d2;
+            border: 1px solid rgba(25, 118, 210, 0.2);
+        }
+        
+        .status-completed {
+            background: rgba(56, 142, 60, 0.1);
+            color: #388e3c;
+            border: 1px solid rgba(56, 142, 60, 0.2);
+        }
+        
+        .teams-display {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 20px 0;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .team {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex: 1;
+            min-width: 200px;
+            max-width: 400px;
+        }
+        
+        .team-logo {
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .team-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        
+        .team-info {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .team-name {
+            font-size: 1.0em;
+            font-weight: 700;
+            color: var(--text-color);
+            line-height: 1.2;
+            word-break: normal;
+            overflow-wrap: break-word;
+            white-space: normal;
+            hyphens: none;
+        }
+        
+        .team-record {
+            font-size: 0.9em;
+            color: var(--secondary-text);
+            white-space: nowrap;
+        }
+        
+        .vs-divider {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: var(--secondary-text);
+            padding: 0 10px;
+        }
+        
+        .game-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        .detail-item {
+            text-align: center;
+        }
+        
+        .detail-label {
+            font-size: 0.8em;
+            color: var(--secondary-text);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+        }
+        
+        .detail-value {
+            font-weight: 600;
+            color: var(--text-color);
+        }
+        
+        @media (max-width: 768px) {
+            .schedule-hero {
+                padding: 40px 20px;
+            }
+            
+            .filters {
+                flex-direction: column;
+                gap: 20px;
+                padding: 25px 15px;
+            }
+            
+            .filter-group {
+                flex-direction: column;
+                gap: 8px;
+                width: 100%;
+                text-align: center;
+            }
+            
+            .filter-group label {
+                color: var(--text-color) !important;
+                font-size: 0.9em;
+            }
+            
+            .timezone-selector {
+                width: 100%;
+                max-width: 200px;
+                margin: 0 auto;
+                padding: 12px 16px;
+                font-size: 16px; /* Prevents zoom on iOS */
+                border-radius: 10px;
+            }
+            
+            .filter-btn {
+                padding: 12px 20px;
+                font-size: 14px;
+                border-radius: 20px;
+                min-width: 80px;
+            }
+            
+            .teams-display {
+                flex-direction: column;
+                text-align: center;
+                gap: 15px;
+            }
+            
+            .vs-divider {
+                order: 2;
+                font-size: 1.2em;
+                padding: 8px 0;
+            }
+            
+            /* On mobile, show away team first (top), home team second (bottom) */
+            .team.nebraska-team {
+                order: 1; /* Will be overridden below based on home/away */
+            }
+            
+            .team.opponent-team {
+                order: 3; /* Will be overridden below based on home/away */
+            }
+            
+            /* Mobile-specific ordering: away team on top, home team on bottom */
+            .game-card.home-game .team.nebraska-team {
+                order: 3; /* Nebraska is home, goes to bottom */
+            }
+            
+            .game-card.home-game .team.opponent-team {
+                order: 1; /* Opponent is away, goes to top */
+            }
+            
+            .game-card.away-game .team.nebraska-team {
+                order: 1; /* Nebraska is away, goes to top */
+            }
+            
+            .game-card.away-game .team.opponent-team {
+                order: 3; /* Opponent is home, goes to bottom */
+            }
+            
+            .game-card {
+                padding: 20px 15px;
+            }
+            
+            .game-details {
+                grid-template-columns: 1fr;
+                gap: 12px;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="site-header">
+        <div class="container">
+            <div class="header-content">
+                <div class="header-left">
+                    <div class="site-logo">
+                        <a href="index.html">
+                            <img src="./images/logos/nebraska-logo.png" alt="Nebraska Logo" class="site-nav-logo">
+                            <h1 class="site-title">Nebraska Cornhuskers</h1>
+                        </a>
+                    </div>
+                    <nav class="site-nav" id="site-nav">
+                        <ul>
+                            <li><a href="index.html">🏠 Home</a></li>
+                            <li><a href="schedule.html" class="active">📅 Schedule</a></li>
+                            <li><a href="roster.html">👥 Roster</a></li>
+                            <li><a href="news.html">📰 News</a></li>
+                            <li><a href="rhule-aid.html">🍺 Rhule-aid</a></li>
+                            <li><a href="gameday.html">🏈 Game Day</a></li>
+                        </ul>
+                    </nav>
+                </div>
+                <div class="header-actions">
+                    <button class="dark-mode-toggle" onclick="toggleDarkMode()" title="Toggle Dark Mode">
+                        <span class="dark-mode-icon">🌙</span>
+                    </button>
+                    <button class="mobile-menu-toggle" 
+                            id="mobile-menu-btn"
+                            onclick="handleMobileMenuToggle(this)"
+                            title="Toggle Navigation Menu">☰</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <script>
+        // BULLETPROOF MOBILE MENU FUNCTIONALITY
+        
+        // Global variables to prevent conflicts
+        window.mobileMenuOpen = false;
+        
+        // Main toggle function
+        function handleMobileMenuToggle(button) {
+            console.log('Mobile menu toggle clicked');
+            
+            // Get elements with multiple fallback methods
+            var nav = document.getElementById('site-nav') || document.querySelector('.site-nav') || document.querySelector('nav');
+            var btn = button || document.getElementById('mobile-menu-btn') || document.querySelector('.mobile-menu-toggle');
+            
+            if (!nav) {
+                console.error('Navigation element not found');
+                return;
+            }
+            
+            if (!btn) {
+                console.error('Button element not found');
+                return;
+            }
+            
+            console.log('Elements found - nav:', nav, 'btn:', btn);
+            
+            // Toggle the menu
+            if (window.mobileMenuOpen) {
+                // Close menu
+                nav.classList.remove('mobile-active');
+                btn.innerHTML = '☰';
+                btn.setAttribute('aria-expanded', 'false');
+                window.mobileMenuOpen = false;
+                console.log('Menu closed');
+            } else {
+                // Open menu
+                nav.classList.add('mobile-active');
+                btn.innerHTML = '✕';
+                btn.setAttribute('aria-expanded', 'true');
+                window.mobileMenuOpen = true;
+                console.log('Menu opened');
+            }
+        }
+        
+        // Close menu when clicking outside
+        function handleDocumentClick(event) {
+            if (!window.mobileMenuOpen) return;
+            
+            var nav = document.getElementById('site-nav');
+            var btn = document.querySelector('.mobile-menu-toggle');
+            
+            if (!nav || !btn) return;
+            
+            var clickedInsideNav = nav.contains(event.target);
+            var clickedButton = btn.contains(event.target);
+            
+            if (!clickedInsideNav && !clickedButton) {
+                nav.classList.remove('mobile-active');
+                btn.innerHTML = '☰';
+                btn.setAttribute('aria-expanded', 'false');
+                window.mobileMenuOpen = false;
+                console.log('Menu closed by outside click');
+            }
+        }
+        
+        // Close menu on window resize to desktop
+        function handleWindowResize() {
+            if (window.innerWidth > 768 && window.mobileMenuOpen) {
+                var nav = document.getElementById('site-nav');
+                var btn = document.querySelector('.mobile-menu-toggle');
+                
+                if (nav) nav.classList.remove('mobile-active');
+                if (btn) {
+                    btn.innerHTML = '☰';
+                    btn.setAttribute('aria-expanded', 'false');
+                }
+                window.mobileMenuOpen = false;
+                console.log('Menu closed by resize');
+            }
+        }
+        
+        // Initialize when DOM is ready
+        function initMobileMenu() {
+            console.log('Initializing mobile menu...');
+            
+            // Add event listeners
+            document.addEventListener('click', handleDocumentClick);
+            window.addEventListener('resize', handleWindowResize);
+            
+            // Set initial button state
+            var btn = document.querySelector('.mobile-menu-toggle');
+            if (btn) {
+                btn.setAttribute('aria-expanded', 'false');
+                btn.setAttribute('aria-controls', 'site-nav');
+                console.log('Button initialized');
+            }
+            
+            // Test elements
+            var nav = document.getElementById('site-nav');
+            console.log('Navigation found:', !!nav);
+            console.log('Button found:', !!btn);
+        }
+        
+        // Initialize on both DOMContentLoaded and load events for safety
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initMobileMenu);
+        } else {
+            initMobileMenu();
+        }
+        
+        window.addEventListener('load', function() {
+            console.log('Window loaded, double-checking mobile menu...');
+            var nav = document.getElementById('site-nav');
+            var btn = document.querySelector('.mobile-menu-toggle');
+            console.log('Final check - nav:', !!nav, 'btn:', !!btn);
+        });
+    </script>
+
+    <div class="schedule-hero">
+        <h1 style="font-size: 3em; margin: 0 0 10px 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">2025 Schedule</h1>
+        <p style="font-size: 1.3em; margin: 0; opacity: 0.9;">Nebraska Cornhuskers Football</p>
+    </div>
+
+    <div class="schedule-content">
+        <div class="filters">
+            <div class="filter-group">
+                <label for="timezone-select" style="font-weight: 600; color: #333;">Timezone:</label>
+                <select id="timezone-select" class="timezone-selector" onchange="updateTimezone()">
+                    <option value="America/Chicago">Central Time</option>
+                    <option value="America/New_York">Eastern Time</option>
+                    <option value="America/Denver">Mountain Time</option>
+                    <option value="America/Los_Angeles">Pacific Time</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <button class="filter-btn active" onclick="filterGames('all')">All Games</button>
+                <button class="filter-btn" onclick="filterGames('home')">Home</button>
+                <button class="filter-btn" onclick="filterGames('away')">Away</button>
+                <button class="filter-btn" onclick="filterGames('neutral')">Neutral</button>
+                <button class="filter-btn" onclick="filterGames('conference')">Big Ten</button>
+            </div>
+        </div>
+
+        <div id="games-container" class="games-container">
+            <div class="loading" style="text-align: center; padding: 40px; color: #666;">
+                Loading schedule...
+            </div>
+        </div>
+    </div>
+
+    <script src="js/script.js"></script>
+    <script>
+        // Load schedule on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSchedule();
+        });
+
+        async function loadSchedule() {
+            try {
+                const response = await fetch('/api/schedule');
+                const data = await response.json();
+                const games = data.data || data.games || [];
+                await displaySchedule(games);
+            } catch (error) {
+                console.error('Error loading schedule:', error);
+                document.getElementById('games-container').innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #666;">
+                        <h3>Unable to load schedule</h3>
+                        <p>Please try again later.</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function displaySchedule(games) {
+            const container = document.getElementById('games-container');
+            
+            if (!games || games.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #666;">
+                        <h3>No games scheduled</h3>
+                        <p>Check back later for updates.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Create all game cards asynchronously
+            const gameCards = await Promise.all(games.map(game => createGameCard(game)));
+            container.innerHTML = gameCards.join('');
+        }
+
+        async function createGameCard(game) {
+            // Debug: Log the raw game data with TV network info
+            console.log('Game data:', { 
+                date: game.date, 
+                time: game.time, 
+                opponent: game.opponent,
+                tv: game.tv || game.network || game.television || 'NO TV DATA',
+                dateString: game.date + ' ' + game.time + ' EST',
+                allGameData: game
+            });
+            
+            // Check for missing or undefined date/time
+            // Validate that we have necessary data for date parsing
+            if (!game.date || (!game.time && game.time !== 'TBD') || game.date === 'undefined' || (game.time === 'undefined')) {
+                console.error('Missing date/time data for game:', {
+                    opponent: game.opponent,
+                    tv: game.tv || game.network || 'NO TV DATA',
+                    date: game.date,
+                    time: game.time,
+                    fullGame: game
+                });
+            }
+            
+            // Source data is in Eastern Time, but we want to display in Central by default
+            let gameDate;
+            if (game.time === 'TBD') {
+                // For TBD times, just use the date at midnight
+                gameDate = new Date(game.date + ' 12:00 AM EST');
+            } else {
+                gameDate = new Date(game.date + ' ' + game.time + ' EST');
+            }
+            
+            // Debug: Check if the parsed date is valid
+            if (isNaN(gameDate.getTime())) {
+                console.error('Invalid date created for TV=' + (game.tvNetwork || 'TBD') + ':', {
+                    original: game.date + ' ' + game.time + ' EST',
+                    parsed: gameDate,
+                    tv: game.tvNetwork || 'TBD',
+                    game: game
+                });
+            }
+            
+            const now = new Date();
+            const isCompleted = gameDate < now;
+            
+            // Determine game type for color coding
+            let gameType = 'neutral-game';
+            const location = (game.location || game.stadium || '').toLowerCase();
+            const opponent = (game.opponent || '').toLowerCase();
+            
+            if (location.includes('memorial stadium') || location.includes('lincoln') || location.includes('nebraska')) {
+                gameType = 'home-game';
+            } else if (location.includes('neutral') || opponent.includes('cincinnati')) {
+                // Cincinnati game is neutral site
+                gameType = 'neutral-game';
+            } else {
+                gameType = 'away-game';
+            }
+            
+            // Clean up opponent name and determine conference
+            const cleanOpponentName = cleanTeamName(game.opponent);
+            const conferenceInfo = await getConferenceInfo(game.opponent);
+            
+            const logoUrl = getOpponentLogoUrl(game.opponent);
+            const opponentLogo = `<img src="${logoUrl}" alt="${game.opponent}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                 <div style="background: #666; color: white; width: 60px; height: 60px; border-radius: 50%; display: none; align-items: center; justify-content: center; font-size: 1.2em; font-weight: bold;">${cleanOpponentName.charAt(0)}</div>`;
+
+            // For desktop, put home team on the right side
+            // For mobile, this will be overridden by CSS
+            const isHomeGame = gameType === 'home-game';
+            const leftTeam = isHomeGame ? {
+                logo: opponentLogo,
+                name: game.opponent,
+                record: conferenceInfo
+            } : {
+                logo: '<img src="./images/logos/nebraska-logo.png" alt="Nebraska">',
+                name: 'Nebraska Cornhuskers',
+                record: 'Big Ten Conference'
+            };
+            
+            const rightTeam = isHomeGame ? {
+                logo: '<img src="./images/logos/nebraska-logo.png" alt="Nebraska">',
+                name: 'Nebraska Cornhuskers',
+                record: 'Big Ten Conference'
+            } : {
+                logo: opponentLogo,
+                name: game.opponent,
+                record: conferenceInfo
+            };
+
+            return `
+                <div class="game-card ${gameType}" data-opponent="${game.opponent}" data-location="${game.location || ''}" data-conference="${conferenceInfo}" data-game-type="${gameType}">
+                    <div class="game-header">
+                        <div class="game-date">${formatGameDate(gameDate)}</div>
+                        <div class="game-status ${isCompleted ? 'status-completed' : 'status-upcoming'}">
+                            ${isCompleted ? 'Completed' : 'Upcoming'}
+                        </div>
+                    </div>
+                    
+                    <div class="teams-display">
+                        <div class="team ${isHomeGame ? 'opponent-team' : 'nebraska-team'}">
+                            <div class="team-logo">${leftTeam.logo}</div>
+                            <div class="team-info">
+                                <div class="team-name">${leftTeam.name}</div>
+                                <div class="team-record">${leftTeam.record}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="vs-divider">${isHomeGame ? 'vs' : '@'}</div>
+                        
+                        <div class="team ${isHomeGame ? 'nebraska-team' : 'opponent-team'}">
+                            <div class="team-logo">${rightTeam.logo}</div>
+                            <div class="team-info">
+                                <div class="team-name">${rightTeam.name}</div>
+                                <div class="team-record">${rightTeam.record}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="game-details">
+                        <div class="detail-item">
+                            <div class="detail-label">Time</div>
+                            <div class="detail-value game-time" data-original-time="${game.time}">${formatGameTimeFromString(game.time)}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Location</div>
+                            <div class="detail-value">${game.location || game.stadium || 'TBA'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">TV Network</div>
+                            <div class="detail-value">${game.tvNetwork || game.tv || 'TBA'}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function filterGames(filter) {
+            // Update active button
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            const cards = document.querySelectorAll('.game-card');
+            cards.forEach(card => {
+                let show = true;
+                
+                if (filter === 'home') {
+                    show = card.dataset.gameType === 'home-game';
+                } else if (filter === 'away') {
+                    show = card.dataset.gameType === 'away-game';
+                } else if (filter === 'neutral') {
+                    show = card.dataset.gameType === 'neutral-game';
+                } else if (filter === 'conference') {
+                    show = card.dataset.conference && card.dataset.conference.toLowerCase().includes('big ten');
+                }
+                // 'all' shows everything, so show = true by default
+                
+                card.style.display = show ? 'block' : 'none';
+            });
+        }
+
+        function updateTimezone() {
+            const selectedTimezone = document.getElementById('timezone-select').value;
+            const gameTimeElements = document.querySelectorAll('.game-time');
+            
+            gameTimeElements.forEach(element => {
+                const originalTime = element.dataset.originalTime;
+                if (originalTime && originalTime.toLowerCase() !== 'tba' && originalTime.toLowerCase() !== 'tbd' && originalTime.trim() !== '') {
+                    try {
+                        // Use the same parsing logic as formatGameTimeFromString
+                        let cleanTime = originalTime.trim();
+                        
+                        // Handle common time formats and convert to 24-hour for better parsing
+                        if (cleanTime.match(/^\d{1,2}:\d{2}\s*(AM|PM)$/i)) {
+                            const timeMatch = cleanTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+                            if (timeMatch) {
+                                let hours = parseInt(timeMatch[1]);
+                                const minutes = timeMatch[2];
+                                const ampm = timeMatch[3].toUpperCase();
+                                
+                                if (ampm === 'PM' && hours !== 12) {
+                                    hours += 12;
+                                } else if (ampm === 'AM' && hours === 12) {
+                                    hours = 0;
+                                }
+                                
+                                cleanTime = `${hours.toString().padStart(2, '0')}:${minutes}`;
+                            }
+                        } else if (cleanTime.match(/^\d{1,2}\s*(AM|PM)$/i)) {
+                            const timeMatch = cleanTime.match(/^(\d{1,2})\s*(AM|PM)$/i);
+                            if (timeMatch) {
+                                let hours = parseInt(timeMatch[1]);
+                                const ampm = timeMatch[2].toUpperCase();
+                                
+                                if (ampm === 'PM' && hours !== 12) {
+                                    hours += 12;
+                                } else if (ampm === 'AM' && hours === 12) {
+                                    hours = 0;
+                                }
+                                
+                                cleanTime = `${hours.toString().padStart(2, '0')}:00`;
+                            }
+                        }
+                        
+                        // Create date with ISO format for better Safari compatibility
+                        // Source times are in EDT (UTC-4)
+                        const isoDateString = `2025-09-01T${cleanTime}:00-04:00`; // Eastern Daylight Time
+                        const gameDate = new Date(isoDateString);
+                        
+                        // Check if date is valid
+                        if (isNaN(gameDate.getTime())) {
+                            element.textContent = 'TBD';
+                            return;
+                        }
+                        
+                        // Convert to selected timezone
+                        const convertedTime = gameDate.toLocaleTimeString('en-US', { 
+                            hour: 'numeric', 
+                            minute: '2-digit',
+                            timeZone: selectedTimezone,
+                            timeZoneName: 'short'
+                        });
+                        
+                        element.textContent = convertedTime;
+                    } catch (error) {
+                        console.error('Error updating timezone for time:', originalTime, error);
+                        element.textContent = 'TBD';
+                    }
+                } else {
+                    element.textContent = 'TBD';
+                }
+            });
+        }
+
+        function formatGameDate(date) {
+            if (isNaN(date.getTime())) {
+                console.error('formatGameDate received invalid date:', date);
+                return 'Invalid Date';
+            }
+            return date.toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+        }
+
+        function formatGameTime(date) {
+            const selectedTimezone = document.getElementById('timezone-select')?.value || 'America/Chicago';
+            return date.toLocaleTimeString('en-US', { 
+                hour: 'numeric', 
+                minute: '2-digit',
+                timeZone: selectedTimezone,
+                timeZoneName: 'short'
+            });
+        }
+
+        function formatGameTimeFromString(timeString) {
+            // Handle TBD, TBA or missing time
+            if (!timeString || timeString.toLowerCase() === 'tba' || timeString.toLowerCase() === 'tbd' || timeString.trim() === '') {
+                return 'TBD';
+            }
+            
+            try {
+                const selectedTimezone = document.getElementById('timezone-select')?.value || 'America/Chicago';
+                
+                // Clean the time string and handle different formats
+                let cleanTime = timeString.trim();
+                
+                // Handle common time formats and convert to 24-hour for better parsing
+                if (cleanTime.match(/^\d{1,2}:\d{2}\s*(AM|PM)$/i)) {
+                    // Format: "3:30 PM" 
+                    const timeMatch = cleanTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+                    if (timeMatch) {
+                        let hours = parseInt(timeMatch[1]);
+                        const minutes = timeMatch[2];
+                        const ampm = timeMatch[3].toUpperCase();
+                        
+                        if (ampm === 'PM' && hours !== 12) {
+                            hours += 12;
+                        } else if (ampm === 'AM' && hours === 12) {
+                            hours = 0;
+                        }
+                        
+                        cleanTime = `${hours.toString().padStart(2, '0')}:${minutes}`;
+                    }
+                } else if (cleanTime.match(/^\d{1,2}\s*(AM|PM)$/i)) {
+                    // Format: "3 PM"
+                    const timeMatch = cleanTime.match(/^(\d{1,2})\s*(AM|PM)$/i);
+                    if (timeMatch) {
+                        let hours = parseInt(timeMatch[1]);
+                        const ampm = timeMatch[2].toUpperCase();
+                        
+                        if (ampm === 'PM' && hours !== 12) {
+                            hours += 12;
+                        } else if (ampm === 'AM' && hours === 12) {
+                            hours = 0;
+                        }
+                        
+                        cleanTime = `${hours.toString().padStart(2, '0')}:00`;
+                    }
+                }
+                
+                // Create a date with proper format for better cross-browser compatibility
+                // Use ISO format which works better on Safari
+                // Source times are in EDT (UTC-4), convert to selected timezone
+                const isoDateString = `2025-09-01T${cleanTime}:00-04:00`; // Eastern Daylight Time (UTC-4)
+                const gameDate = new Date(isoDateString);
+                
+                // Check if date is valid
+                if (isNaN(gameDate.getTime())) {
+                    console.warn('Invalid date created from time:', timeString, 'cleaned to:', cleanTime);
+                    return 'TBD';
+                }
+                
+                return gameDate.toLocaleTimeString('en-US', { 
+                    hour: 'numeric', 
+                    minute: '2-digit',
+                    timeZone: selectedTimezone,
+                    timeZoneName: 'short'
+                });
+            } catch (error) {
+                console.error('Error formatting time:', timeString, error);
+                return 'TBD';
+            }
+        }
+
+        // Function to get opponent logo from our cached service
+        function getOpponentLogoUrl(opponent) {
+            // Use our Cloudflare cached logo service
+            return `/api/logo?team=${encodeURIComponent(opponent)}`;
+        }
+
+        function cleanTeamName(fullName) {
+            // Remove common suffixes to clean up team names
+            return fullName
+                .replace(/\s+(Bearcats|Zips|Panthers|Wolverines|Spartans|Terrapins|Golden Gophers|Wildcats|Trojans|Bruins|Buckeyes|Nittany Lions|Hawkeyes|Cornhuskers)$/i, '')
+                .trim();
+        }
+
+        // Cache for conference data to avoid repeated API calls
+        const conferenceCache = new Map();
+
+        async function getConferenceInfo(opponent) {
+            // Check cache first
+            if (conferenceCache.has(opponent)) {
+                return conferenceCache.get(opponent);
+            }
+            
+            try {
+                const response = await fetch(`/api/conferences?team=${encodeURIComponent(opponent)}`);
+                const data = await response.json();
+                const conference = data.conference || 'Non-Conference';
+                
+                // Cache the result
+                conferenceCache.set(opponent, conference);
+                return conference;
+            } catch (error) {
+                console.error('Error fetching conference info:', error);
+                // Fallback to Non-Conference if API fails
+                conferenceCache.set(opponent, 'Non-Conference');
+                return 'Non-Conference';
+            }
+        }
+
+        // Dark Mode Functions - Safari/iOS Compatible
+        function toggleDarkMode() {
+            try {
+                var html = document.documentElement;
+                var currentTheme = html.getAttribute('data-theme');
+                var newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                
+                html.setAttribute('data-theme', newTheme);
+                
+                // Safe localStorage handling for Safari
+                try {
+                    localStorage.setItem('theme', newTheme);
+                } catch (e) {
+                    console.warn('localStorage not available:', e);
+                }
+                
+                // Update the icon
+                var icon = document.querySelector('.dark-mode-icon');
+                if (icon) {
+                    icon.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+                }
+            } catch (error) {
+                console.error('Dark mode toggle error:', error);
+            }
+        }
+
+        // Initialize dark mode on page load
+        function initDarkMode() {
+            try {
+                var savedTheme = null;
+                var prefersDark = false;
+                
+                // Safe localStorage access
+                try {
+                    savedTheme = localStorage.getItem('theme');
+                } catch (e) {
+                    console.warn('localStorage not available:', e);
+                }
+                
+                // Safe media query check
+                try {
+                    if (window.matchMedia) {
+                        prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    }
+                } catch (e) {
+                    console.warn('matchMedia not available:', e);
+                }
+                
+                var theme = savedTheme || (prefersDark ? 'dark' : 'light');
+                
+                document.documentElement.setAttribute('data-theme', theme);
+                
+                // Update the icon
+                var icon = document.querySelector('.dark-mode-icon');
+                if (icon) {
+                    icon.textContent = theme === 'dark' ? '☀️' : '🌙';
+                }
+            } catch (error) {
+                console.error('Dark mode init error:', error);
+                // Fallback to light mode
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        }
+
+        // Initialize dark mode when page loads - Safari compatible
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initDarkMode);
+        } else {
+            initDarkMode();
+        }
+    </script>
+</body>
+</html>

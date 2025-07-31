@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nebraska Cornhuskers Football</title>
+    <link rel="icon" type="image/png" href="images/favicon-rhuleaid.png">
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        /* Hero Section */
+        .hero-section {
+            background: linear-gradient(135deg, rgba(208, 0, 0, 0.9), rgba(139, 0, 0, 0.9)), 
+                        url('images/memorial-stadium.jpg') center/cover;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .hero-content {
+            max-width: 800px;
+            padding: 0 20px;
+            z-index: 2;
+        }
+        
+        .hero-logo {
+            width: 150px;
+            height: 150px;
+            margin: 0 auto 30px;
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        .hero-title {
+            font-size: 4em;
+            font-weight: 900;
+            margin-bottom: 20px;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.5);
+            animation: slideInUp 1s ease-out;
+        }
+        
+        .hero-subtitle {
+            font-size: 1.5em;
+            margin-bottom: 40px;
+            opacity: 0.95;
+            animation: slideInUp 1s ease-out 0.3s both;
+        }
+        
+        .hero-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+            animation: slideInUp 1s ease-out 0.6s both;
+        }
+        
+        .hero-btn {
+            padding: 15px 30px;
+            font-size: 1.1em;
+            font-weight: 700;
+            text-decoration: none;
+            border-radius: 50px;
+            transition: all 0.3s;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background: #ffeb3b;
+            color: #d00000;
+            border: 3px solid #ffeb3b;
+        }
+        
+        .btn-secondary {
+            background: transparent;
+            color: white;
+            border: 3px solid white;
+        }
+        
+        .hero-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        }
+        
+        .btn-primary:hover {
+            background: white;
+            border-color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: white;
+            color: #d00000;
+        }
+        
+        /* Quick Stats Section */
+        .quick-stats {
+            background: white;
+            padding: 80px 0;
+            position: relative;
+        }
+        
+        .stats-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        .section-title {
+            text-align: center;
+            font-size: 3em;
+            color: #d00000;
+            margin-bottom: 50px;
+            font-weight: 900;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 40px;
+        }
+        
+        .stat-card {
+            text-align: center;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-radius: 20px;
+            border-left: 5px solid #d00000;
+            transition: transform 0.3s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-10px);
+        }
+        
+        .stat-number {
+            font-size: 4em;
+            font-weight: 900;
+            color: #d00000;
+            margin-bottom: 10px;
+        }
+        
+        .stat-label {
+            font-size: 1.2em;
+            color: #666;
+            font-weight: 600;
+        }
+        
+        /* Features Grid */
+        .features-section {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            padding: 80px 0;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 40px;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        .feature-card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            text-align: center;
+            transition: transform 0.3s;
+            border-top: 5px solid #d00000;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .feature-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+        
+        .feature-title {
+            font-size: 1.5em;
+            color: #333;
+            margin-bottom: 15px;
+            font-weight: 700;
+        }
+        
+        .feature-description {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+        
+        .feature-link {
+            color: #d00000;
+            font-weight: 700;
+            text-decoration: none;
+            font-size: 1.1em;
+            transition: color 0.3s;
+        }
+        
+        .feature-link:hover {
+            color: #8b0000;
+        }
+        
+        /* News Section */
+        .news-section {
+            background: white;
+            padding: 80px 0;
+        }
+        
+        .news-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        .news-card {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+        
+        .news-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .news-image {
+            width: 100%;
+            height: 200px;
+            background: linear-gradient(135deg, #d00000, #8b0000);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 2em;
+        }
+        
+        .news-content {
+            padding: 25px;
+        }
+        
+        .news-date {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+        }
+        
+        .news-title {
+            font-size: 1.3em;
+            color: #333;
+            margin-bottom: 15px;
+            font-weight: 700;
+            line-height: 1.3;
+        }
+        
+        .news-excerpt {
+            color: #666;
+            line-height: 1.5;
+        }
+        
+        /* Animations */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            .hero-title {
+                font-size: 2.5em;
+            }
+            
+            .hero-subtitle {
+                font-size: 1.2em;
+            }
+            
+            .hero-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .hero-btn {
+                width: 250px;
+                text-align: center;
+            }
+            
+            .section-title {
+                font-size: 2em;
+            }
+            
+            .stat-number {
+                font-size: 3em;
+            }
+            
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="site-header">
+        <div class="container">
+            <div class="header-content">
+                <div class="site-logo">
+                    <a href="index.html">
+                        <img src="./images/logos/nebraska-logo.png" alt="Nebraska Logo" class="site-nav-logo">
+                        <h1 class="site-title">Nebraska Cornhuskers</h1>
+                    </a>
+                </div>
+                <button class="mobile-menu-toggle" onclick="toggleMobileMenu()">☰</button>
+                <nav class="site-nav" id="site-nav">
+                    <ul>
+                        <li><a href="index.html" class="active">🏠 Home</a></li>
+                        <li><a href="schedule.html">📅 Schedule</a></li>
+                        <li><a href="roster.html">👥 Roster</a></li>
+                        <li><a href="rhule-aid.html">🌽 Rhule-aid</a></li>
+                        <li><a href="gameday.html">🏈 Game Day</a></li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <div class="hero-content">
+            <img src="./images/logos/nebraska-logo.png" alt="Nebraska Logo" class="hero-logo">
+            <h1 class="hero-title">GO BIG RED</h1>
+            <p class="hero-subtitle">Nebraska Cornhuskers Football • 2025 Season</p>
+            <div class="hero-buttons">
+                <a href="schedule.html" class="hero-btn btn-primary">VIEW SCHEDULE</a>
+                <a href="gameday.html" class="hero-btn btn-secondary">GAME DAY</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Quick Stats -->
+    <section class="quick-stats">
+        <div class="stats-container">
+            <h2 class="section-title">Season at a Glance</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number">2025</div>
+                    <div class="stat-label">Current Season</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">12</div>
+                    <div class="stat-label">Regular Season Games</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">3rd</div>
+                    <div class="stat-label">Year Under Rhule</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">85K+</div>
+                    <div class="stat-label">Memorial Stadium Capacity</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features -->
+    <section class="features-section">
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">📅</div>
+                <h3 class="feature-title">2025 Schedule</h3>
+                <p class="feature-description">
+                    View the complete 2025 football schedule with game times, locations, and TV networks. Filter by home/away games and conference matchups.
+                </p>
+                <a href="schedule.html" class="feature-link">View Schedule →</a>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">👥</div>
+                <h3 class="feature-title">Team Roster</h3>
+                <p class="feature-description">
+                    Meet the 2025 Nebraska Cornhuskers roster. Browse players by position, search by name, and view detailed player information and stats.
+                </p>
+                <a href="roster.html" class="feature-link">View Roster →</a>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">🏈</div>
+                <h3 class="feature-title">Game Day Central</h3>
+                <p class="feature-description">
+                    Your go-to destination for live game information, countdowns to upcoming games, and real-time updates during game day.
+                </p>
+                <a href="gameday.html" class="feature-link">Game Day →</a>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">🌽</div>
+                <h3 class="feature-title">Coach Rhule</h3>
+                <p class="feature-description">
+                    Learn about Head Coach Matt Rhule's journey, coaching philosophy, and his impact on Nebraska football program development.
+                </p>
+                <a href="rhule-aid.html" class="feature-link">Rhule-aid →</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Latest News -->
+    <section class="news-section">
+        <div class="stats-container">
+            <h2 class="section-title">Latest News</h2>
+            <div class="news-grid">
+                <div class="news-card">
+                    <div class="news-image">🏆</div>
+                    <div class="news-content">
+                        <div class="news-date">January 15, 2025</div>
+                        <h3 class="news-title">Nebraska Announces 2025 Spring Practice Schedule</h3>
+                        <p class="news-excerpt">The Cornhuskers will begin spring practice in March as they prepare for the 2025 season under Coach Matt Rhule.</p>
+                    </div>
+                </div>
+                
+                <div class="news-card">
+                    <div class="news-image">🎯</div>
+                    <div class="news-content">
+                        <div class="news-date">January 10, 2025</div>
+                        <h3 class="news-title">Recruiting Class Ranks Among Nation's Best</h3>
+                        <p class="news-excerpt">Coach Rhule and staff have assembled another strong recruiting class, continuing to build program depth and talent.</p>
+                    </div>
+                </div>
+                
+                <div class="news-card">
+                    <div class="news-image">🌟</div>
+                    <div class="news-content">
+                        <div class="news-date">January 5, 2025</div>
+                        <h3 class="news-title">Academic All-Big Ten Honors Continue</h3>
+                        <p class="news-excerpt">Nebraska student-athletes continue to excel in the classroom, earning recognition for academic achievement.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script src="js/script.js"></script>
+</body>
+</html>
