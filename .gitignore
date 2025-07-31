@@ -120,3 +120,6 @@ build/
 
 # Cloudflare specific
 wrangler.toml.backup
+
+# AI Assistant documentation
+CLAUDE.md
