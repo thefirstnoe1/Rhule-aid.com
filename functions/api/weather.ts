@@ -102,9 +102,9 @@ export const onRequestGet = async (context: any) => {
 };
 
 async function fetchLincolnWeather() {
-  // Lincoln, NE coordinates: 40.8136° N, 96.7026° W
-  const lat = 40.8136;
-  const lon = -96.7026;
+  // Lincoln, NE coordinates: 40.8206° N, 96.7056° W (more precise location)
+  const lat = 40.8206;
+  const lon = -96.7056;
   
   // User agent as required by NWS API
   const userAgent = 'RhuleAid.com Weather App (contact@rhuleaid.com)';
