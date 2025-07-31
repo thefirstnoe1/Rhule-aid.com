@@ -2,8 +2,8 @@
 export async function onRequest(context) {
   const { request, env } = context;
   
-  const CACHE_KEY = 'nebraska_schedule_2025_fbschedules';
-  const CACHE_TTL = 60 * 60 * 6; // 6 hours in seconds
+  const CACHE_KEY = 'nebraska_schedule_2025_fbschedules_dynamic';
+  const CACHE_TTL = 60 * 60 * 24; // 24 hours for daily refresh
   
   try {
     // Try to get cached data first
@@ -39,11 +39,23 @@ export async function onRequest(context) {
       });
     }
 
-    console.log('Providing schedule data from FBSchedules.com...');
+    console.log('Fetching fresh schedule data...');
     
-    // Return data based on FBSchedules.com information with full stadium names
-    let scheduleData = getFBSchedulesData();
-    let dataSource = 'fbschedules';
+    let scheduleData;
+    let dataSource;
+    
+    try {
+      // Try to scrape from FBSchedules.com
+      scheduleData = await fetchScheduleFromFBSchedules();
+      dataSource = 'fbschedules-live';
+      console.log(`Successfully fetched ${scheduleData.length} games from FBSchedules.com`);
+    } catch (scrapeError) {
+      console.error('Failed to scrape FBSchedules.com:', scrapeError);
+      // Fall back to hardcoded data
+      scheduleData = getFBSchedulesData();
+      dataSource = 'fbschedules-hardcoded';
+      console.log('Using hardcoded fallback schedule data');
+    }
     
     console.log('Schedule data being returned:', JSON.stringify(scheduleData.slice(0, 3), null, 2));
 
@@ -67,7 +79,8 @@ export async function onRequest(context) {
       cached: false,
       lastUpdated: new Date().toISOString(),
       source: dataSource,
-      count: scheduleData.length
+      count: scheduleData.length,
+      nextRefresh: new Date(Date.now() + (CACHE_TTL * 1000)).toISOString()
     }), {
       headers: {
         'Content-Type': 'application/json',
@@ -111,6 +124,164 @@ export async function onRequest(context) {
       headers: { 'Content-Type': 'application/json' }
     });
   }
+}
+
+async function fetchScheduleFromFBSchedules() {
+  const url = 'https://fbschedules.com/nebraska-football-schedule/';
+  
+  const response = await fetch(url, {
+    headers: {
+      'User-Agent': 'RhuleAid.com/1.0 (Nebraska Football Schedule Bot)',
+      'Accept': 'text/html,application/xhtml+xml',
+    }
+  });
+  
+  if (!response.ok) {
+    throw new Error(`FBSchedules returned status ${response.status}`);
+  }
+  
+  const html = await response.text();
+  return parseScheduleHTML(html);
+}
+
+function parseScheduleHTML(html) {
+  const games = [];
+  
+  // Look for schedule table
+  const tableRegex = /<table[^>]*class="[^"]*college-football-schedule[^"]*"[^>]*>([\s\S]*?)<\/table>/i;
+  const tableMatch = html.match(tableRegex);
+  
+  if (!tableMatch) {
+    throw new Error('Could not find schedule table in HTML');
+  }
+  
+  const tableHTML = tableMatch[1];
+  const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+  const rows = tableHTML.match(rowRegex) || [];
+  
+  for (const row of rows) {
+    if (row.includes('<th') || row.includes('thead')) continue;
+    
+    const cells = [];
+    const cellRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi;
+    let cellMatch;
+    
+    while ((cellMatch = cellRegex.exec(row)) !== null) {
+      const cellText = cellMatch[1]
+        .replace(/<[^>]*>/g, '')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .trim();
+      cells.push(cellText);
+    }
+    
+    if (cells.length >= 3) {
+      const game = parseGameFromCells(cells);
+      if (game) games.push(game);
+    }
+  }
+  
+  return games;
+}
+
+function parseGameFromCells(cells) {
+  const dateStr = cells[0];
+  if (!dateStr || dateStr.toLowerCase() === 'date') return null;
+  
+  const timeStr = cells[1] || 'TBD';
+  let opponent = cells[2];
+  const tvOrLocation = cells[3] || '';
+  
+  let isHome = true;
+  let isNeutral = false;
+  let location = 'Memorial Stadium, Lincoln, NE';
+  
+  // Parse opponent prefixes
+  if (opponent.startsWith('at ') || opponent.startsWith('@ ')) {
+    opponent = opponent.replace(/^(at |@ )/, '');
+    isHome = false;
+  } else if (opponent.startsWith('vs ')) {
+    opponent = opponent.replace(/^vs\.? /, '');
+    // Check for neutral site
+    if (tvOrLocation && !tvOrLocation.match(/^(ESPN|FOX|CBS|NBC|BTN|FS1)/i)) {
+      isNeutral = true;
+      location = tvOrLocation;
+      isHome = false;
+    }
+  }
+  
+  // Clean opponent name
+  opponent = opponent.replace(/^#?\d+\s+/, '').trim();
+  
+  // Map team names
+  const teamMap = {
+    'Cincinnati': 'Cincinnati Bearcats',
+    'Akron': 'Akron Zips',
+    'HCU': 'HCU Huskies',
+    'Houston Christian': 'HCU Huskies',
+    'Michigan': 'Michigan Wolverines',
+    'Michigan State': 'Michigan State Spartans',
+    'Maryland': 'Maryland Terrapins',
+    'Minnesota': 'Minnesota Golden Gophers',
+    'Northwestern': 'Northwestern Wildcats',
+    'USC': 'USC Trojans',
+    'UCLA': 'UCLA Bruins',
+    'Penn State': 'Penn State Nittany Lions',
+    'Iowa': 'Iowa Hawkeyes'
+  };
+  
+  for (const [key, value] of Object.entries(teamMap)) {
+    if (opponent.includes(key)) {
+      opponent = value;
+      break;
+    }
+  }
+  
+  // Map stadiums for away games
+  if (!isHome && !isNeutral) {
+    const stadiumMap = {
+      'Michigan': 'Michigan Stadium, Ann Arbor, MI',
+      'Michigan State': 'Spartan Stadium, East Lansing, MI',
+      'Maryland': 'SECU Stadium, College Park, MD',
+      'Minnesota': 'Huntington Bank Stadium, Minneapolis, MN',
+      'Northwestern': 'Ryan Field, Evanston, IL',
+      'USC': 'Los Angeles Memorial Coliseum, Los Angeles, CA',
+      'UCLA': 'Rose Bowl Stadium, Pasadena, CA',
+      'Penn State': 'Beaver Stadium, University Park, PA',
+      'Iowa': 'Kinnick Stadium, Iowa City, IA'
+    };
+    
+    for (const [team, stadium] of Object.entries(stadiumMap)) {
+      if (opponent.includes(team)) {
+        location = stadium;
+        break;
+      }
+    }
+  }
+  
+  // Extract TV network
+  let tvNetwork = 'TBD';
+  const tvMatch = tvOrLocation.match(/(ESPN|FOX|CBS|NBC|BTN|FS1|ABC)/i);
+  if (tvMatch) {
+    tvNetwork = tvMatch[1].toUpperCase();
+  }
+  
+  // Special case for Cincinnati neutral site game
+  if (opponent.includes('Cincinnati') && dateStr.includes('August')) {
+    isNeutral = true;
+    location = 'Arrowhead Stadium, Kansas City, MO';
+    isHome = false;
+  }
+  
+  return {
+    date: dateStr,
+    opponent: opponent,
+    time: timeStr === 'TBA' ? 'TBD' : timeStr,
+    location: location,
+    tvNetwork: tvNetwork,
+    isHome: isHome,
+    isNeutral: isNeutral
+  };
 }
 
 function getFBSchedulesData() {
