@@ -1167,7 +1167,15 @@
             document.getElementById('countdownSection').style.display = 'block';
         }
 
-        function updateStadiumCard(game) {            const stadiumInfo = getStadiumInfo(game.location);
+            // Update stadium card information
+            updateStadiumCard(game);
+
+            // Show countdown section
+            document.getElementById('countdownSection').style.display = 'block';
+        }
+
+        function updateStadiumCard(game) {
+            const stadiumInfo = getStadiumInfo(game.location);
             
             const stadiumCard = document.getElementById('stadiumCard');
             const stadiumTitle = document.getElementById('stadiumTitle');
@@ -1209,77 +1217,6 @@
             
             console.log('Updated stadium card:', stadiumInfo);
         }
-            const gameInfoDiv = document.getElementById('gameInfo');
-            
-            // Format date
-            const gameDate = new Date(game.date);
-            const dateOptions = { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric',
-                timeZone: 'America/Chicago'
-            };
-
-            const formattedDate = gameDate.toLocaleDateString('en-US', dateOptions);
-            
-            // Format time using the same logic as schedule page
-            const formattedTime = formatGameTimeFromEDT(game.time);
-
-            // Get opponent logo using the same service as schedule page
-            const opponentLogoUrl = `/api/logo?team=${encodeURIComponent(game.opponent)}`;
-
-            gameInfoDiv.innerHTML = `
-                <div class="game-info">
-                    <div class="next-game">Next Game</div>
-                    
-                    <div class="teams">
-                        <div class="team">
-                            <div class="team-logo">
-                                <img src="./images/logos/nebraska-logo.png" 
-                                     alt="Nebraska">
-                            </div>
-                            <div class="team-name">Nebraska</div>
-                        </div>
-                        
-                        <div class="vs">VS</div>
-                        
-                        <div class="team">
-                            <div class="team-logo">
-                                <img src="${opponentLogoUrl}" 
-                                     alt="${game.opponent}"
-                                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                <div style="background: #666; color: white; width: 100px; height: 100px; border-radius: 50%; display: none; align-items: center; justify-content: center; font-size: 1.2em; font-weight: bold;">${game.opponent.charAt(0)}</div>
-                            </div>
-                            <div class="team-name">${game.opponent}</div>
-                        </div>
-                    </div>
-
-                    <div class="game-details">
-                        <div class="game-detail">
-                            <div class="detail-label">📅 Date</div>
-                            <div class="detail-value">${formattedDate}</div>
-                        </div>
-                        <div class="game-detail">
-                            <div class="detail-label">⏰ Time</div>
-                            <div class="detail-value">${formattedTime}</div>
-                        </div>
-                        <div class="game-detail">
-                            <div class="detail-label">🏟️ Location</div>
-                            <div class="detail-value">${game.location || 'TBD'}</div>
-                        </div>
-                        <div class="game-detail">
-                            <div class="detail-label">${game.isHome ? '🏠' : '✈️'} Game Type</div>
-                            <div class="detail-value">${game.isHome ? 'Home' : 'Away'}</div>
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            // Show countdown section
-            document.getElementById('countdownSection').style.display = 'block';
-        }
-
         function displayNoUpcomingGames() {
             const gameInfoDiv = document.getElementById('gameInfo');
             gameInfoDiv.innerHTML = `
