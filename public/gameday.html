@@ -1163,10 +1163,6 @@
                 </div>
             `;
 
-            // Show countdown section
-            document.getElementById('countdownSection').style.display = 'block';
-        }
-
             // Update stadium card information
             updateStadiumCard(game);
 
@@ -1473,7 +1469,8 @@
                     <button onclick="loadWeather(nextGame ? nextGame.location : null)" style="margin-top: 10px; padding: 8px 16px; background: var(--accent-color); color: white; border: none; border-radius: 5px; cursor: pointer;">
                         Retry
                     </button>
-                </div>            `;
+                </div>
+            `;
         }
 
         function formatTime(timestamp) {
