@@ -171,6 +171,38 @@
             border: 1px solid var(--border-color);
         }
         
+        .view-toggle {
+            display: flex;
+            gap: 5px;
+            background: var(--hover-bg);
+            border-radius: 25px;
+            padding: 5px;
+            border: 2px solid var(--accent-color);
+        }
+        
+        .view-btn {
+            padding: 8px 16px;
+            border: none;
+            background: transparent;
+            color: var(--text-color);
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .view-btn.active {
+            background: var(--accent-color);
+            color: white;
+        }
+        
+        .view-btn:hover:not(.active) {
+            background: rgba(var(--accent-color-rgb), 0.1);
+        }
+        
         .filter-btn {
             padding: 8px 16px;
             border: 2px solid var(--accent-color);
@@ -207,6 +239,83 @@
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
             gap: 20px;
+        }
+        
+        .roster-list {
+            display: block;
+        }
+        
+        .list-header {
+            display: grid;
+            grid-template-columns: 80px 1fr 120px 80px 100px 100px 1fr;
+            gap: 15px;
+            padding: 15px 20px;
+            background: var(--accent-color);
+            color: white;
+            font-weight: 600;
+            border-radius: 10px 10px 0 0;
+            margin-bottom: 0;
+            align-items: center;
+        }
+        
+        .list-item {
+            display: grid;
+            grid-template-columns: 80px 1fr 120px 80px 100px 100px 1fr;
+            gap: 15px;
+            padding: 15px 20px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-bottom: none;
+            align-items: center;
+            transition: background-color 0.2s;
+        }
+        
+        .list-item:last-child {
+            border-bottom: 1px solid var(--border-color);
+            border-radius: 0 0 10px 10px;
+        }
+        
+        .list-item:hover {
+            background: var(--hover-bg);
+        }
+        
+        .list-item.position-offense {
+            border-left: 4px solid #28a745;
+        }
+        
+        .list-item.position-defense {
+            border-left: 4px solid #dc3545;
+        }
+        
+        .list-item.position-special {
+            border-left: 4px solid #ffc107;
+        }
+        
+        .list-number {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: var(--accent-color);
+            text-align: center;
+        }
+        
+        .list-name {
+            font-weight: 600;
+            color: var(--text-color);
+        }
+        
+        .list-position {
+            font-weight: 600;
+            color: var(--secondary-text);
+            text-align: center;
+        }
+        
+        .list-year, .list-height, .list-weight {
+            text-align: center;
+            color: var(--text-color);
+        }
+        
+        .list-hometown {
+            color: var(--secondary-text);
         }
         
         .player-card {
@@ -331,6 +440,29 @@
             
             .player-details {
                 grid-template-columns: 1fr;
+            }
+            
+            .list-header,
+            .list-item {
+                grid-template-columns: 60px 1fr 80px;
+                gap: 10px;
+            }
+            
+            .list-header .list-year,
+            .list-header .list-height,
+            .list-header .list-weight,
+            .list-header .list-hometown,
+            .list-item .list-year,
+            .list-item .list-height,
+            .list-item .list-weight,
+            .list-item .list-hometown {
+                display: none;
+            }
+            
+            .view-toggle {
+                order: -1;
+                width: 100%;
+                justify-content: center;
             }
         }
     </style>
@@ -488,6 +620,14 @@
         </div>
 
         <div class="filters">
+            <div class="view-toggle">
+                <button class="view-btn active" onclick="toggleView('cards')" id="cards-btn">
+                    <span>⊞</span> Cards
+                </button>
+                <button class="view-btn" onclick="toggleView('list')" id="list-btn">
+                    <span>☰</span> List
+                </button>
+            </div>
             <input type="text" class="search-box" placeholder="Search players..." id="search-input" oninput="filterPlayers()">
             <button class="filter-btn active" onclick="filterByPosition('all')">All Players</button>
             <button class="filter-btn" onclick="filterByPosition('offense')">Offense</button>
@@ -505,6 +645,54 @@
     <script src="js/script.js"></script>
     <script>
         let allPlayers = [];
+        let currentView = 'cards'; // 'cards' or 'list'
+
+        // Function to toggle between card and list view
+        function toggleView(view) {
+            currentView = view;
+            
+            // Update button states
+            document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(view + '-btn').classList.add('active');
+            
+            // Re-display current filtered players in new view
+            const container = document.getElementById('roster-container');
+            const currentPlayers = getCurrentFilteredPlayers();
+            displayRoster(currentPlayers);
+        }
+        
+        // Get currently filtered players based on active filters
+        function getCurrentFilteredPlayers() {
+            let filteredPlayers = allPlayers;
+            
+            // Apply search filter
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            if (searchTerm) {
+                filteredPlayers = filteredPlayers.filter(player => 
+                    player.name.toLowerCase().includes(searchTerm) ||
+                    player.position.toLowerCase().includes(searchTerm) ||
+                    player.number.toString().includes(searchTerm) ||
+                    player.hometown.toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            // Apply position filter
+            const activeFilter = document.querySelector('.filter-btn.active');
+            let category = 'all';
+            if (activeFilter) {
+                const buttonText = activeFilter.textContent.toLowerCase();
+                if (buttonText === 'offense') category = 'offense';
+                else if (buttonText === 'defense') category = 'defense';
+                else if (buttonText === 'special teams') category = 'special';
+                else category = 'all';
+            }
+            
+            if (category !== 'all') {
+                filteredPlayers = filteredPlayers.filter(player => player.category === category);
+            }
+            
+            return filteredPlayers;
+        }
 
         // Function to load roster data from API
         async function loadRosterData() {
@@ -627,7 +815,46 @@
                 return;
             }
 
-            container.innerHTML = players.map(player => createPlayerCard(player)).join('');
+            if (currentView === 'cards') {
+                container.className = 'roster-grid';
+                container.innerHTML = players.map(player => createPlayerCard(player)).join('');
+            } else {
+                container.className = 'roster-list';
+                container.innerHTML = createListView(players);
+            }
+        }
+        
+        function createListView(players) {
+            const headerHtml = `
+                <div class="list-header">
+                    <div>#</div>
+                    <div>Name</div>
+                    <div>Position</div>
+                    <div>Year</div>
+                    <div>Height</div>
+                    <div>Weight</div>
+                    <div>Hometown</div>
+                </div>
+            `;
+            
+            const playersHtml = players.map(player => createPlayerListItem(player)).join('');
+            return headerHtml + playersHtml;
+        }
+        
+        function createPlayerListItem(player) {
+            const positionClass = `position-${player.category}`;
+            
+            return `
+                <div class="list-item ${positionClass}" data-position="${player.category}" data-name="${player.name.toLowerCase()}">
+                    <div class="list-number">#${player.number}</div>
+                    <div class="list-name">${player.name}</div>
+                    <div class="list-position">${player.position}</div>
+                    <div class="list-year">${player.year}</div>
+                    <div class="list-height">${player.height}</div>
+                    <div class="list-weight">${player.weight}</div>
+                    <div class="list-hometown">${player.hometown}</div>
+                </div>
+            `;
         }
 
         function createPlayerCard(player) {
@@ -666,41 +893,15 @@
             document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
             event.target.classList.add('active');
             
-            let filteredPlayers = allPlayers;
-            if (category !== 'all') {
-                filteredPlayers = allPlayers.filter(player => player.category === category);
-            }
-            
-            // Also apply search filter if there's text in search box
-            const searchTerm = document.getElementById('search-input').value.toLowerCase();
-            if (searchTerm) {
-                filteredPlayers = filteredPlayers.filter(player => 
-                    player.name.toLowerCase().includes(searchTerm) ||
-                    player.position.toLowerCase().includes(searchTerm) ||
-                    player.number.toString().includes(searchTerm)
-                );
-            }
-            
+            const filteredPlayers = getCurrentFilteredPlayers();
             displayRoster(filteredPlayers);
             updateStatsForFilteredPlayers(filteredPlayers, category);
         }
 
         function filterPlayers() {
-            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            const filteredPlayers = getCurrentFilteredPlayers();
             
-            let filteredPlayers = allPlayers;
-            
-            // Apply search filter
-            if (searchTerm) {
-                filteredPlayers = filteredPlayers.filter(player => 
-                    player.name.toLowerCase().includes(searchTerm) ||
-                    player.position.toLowerCase().includes(searchTerm) ||
-                    player.number.toString().includes(searchTerm) ||
-                    player.hometown.toLowerCase().includes(searchTerm)
-                );
-            }
-            
-            // Also apply position filter if active
+            // Get active category for stats update
             const activeFilter = document.querySelector('.filter-btn.active');
             let category = 'all';
             if (activeFilter) {
@@ -709,10 +910,6 @@
                 else if (buttonText === 'defense') category = 'defense';
                 else if (buttonText === 'special teams') category = 'special';
                 else category = 'all';
-            }
-            
-            if (category !== 'all') {
-                filteredPlayers = filteredPlayers.filter(player => player.category === category);
             }
             
             displayRoster(filteredPlayers);

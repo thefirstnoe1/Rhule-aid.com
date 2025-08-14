@@ -1,0 +1,62 @@
+{
+  // Cloudflare Workers configuration
+  // Migrated from Cloudflare Pages to Workers for enhanced capabilities
+  "name": "rhule-aid",
+  "compatibility_date": "2024-01-01",
+  "compatibility_flags": ["nodejs_compat"],
+  
+  // Main Worker script (compiled from Pages Functions)
+  "main": "./dist/worker/index.js",
+  
+  // Static assets configuration (replaces pages_build_output_dir)
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
+  
+  // D1 Database binding
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "rhule-aid-db",
+      "database_id": "$DATABASE_ID"
+    }
+  ],
+  
+  // KV Namespace bindings
+  "kv_namespaces": [
+    {
+      "binding": "SCHEDULE_CACHE",
+      "id": "$SCHEDULE_CACHE_ID"
+    },
+    {
+      "binding": "ROSTER_CACHE", 
+      "id": "$ROSTER_CACHE_ID"
+    },
+    {
+      "binding": "NEWS_CACHE",
+      "id": "$NEWS_CACHE_ID"
+    },
+    {
+      "binding": "WEATHER_CACHE",
+      "id": "$WEATHER_CACHE_ID"
+    }
+  ],
+  
+  // Environment variables
+  "vars": {
+    "ENVIRONMENT": "production",
+    "OPENWEATHER_API_KEY": "$OPENWEATHER_API_KEY"
+  },
+  
+  // Custom domains configuration
+  "routes": [
+    { "pattern": "rhule-aid.com/*", "zone_name": "rhule-aid.com" },
+    { "pattern": "www.rhule-aid.com/*", "zone_name": "rhule-aid.com" }
+  ],
+  
+  // Observability configuration
+  "observability": {
+    "enabled": true
+  }
+}

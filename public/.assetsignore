@@ -1,0 +1,14 @@
+# Exclude build artifacts and development files from static assets
+**/node_modules
+**/.DS_Store
+**/.git
+**/dist
+**/functions
+**/*.log
+**/.env*
+**/package*.json
+**/wrangler.*
+**/tsconfig.json
+**/*.md
+**/.github
+**/src

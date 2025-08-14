@@ -5,15 +5,16 @@
   "main": "data-fetcher.js",
   "scripts": {
     "start": "node data-fetcher.js",
-    "update-data": "node data-fetcher.js",
+    "update-data": "node data-fetcher.js", 
     "schedule": "node -e \"const scraper = require('./data-fetcher'); scraper.getLatestSchedule().then(console.log)\"",
     "roster": "node -e \"const scraper = require('./data-fetcher'); scraper.getLatestRoster().then(console.log)\"",
-    "dev": "wrangler pages dev public --compatibility-date=2024-01-01",
-    "deploy": "wrangler pages deploy public",
-    "build": "tsc --noEmit",
+    "build:functions": "wrangler pages functions build --outdir=./dist/worker/",
+    "dev": "npm run build:functions && wrangler dev",
+    "deploy": "./deploy.sh",
+    "deploy:windows": "deploy.bat",
+    "build": "npm run build:functions && tsc --noEmit",
     "test": "echo \"No tests specified\" && exit 0"
-  },
-  "dependencies": {
+  },  "dependencies": {
     "axios": "^1.6.0",
     "cheerio": "^1.0.0-rc.12",
     "cross-fetch": "^4.1.0",

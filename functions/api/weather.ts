@@ -58,7 +58,7 @@ export const onRequestGet = async (context: any) => {
     const cacheKey = `weather-${locationInfo.cacheKey}-v2`;
     const cached = await env.WEATHER_CACHE?.get(cacheKey, 'json');
     
-    if (cached && cached.timestamp && (Date.now() - cached.timestamp) < 14400000) { // 4 hours
+    if (cached && cached.timestamp && (Date.now() - cached.timestamp) < 600000) { // 10 minutes
       return Response.json({
         success: true,
         data: {
@@ -75,7 +75,7 @@ export const onRequestGet = async (context: any) => {
     const gameData = await fetchUpcomingGames();
     const enrichedWeatherData = await enrichWithGameDays(weatherData, gameData);
     
-    // Cache the result for 4 hours
+    // Cache the result for 10 minutes
     await env.WEATHER_CACHE?.put(cacheKey, JSON.stringify({
       data: enrichedWeatherData,
       timestamp: Date.now()
@@ -489,7 +489,7 @@ function extractPrecipitationProbability(detailedForecast: string): number {
   return match ? parseInt(match[1]) : 0;
 }
 
-function getFallbackCurrent(locationName: string): CurrentConditions {
+function getFallbackCurrent(_locationName: string): CurrentConditions {
   const now = new Date();
   const month = now.getMonth(); // 0-based (July = 6)
   
