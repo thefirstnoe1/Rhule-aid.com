@@ -403,8 +403,34 @@
             box-shadow: var(--shadow);
             border: 1px solid var(--border-color);
             text-align: center;
+            transition: all 0.3s ease;
         }
 
+        /* Clickable card styles */
+        .stat-card.clickable-card {
+            position: relative;
+            cursor: pointer !important;
+        }
+
+        .stat-card.clickable-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            border-color: var(--accent-color);
+        }
+
+        .stat-card.clickable-card::after {
+            content: "🔗";
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 0.8em;
+            opacity: 0.6;
+            transition: opacity 0.3s ease;
+        }
+
+        .stat-card.clickable-card:hover::after {
+            opacity: 1;
+        }
         .stat-title {
             font-size: 1.1em;
             margin-bottom: 15px;
@@ -819,10 +845,10 @@
 
         <!-- Quick Stats -->
         <div class="quick-stats">
-            <div class="stat-card">
-                <div class="stat-title">🏟️ Memorial Stadium</div>
-                <div class="stat-value">85,458</div>
-                <div class="stat-description">Seating Capacity</div>
+            <div class="stat-card" id="stadiumCard">
+                <div class="stat-title" id="stadiumTitle">🏟️ Memorial Stadium</div>
+                <div class="stat-value" id="stadiumCapacity">85,458</div>
+                <div class="stat-description" id="stadiumDescription">Seating Capacity</div>
             </div>
             <div class="stat-card">
                 <div class="stat-title">🎯 This Season</div>
@@ -834,13 +860,7 @@
                 <div class="stat-value">Big Ten</div>
                 <div class="stat-description">Championship Goals</div>
             </div>
-            <div class="stat-card">
-                <div class="stat-title">👨‍💼 Head Coach</div>
-                <div class="stat-value">Matt Rhule</div>
-                <div class="stat-description">Leading the Charge</div>
-            </div>
         </div>
-
         <!-- Weather Section -->
         <div class="weather-section">
             <div class="weather-header">
@@ -862,6 +882,88 @@
         let countdownInterval;
         let nextGame = null;
 
+        // Stadium information database
+        const stadiumDatabase = {
+            'Memorial Stadium, Lincoln, NE': {
+                name: 'Memorial Stadium',
+                location: 'Lincoln, NE',
+                capacity: '85,458',
+                surface: 'Artificial Turf',
+                opened: '1923',
+                nickname: 'The Sea of Red',
+                gamedayLink: 'https://huskers.com/football-game-day-information'
+            },
+            'Arrowhead Stadium, Kansas City, MO': {
+                name: 'Arrowhead Stadium',
+                location: 'Kansas City, MO',
+                capacity: '76,416',
+                surface: 'Grass',
+                opened: '1972',
+                nickname: 'The Loudest Stadium',
+                gamedayLink: 'https://www.gehafieldatarrowhead.com/plan-your-visit/know-before-you-go/'
+            },
+            'SECU Stadium, College Park, MD': {
+                name: 'SECU Stadium',
+                location: 'College Park, MD',
+                capacity: '51,802',
+                surface: 'Artificial Turf',
+                opened: '1950',
+                nickname: 'Maryland Stadium',
+                gamedayLink: 'https://umterps.com/sports/2018/6/18/football-game-day-information.aspx'
+            },
+            'Huntington Bank Stadium, Minneapolis, MN': {
+                name: 'Huntington Bank Stadium',
+                location: 'Minneapolis, MN',
+                capacity: '50,805',
+                surface: 'Artificial Turf',
+                opened: '2009',
+                nickname: 'The Bank',
+                gamedayLink: 'https://gophersports.com/sports/2021/6/29/gameday-huntington-bank-stadium'
+            },
+            'Rose Bowl Stadium, Pasadena, CA': {
+                name: 'Rose Bowl Stadium',
+                location: 'Pasadena, CA',
+                capacity: '88,565',
+                surface: 'Grass',
+                opened: '1922',
+                nickname: 'The Granddaddy of Them All',
+                gamedayLink: 'https://uclabruins.com/facilities/the-rose-bowl/1'
+            },
+            'Beaver Stadium, University Park, PA': {
+                name: 'Beaver Stadium',
+                location: 'University Park, PA',
+                capacity: '106,572',
+                surface: 'Grass',
+                opened: '1960',
+                nickname: 'Happy Valley',
+                gamedayLink: 'https://gopsusports.com/west-shore-home-field-at-beaver-stadium'
+            }
+        };
+
+        function getStadiumInfo(location) {
+            // Try exact match first
+            if (stadiumDatabase[location]) {
+                return stadiumDatabase[location];
+            }
+            
+            // Try partial matches
+            for (const [stadium, info] of Object.entries(stadiumDatabase)) {
+                if (location.includes(info.name) || location.includes(info.location)) {
+                    return info;
+                }
+            }
+            
+            // Default fallback
+            return {
+                name: 'Stadium',
+                location: location || 'TBD',
+                capacity: 'TBD',
+                surface: 'TBD',
+                opened: 'TBD',
+                nickname: 'Game Venue',
+                gamedayLink: null
+            };
+        }
         // Load game day information
         async function loadGameDay() {
             try {
@@ -894,6 +996,9 @@
 
                 displayGameInfo(nextGame);
                 
+                // Update stadium information
+                updateStadiumCard(nextGame);
+                
                 // Create proper game datetime for countdown
                 let gameDateTime;
                 if (nextGame.time === 'TBD' || nextGame.time === 'TBA' || !nextGame.time) {
@@ -914,9 +1019,8 @@
                 
                 startCountdown(gameDateTime);
 
-                // Load weather information
-                loadWeather();
-
+                // Load weather information for the game location
+                loadWeather(nextGame.location);
             } catch (error) {
                 console.error('Error loading game day:', error);
                 displayError('Failed to load game information. Please try again later.');
@@ -991,7 +1095,49 @@
             }
         }
 
-        function displayGameInfo(game) {
+        function updateStadiumCard(game) {
+            const stadiumInfo = getStadiumInfo(game.location);
+            
+            const stadiumCard = document.getElementById('stadiumCard');
+            const stadiumTitle = document.getElementById('stadiumTitle');
+            const stadiumCapacity = document.getElementById('stadiumCapacity');
+            const stadiumDescription = document.getElementById('stadiumDescription');
+            
+            if (stadiumTitle) {
+                stadiumTitle.textContent = `🏟️ ${stadiumInfo.name}`;
+            }
+            
+            if (stadiumCapacity) {
+                stadiumCapacity.textContent = stadiumInfo.capacity;
+            }
+            
+            if (stadiumDescription) {
+                stadiumDescription.textContent = `${stadiumInfo.location} • Capacity`;
+            }
+            
+            // Make card clickable if we have a gameday link
+            if (stadiumCard && stadiumInfo.gamedayLink) {
+                stadiumCard.style.cursor = 'pointer';
+                stadiumCard.title = 'Click for gameday information';
+                
+                // Remove any existing click listeners
+                stadiumCard.replaceWith(stadiumCard.cloneNode(true));
+                const newStadiumCard = document.getElementById('stadiumCard');
+                
+                newStadiumCard.addEventListener('click', function() {
+                    window.open(stadiumInfo.gamedayLink, '_blank', 'noopener,noreferrer');
+                });
+                
+                // Add visual indicator that it's clickable
+                newStadiumCard.classList.add('clickable-card');
+            } else if (stadiumCard) {
+                stadiumCard.style.cursor = 'default';
+                stadiumCard.title = '';
+                stadiumCard.classList.remove('clickable-card');
+            }
+            
+            console.log('Updated stadium card:', stadiumInfo);
+        }
             const gameInfoDiv = document.getElementById('gameInfo');
             
             // Format date
@@ -1223,31 +1369,50 @@
         }
 
         // Weather Functions
-        async function loadWeather() {
+        async function loadWeather(gameLocation = null) {
             try {
-                console.log('Loading weather information...');
+                console.log('Loading weather information for location:', gameLocation || 'Lincoln, NE (default)');
                 
-                const response = await fetch('/api/weather');
+                // Build the API URL with location parameter if provided
+                let weatherUrl = '/api/weather';
+                if (gameLocation) {
+                    weatherUrl += `?location=${encodeURIComponent(gameLocation)}`;
+                }
+                
+                const response = await fetch(weatherUrl);
                 const data = await response.json();
                 
                 if (!data.success) {
                     throw new Error(data.error || 'Weather data not available');
                 }
 
-                displayWeather(data.data);
+                displayWeather(data.data, gameLocation);
 
             } catch (error) {
                 console.error('Error loading weather:', error);
                 displayWeatherError();
             }
         }
-
-        function displayWeather(weatherData) {
+        function displayWeather(weatherData, gameLocation = null) {
             const weatherContent = document.getElementById('weatherContent');
             
-            const current = weatherData.current;
-            const forecast = weatherData.forecast.slice(0, 7); // Show 7 days
+            // Update the weather header to show the actual location
+            const weatherLocationElement = document.querySelector('.weather-location');
+            if (weatherLocationElement && gameLocation) {
+                // Extract city and state from location for display
+                const locationMatch = gameLocation.match(/([^,]+),\s*([^,]+)$/);
+                if (locationMatch) {
+                    const [, city, state] = locationMatch;
+                    weatherLocationElement.textContent = `${city.trim()}, ${state.trim()}`;
+                } else {
+                    weatherLocationElement.textContent = weatherData.location || gameLocation;
+                }
+            } else if (weatherLocationElement) {
+                weatherLocationElement.textContent = weatherData.location || 'Lincoln, NE';
+            }
             
+            const current = weatherData.current;
+            const forecast = weatherData.forecast.slice(0, 7); // Show 7 days            
             const currentHTML = `
                 <div class="current-weather">
                     <div class="current-temp">${current.temperature}°${current.temperatureUnit}</div>
@@ -1297,11 +1462,10 @@
             weatherContent.innerHTML = `
                 <div class="weather-error">
                     <p>Unable to load weather data. Please try again later.</p>
-                    <button onclick="loadWeather()" style="margin-top: 10px; padding: 8px 16px; background: var(--accent-color); color: white; border: none; border-radius: 5px; cursor: pointer;">
+                    <button onclick="loadWeather(nextGame ? nextGame.location : null)" style="margin-top: 10px; padding: 8px 16px; background: var(--accent-color); color: white; border: none; border-radius: 5px; cursor: pointer;">
                         Retry
                     </button>
-                </div>
-            `;
+                </div>            `;
         }
 
         function formatTime(timestamp) {
