@@ -152,9 +152,119 @@
         }
         
         .schedule-content {
-            max-width: 1200px;
+            max-width: 1600px;
             margin: 40px auto;
             padding: 0 20px;
+            display: grid;
+            grid-template-columns: 280px 1fr 280px;
+            gap: 30px;
+            align-items: start;
+        }
+        
+        .main-schedule {
+            min-width: 0; /* Prevents grid overflow */
+        }
+        
+        .sidebar {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+            position: sticky;
+            top: 20px;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+        
+        .sidebar h3 {
+            margin: 0 0 20px 0;
+            color: var(--accent-color);
+            font-size: 1.3em;
+            text-align: center;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--accent-color);
+        }
+        
+        .rankings-toggle {
+            display: flex;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            overflow: hidden;
+            background: var(--border-color);
+        }
+        
+        .rankings-toggle button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            background: var(--border-color);
+            color: var(--text-color);
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .rankings-toggle button.active {
+            background: var(--accent-color);
+            color: white;
+        }
+        
+        .standings-list,
+        .rankings-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .standings-item,
+        .rankings-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 8px;
+            margin-bottom: 8px;
+            background: rgba(var(--accent-color-rgb), 0.05);
+            border-radius: 8px;
+            border-left: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .standings-item:hover,
+        .rankings-item:hover {
+            background: rgba(var(--accent-color-rgb), 0.1);
+            transform: translateX(5px);
+        }
+        
+        .standings-item.nebraska,
+        .rankings-item.nebraska {
+            border-left-color: var(--accent-color);
+            background: rgba(var(--accent-color-rgb), 0.1);
+            font-weight: 600;
+        }
+        
+        .team-rank {
+            font-weight: bold;
+            color: var(--accent-color);
+            min-width: 25px;
+            font-size: 0.9em;
+        }
+        
+        .team-name-sidebar {
+            flex: 1;
+            font-size: 0.9em;
+            padding: 0 8px;
+        }
+        
+        .team-record {
+            font-size: 0.8em;
+            color: var(--secondary-text);
+            font-weight: 500;
+        }
+        
+        .rankings-points {
+            font-size: 0.8em;
+            color: var(--secondary-text);
+            font-weight: 500;
         }
         
         .filters {
@@ -359,6 +469,22 @@
         @media (max-width: 768px) {
             .schedule-hero {
                 padding: 40px 20px;
+            }
+            
+            .schedule-content {
+                grid-template-columns: 1fr;
+                gap: 20px;
+                max-width: 1200px;
+            }
+            
+            .sidebar {
+                position: static;
+                max-height: none;
+                order: 2;
+            }
+            
+            .main-schedule {
+                order: 1;
             }
             
             .filters {
@@ -604,29 +730,52 @@
     </div>
 
     <div class="schedule-content">
-        <div class="filters">
-            <div class="filter-group">
-                <label for="timezone-select" style="font-weight: 600; color: #333;">Timezone:</label>
-                <select id="timezone-select" class="timezone-selector" onchange="updateTimezone()">
-                    <option value="America/Chicago">Central Time</option>
-                    <option value="America/New_York">Eastern Time</option>
-                    <option value="America/Denver">Mountain Time</option>
-                    <option value="America/Los_Angeles">Pacific Time</option>
-                </select>
+        <!-- Left Sidebar - Big Ten Standings -->
+        <div class="sidebar" id="standings-sidebar">
+            <h3>🏟️ Big Ten Standings</h3>
+            <ul class="standings-list" id="standings-list">
+                <li style="text-align: center; padding: 20px; color: #666;">Loading standings...</li>
+            </ul>
+        </div>
+
+        <!-- Main Schedule Content -->
+        <div class="main-schedule">
+            <div class="filters">
+                <div class="filter-group">
+                    <label for="timezone-select" style="font-weight: 600; color: #333;">Timezone:</label>
+                    <select id="timezone-select" class="timezone-selector" onchange="updateTimezone()">
+                        <option value="America/Chicago">Central Time</option>
+                        <option value="America/New_York">Eastern Time</option>
+                        <option value="America/Denver">Mountain Time</option>
+                        <option value="America/Los_Angeles">Pacific Time</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <button class="filter-btn active" onclick="filterGames('all')">All Games</button>
+                    <button class="filter-btn" onclick="filterGames('home')">Home</button>
+                    <button class="filter-btn" onclick="filterGames('away')">Away</button>
+                    <button class="filter-btn" onclick="filterGames('neutral')">Neutral</button>
+                    <button class="filter-btn" onclick="filterGames('conference')">Big Ten</button>
+                </div>
             </div>
-            <div class="filter-group">
-                <button class="filter-btn active" onclick="filterGames('all')">All Games</button>
-                <button class="filter-btn" onclick="filterGames('home')">Home</button>
-                <button class="filter-btn" onclick="filterGames('away')">Away</button>
-                <button class="filter-btn" onclick="filterGames('neutral')">Neutral</button>
-                <button class="filter-btn" onclick="filterGames('conference')">Big Ten</button>
+
+            <div id="games-container" class="games-container">
+                <div class="loading" style="text-align: center; padding: 40px; color: #666;">
+                    Loading schedule...
+                </div>
             </div>
         </div>
 
-        <div id="games-container" class="games-container">
-            <div class="loading" style="text-align: center; padding: 40px; color: #666;">
-                Loading schedule...
+        <!-- Right Sidebar - National Rankings -->
+        <div class="sidebar" id="rankings-sidebar">
+            <h3>🏆 National Rankings</h3>
+            <div class="rankings-toggle">
+                <button class="active" onclick="switchRankings('ap')">AP Poll</button>
+                <button onclick="switchRankings('cfp')">CFP Poll</button>
             </div>
+            <ul class="rankings-list" id="rankings-list">
+                <li style="text-align: center; padding: 20px; color: #666;">Loading rankings...</li>
+            </ul>
         </div>
     </div>
 
@@ -635,7 +784,122 @@
         // Load schedule on page load
         document.addEventListener('DOMContentLoaded', function() {
             loadSchedule();
+            loadStandings();
+            loadRankings('ap');
         });
+
+        // Global variable to track current rankings type
+        let currentRankingsType = 'ap';
+
+        async function loadStandings() {
+            try {
+                const response = await fetch('/api/standings/big-ten');
+                const data = await response.json();
+                const teams = data.teams || [];
+                displayStandings(teams);
+            } catch (error) {
+                console.error('Error loading standings:', error);
+                document.getElementById('standings-list').innerHTML = `
+                    <li style="text-align: center; padding: 20px; color: #666;">
+                        Unable to load standings
+                    </li>
+                `;
+            }
+        }
+
+        async function loadRankings(type) {
+            try {
+                const response = await fetch(`/api/rankings/${type}`);
+                const data = await response.json();
+                const teams = data.teams || [];
+                displayRankings(teams);
+            } catch (error) {
+                console.error('Error loading rankings:', error);
+                document.getElementById('rankings-list').innerHTML = `
+                    <li style="text-align: center; padding: 20px; color: #666;">
+                        Unable to load rankings
+                    </li>
+                `;
+            }
+        }
+
+        function displayStandings(teams) {
+            const standingsList = document.getElementById('standings-list');
+            
+            if (!teams || teams.length === 0) {
+                standingsList.innerHTML = `
+                    <li style="text-align: center; padding: 20px; color: #666;">
+                        No standings available
+                    </li>
+                `;
+                return;
+            }
+
+            const standingsHTML = teams.map((team, index) => {
+                const isNebraska = team.school.toLowerCase().includes('nebraska');
+                const rank = index + 1;
+                
+                return `
+                    <li class="standings-item ${isNebraska ? 'nebraska' : ''}">
+                        <div class="team-rank">${rank}</div>
+                        <div class="team-name-sidebar">${team.school}</div>
+                        <div class="team-record">${team.confWins}-${team.confLosses}</div>
+                    </li>
+                `;
+            }).join('');
+
+            standingsList.innerHTML = standingsHTML;
+        }
+
+        function displayRankings(teams) {
+            const rankingsList = document.getElementById('rankings-list');
+            
+            if (!teams || teams.length === 0) {
+                rankingsList.innerHTML = `
+                    <li style="text-align: center; padding: 20px; color: #666;">
+                        No rankings available
+                    </li>
+                `;
+                return;
+            }
+
+            const rankingsHTML = teams.slice(0, 25).map((team) => {
+                const isNebraska = team.school?.toLowerCase().includes('nebraska') || 
+                                  team.team?.toLowerCase().includes('nebraska');
+                const teamName = team.school || team.team || 'Unknown';
+                const points = team.points ? `${team.points} pts` : '';
+                
+                return `
+                    <li class="rankings-item ${isNebraska ? 'nebraska' : ''}">
+                        <div class="team-rank">${team.rank}</div>
+                        <div class="team-name-sidebar">${teamName}</div>
+                        <div class="rankings-points">${points}</div>
+                    </li>
+                `;
+            }).join('');
+
+            rankingsList.innerHTML = rankingsHTML;
+        }
+
+        function switchRankings(type) {
+            // Update button states
+            document.querySelectorAll('.rankings-toggle button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Update current type and load new rankings
+            currentRankingsType = type;
+            
+            // Show loading state
+            document.getElementById('rankings-list').innerHTML = `
+                <li style="text-align: center; padding: 20px; color: #666;">
+                    Loading ${type.toUpperCase()} rankings...
+                </li>
+            `;
+            
+            loadRankings(type);
+        }
 
         async function loadSchedule() {
             try {

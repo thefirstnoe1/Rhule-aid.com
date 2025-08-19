@@ -96,36 +96,55 @@ export async function scrapeBigTenStandings(): Promise<StandingsTeam[]> {
     
     const teams: StandingsTeam[] = [];
     
-    // Match table rows with standings data - more complex regex for standings table
-    const rowRegex = /<tr[^>]*>[\s\S]*?<td[^>]*>([^<]+?)<\/td>[\s\S]*?<td[^>]*>(\d+)<\/td>[\s\S]*?<td[^>]*>(\d+)<\/td>[\s\S]*?<td[^>]*>(\d+)<\/td>[\s\S]*?<td[^>]*>(\d+)<\/td>[\s\S]*?<td[^>]*>(\d+)<\/td>[\s\S]*?<td[^>]*>(\d+)<\/td>[\s\S]*?<td[^>]*>([^<]*?)<\/td>[\s\S]*?<td[^>]*>([^<]*?)<\/td>[\s\S]*?<td[^>]*>([^<]*?)<\/td>[\s\S]*?<\/tr>/gi;
+    // Extract only the Big Ten conference section to avoid other conferences
+    const bigTenSectionStart = html.indexOf('Big Ten');
+    const bigTenSectionEnd = html.indexOf('</table>', bigTenSectionStart);
+    const bigTenHTML = html.substring(bigTenSectionStart, bigTenSectionEnd);
     
-    let match;
-    while ((match = rowRegex.exec(html)) !== null) {
-      const school = match[1] ? match[1].trim() : '';
-      const confWins = match[2] ? parseInt(match[2]) || 0 : 0;
-      const confLosses = match[3] ? parseInt(match[3]) || 0 : 0;
-      const overallWins = match[4] ? parseInt(match[4]) || 0 : 0;
-      const overallLosses = match[5] ? parseInt(match[5]) || 0 : 0;
-      const pointsFor = match[6] ? parseInt(match[6]) || 0 : 0;
-      const pointsAgainst = match[7] ? parseInt(match[7]) || 0 : 0;
-      const homeRecord = match[8] ? match[8].trim() || '0-0' : '0-0';
-      const awayRecord = match[9] ? match[9].trim() || '0-0' : '0-0';
-      const streak = match[10] ? match[10].trim() || '' : '';
-      
-      if (school) {
-        teams.push({
-          school,
-          confWins,
-          confLosses,
-          overallWins,
-          overallLosses,
-          pointsFor,
-          pointsAgainst,
-          homeRecord,
-          awayRecord,
-          streak
-        });
+    // First extract all team names from the Big Ten section
+    const teamNameRegex = /<td class="standings-team">.*?>([^<]+)<\/td>/g;
+    let teamMatch;
+    const teamNames: string[] = [];
+    
+    while ((teamMatch = teamNameRegex.exec(bigTenHTML)) !== null) {
+      const teamName = teamMatch[1]?.trim();
+      if (teamName && teamName.length > 0) {
+        teamNames.push(teamName);
       }
+    }
+    
+    // Now extract all the row data (looking for rows with the actual data)
+    const rowDataRegex = /<tr[^>]*>[\s\S]*?<td class="standings-team">[\s\S]*?<\/td>[\s\S]*?<td[^>]*>(\d+)<\/td>[\s\S]*?<td[^>]*>(\d+)<\/td>[\s\S]*?<td[^>]*>(\d+)<\/td>[\s\S]*?<td[^>]*>(\d+)<\/td>[\s\S]*?<td[^>]*>(\d+)<\/td>[\s\S]*?<td[^>]*>(\d+)<\/td>[\s\S]*?<td[^>]*>([^<]*?)<\/td>[\s\S]*?<td[^>]*>([^<]*?)<\/td>[\s\S]*?<td[^>]*>([^<]*?)<\/td>[\s\S]*?<\/tr>/g;
+    
+    let rowMatch;
+    let teamIndex = 0;
+    
+    while ((rowMatch = rowDataRegex.exec(bigTenHTML)) !== null && teamIndex < teamNames.length) {
+      const school = teamNames[teamIndex] || '';
+      const confWins = rowMatch[1] ? parseInt(rowMatch[1]) || 0 : 0;
+      const confLosses = rowMatch[2] ? parseInt(rowMatch[2]) || 0 : 0;
+      const overallWins = rowMatch[3] ? parseInt(rowMatch[3]) || 0 : 0;
+      const overallLosses = rowMatch[4] ? parseInt(rowMatch[4]) || 0 : 0;
+      const pointsFor = rowMatch[5] ? parseInt(rowMatch[5]) || 0 : 0;
+      const pointsAgainst = rowMatch[6] ? parseInt(rowMatch[6]) || 0 : 0;
+      const homeRecord = rowMatch[7] ? rowMatch[7].trim() || '0-0' : '0-0';
+      const awayRecord = rowMatch[8] ? rowMatch[8].trim() || '0-0' : '0-0';
+      const streak = rowMatch[9] ? rowMatch[9].trim() || '' : '';
+      
+      teams.push({
+        school,
+        confWins,
+        confLosses,
+        overallWins,
+        overallLosses,
+        pointsFor,
+        pointsAgainst,
+        homeRecord,
+        awayRecord,
+        streak
+      });
+      
+      teamIndex++;
     }
     
     return teams;
