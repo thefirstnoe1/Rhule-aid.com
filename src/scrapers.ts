@@ -37,10 +37,10 @@ export async function scrapeAPPoll(): Promise<APPollTeam[]> {
     
     let match;
     while ((match = rowRegex.exec(html)) !== null) {
-      const rank = parseInt(match[1]);
-      const team = match[2].trim();
+      const rank = match[1] ? parseInt(match[1]) : 0;
+      const team = match[2] ? match[2].trim() : '';
       const firstPlaceVotes = match[3] ? parseInt(match[3]) : 0;
-      const points = parseInt(match[4]);
+      const points = match[4] ? parseInt(match[4]) : 0;
       
       if (rank && team && points) {
         teams.push({
@@ -71,8 +71,8 @@ export async function scrapeCFPPoll(): Promise<CFPTeam[]> {
     
     let match;
     while ((match = rowRegex.exec(html)) !== null) {
-      const rank = parseInt(match[1]);
-      const team = match[2].trim();
+      const rank = match[1] ? parseInt(match[1]) : 0;
+      const team = match[2] ? match[2].trim() : '';
       
       if (rank && team) {
         teams.push({
@@ -101,16 +101,16 @@ export async function scrapeBigTenStandings(): Promise<StandingsTeam[]> {
     
     let match;
     while ((match = rowRegex.exec(html)) !== null) {
-      const school = match[1].trim();
-      const confWins = parseInt(match[2]) || 0;
-      const confLosses = parseInt(match[3]) || 0;
-      const overallWins = parseInt(match[4]) || 0;
-      const overallLosses = parseInt(match[5]) || 0;
-      const pointsFor = parseInt(match[6]) || 0;
-      const pointsAgainst = parseInt(match[7]) || 0;
-      const homeRecord = match[8].trim() || '0-0';
-      const awayRecord = match[9].trim() || '0-0';
-      const streak = match[10].trim() || '';
+      const school = match[1] ? match[1].trim() : '';
+      const confWins = match[2] ? parseInt(match[2]) || 0 : 0;
+      const confLosses = match[3] ? parseInt(match[3]) || 0 : 0;
+      const overallWins = match[4] ? parseInt(match[4]) || 0 : 0;
+      const overallLosses = match[5] ? parseInt(match[5]) || 0 : 0;
+      const pointsFor = match[6] ? parseInt(match[6]) || 0 : 0;
+      const pointsAgainst = match[7] ? parseInt(match[7]) || 0 : 0;
+      const homeRecord = match[8] ? match[8].trim() || '0-0' : '0-0';
+      const awayRecord = match[9] ? match[9].trim() || '0-0' : '0-0';
+      const streak = match[10] ? match[10].trim() || '' : '';
       
       if (school) {
         teams.push({
@@ -133,12 +133,4 @@ export async function scrapeBigTenStandings(): Promise<StandingsTeam[]> {
     console.error('Error scraping Big Ten standings:', error);
     return [];
   }
-}
-
-// Helper function to clean team names
-function cleanTeamName(name: string): string {
-  return name
-    .replace(/\([^)]*\)/g, '') // Remove parentheses and content
-    .trim()
-    .replace(/\s+/g, ' '); // Normalize whitespace
 }

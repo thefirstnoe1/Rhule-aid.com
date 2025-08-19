@@ -5,21 +5,14 @@
   "main": "src/index.ts",
   "scripts": {
     "start": "wrangler dev",
-    "update-data": "node data-fetcher.js", 
-    "schedule": "node -e \"const scraper = require('./data-fetcher'); scraper.getLatestSchedule().then(console.log)\"",
-    "roster": "node -e \"const scraper = require('./data-fetcher'); scraper.getLatestRoster().then(console.log)\"",
-    "build": "tsc --noEmit",
+    "build": "tsc",
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "test": "echo \"No tests specified\" && exit 0"
   },
-  "dependencies": {    "axios": "^1.6.0",
-    "cheerio": "^1.0.0-rc.12",
-    "cross-fetch": "^4.1.0",
-    "node-fetch": "^3.3.0",
-    "puppeteer": "^22.15.0"
-  },
-  "devDependencies": {
+  "dependencies": {
+    "cheerio": "^1.0.0-rc.12"
+  },  "devDependencies": {
     "@cloudflare/workers-types": "^4.20231218.0",
     "@types/node": "^18.19.0",
     "nodemon": "^3.0.0",
