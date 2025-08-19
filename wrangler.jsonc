@@ -26,27 +26,27 @@
   "kv_namespaces": [
     {
       "binding": "SCHEDULE_CACHE",
-      "id": "$SCHEDULE_CACHE_ID"
+      "id": "b6ba8e644c1447699ef2dfbd88e0527e"
     },
     {
       "binding": "ROSTER_CACHE", 
-      "id": "$ROSTER_CACHE_ID"
+      "id": "2d472c3e9eee4576952c9496876a8e5f"
     },
     {
       "binding": "NEWS_CACHE",
-      "id": "$NEWS_CACHE_ID"
+      "id": "44fa2bcea61241cf8af0cd346d53505d"
     },
     {
       "binding": "WEATHER_CACHE",
-      "id": "$WEATHER_CACHE_ID"
+      "id": "cc8345020c464041b7ce0af0ad277dba"
     },
     {
       "binding": "RANKINGS_CACHE",
-      "id": "$RANKINGS_CACHE_ID"
+      "id": "1a8a0e3162444dca81c77f79aae677e3"
     },
     {
       "binding": "STANDINGS_CACHE",
-      "id": "$STANDINGS_CACHE_ID"
+      "id": "aa2a13f482454648b6c1cbe2cdd91cbc"
     }
   ],
   
