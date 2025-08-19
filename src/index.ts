@@ -15,6 +15,7 @@ import { handleScheduleRequest } from './api/schedule';
 import { handleNewsRequest } from './api/news';
 import { handleRosterRequest } from './api/roster';
 import { handleWeatherRequest } from './api/weather';
+import { handleLogoRequest } from './api/logo';
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -54,6 +55,8 @@ async function handleAPIRequest(request: Request, env: Env, pathname: string): P
         return await handleRosterRequest(request, env);
       case '/api/weather':
         return await handleWeatherRequest(request, env);
+      case '/api/logo':
+        return await handleLogoRequest(request, env);
       case '/api/rankings/ap':
         return await getRankings(env, 'AP');
       case '/api/rankings/cfp':
