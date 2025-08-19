@@ -21,19 +21,23 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Install dependencies
+        run: npm ci
+
       - name: Install Wrangler
         run: npm install -g wrangler@latest
 
-      - name: Build Pages Functions
-        run: npx wrangler pages functions build --outdir=./dist/worker/
+      - name: Build TypeScript
+        run: npm run build
 
       - name: Substitute environment variables in wrangler.jsonc
         run: |
-          sed -i 's/\$DATABASE_ID/${{ secrets.DATABASE_ID }}/g' wrangler.jsonc
           sed -i 's/\$SCHEDULE_CACHE_ID/${{ secrets.SCHEDULE_CACHE_ID }}/g' wrangler.jsonc
           sed -i 's/\$ROSTER_CACHE_ID/${{ secrets.ROSTER_CACHE_ID }}/g' wrangler.jsonc
           sed -i 's/\$NEWS_CACHE_ID/${{ secrets.NEWS_CACHE_ID }}/g' wrangler.jsonc
           sed -i 's/\$WEATHER_CACHE_ID/${{ secrets.WEATHER_CACHE_ID }}/g' wrangler.jsonc
+          sed -i 's/\$RANKINGS_CACHE_ID/${{ secrets.RANKINGS_CACHE_ID }}/g' wrangler.jsonc
+          sed -i 's/\$STANDINGS_CACHE_ID/${{ secrets.STANDINGS_CACHE_ID }}/g' wrangler.jsonc
           sed -i 's/\$OPENWEATHER_API_KEY/${{ secrets.OPENWEATHER_API_KEY }}/g' wrangler.jsonc
 
       - name: Deploy to Cloudflare Workers

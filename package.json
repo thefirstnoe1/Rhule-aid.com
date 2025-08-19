@@ -1,21 +1,19 @@
 {
-  "name": "nebraska-football-site",
+  "name": "rhule-aid-worker",
   "version": "1.0.0",
-  "description": "Nebraska Cornhuskers Football Fan Website with Cloudflare Pages Functions",
-  "main": "data-fetcher.js",
+  "description": "Nebraska Cornhuskers Football Fan Website built on Cloudflare Workers",
+  "main": "src/index.ts",
   "scripts": {
-    "start": "node data-fetcher.js",
+    "start": "wrangler dev",
     "update-data": "node data-fetcher.js", 
     "schedule": "node -e \"const scraper = require('./data-fetcher'); scraper.getLatestSchedule().then(console.log)\"",
     "roster": "node -e \"const scraper = require('./data-fetcher'); scraper.getLatestRoster().then(console.log)\"",
-    "build:functions": "wrangler pages functions build --outdir=./dist/worker/",
-    "dev": "npm run build:functions && wrangler dev",
-    "deploy": "./deploy.sh",
-    "deploy:windows": "deploy.bat",
-    "build": "npm run build:functions && tsc --noEmit",
+    "build": "tsc --noEmit",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
     "test": "echo \"No tests specified\" && exit 0"
-  },  "dependencies": {
-    "axios": "^1.6.0",
+  },
+  "dependencies": {    "axios": "^1.6.0",
     "cheerio": "^1.0.0-rc.12",
     "cross-fetch": "^4.1.0",
     "node-fetch": "^3.3.0",
@@ -33,10 +31,9 @@
     "football",
     "cornhuskers",
     "cloudflare",
-    "pages",
+    "workers",
     "web-scraping",
     "sports-data"
-  ],
-  "author": "Nebraska Football Fan",
+  ],  "author": "Nebraska Football Fan",
   "license": "MIT"
 }
