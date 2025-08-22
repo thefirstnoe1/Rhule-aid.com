@@ -203,6 +203,22 @@
             background: rgba(var(--accent-color-rgb), 0.1);
         }
         
+        .sort-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .sort-controls select {
+            outline: none;
+            transition: all 0.3s ease;
+        }
+        
+        .sort-controls select:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.1);
+        }
+        
         .filter-btn {
             padding: 8px 16px;
             border: 2px solid var(--accent-color);
@@ -434,6 +450,17 @@
                 width: 100%;
             }
             
+            .sort-controls {
+                width: 100%;
+                justify-content: center;
+                order: -2;
+            }
+            
+            .sort-controls select {
+                flex: 1;
+                max-width: 200px;
+            }
+            
             .roster-grid {
                 grid-template-columns: 1fr;
             }
@@ -628,6 +655,14 @@
                     <span>☰</span> List
                 </button>
             </div>
+            <div class="sort-controls">
+                <label style="color: var(--text-color); font-weight: 600; margin-right: 10px;">Sort by:</label>
+                <select id="sort-select" onchange="sortRoster()" style="padding: 8px 12px; border: 2px solid var(--accent-color); border-radius: 20px; background: var(--card-bg); color: var(--text-color); font-weight: 600;">
+                    <option value="number">Number</option>
+                    <option value="name">Name</option>
+                    <option value="position">Position</option>
+                </select>
+            </div>
             <input type="text" class="search-box" placeholder="Search players..." id="search-input" oninput="filterPlayers()">
             <button class="filter-btn active" onclick="filterByPosition('all')">All Players</button>
             <button class="filter-btn" onclick="filterByPosition('offense')">Offense</button>
@@ -646,6 +681,51 @@
     <script>
         let allPlayers = [];
         let currentView = 'cards'; // 'cards' or 'list'
+
+        // Function to sort roster data
+        function sortRoster() {
+            const sortBy = document.getElementById('sort-select').value;
+            const currentPlayers = getCurrentFilteredPlayers();
+            const sortedPlayers = sortPlayerArray(currentPlayers, sortBy);
+            displayRoster(sortedPlayers);
+        }
+        
+        // Function to sort player array
+        function sortPlayerArray(players, sortBy) {
+            const sortedPlayers = [...players]; // Create a copy
+            
+            switch (sortBy) {
+                case 'name':
+                    return sortedPlayers.sort((a, b) => a.name.localeCompare(b.name));
+                
+                case 'position':
+                    return sortedPlayers.sort((a, b) => {
+                        const posCompare = a.position.localeCompare(b.position);
+                        return posCompare !== 0 ? posCompare : a.number - b.number;
+                    });
+                
+                case 'number':
+                default:
+                    // Check if we're showing all players or a specific category
+                    const activeFilter = document.querySelector('.filter-btn.active');
+                    const isShowingAllPlayers = activeFilter && activeFilter.textContent.toLowerCase() === 'all players';
+                    
+                    if (isShowingAllPlayers) {
+                        // When showing all players, sort purely by jersey number
+                        return sortedPlayers.sort((a, b) => a.number - b.number);
+                    } else {
+                        // When filtering by category, sort by position category first, then by number
+                        return sortedPlayers.sort((a, b) => {
+                            const categoryOrder = { 'offense': 1, 'defense': 2, 'special': 3 };
+                            const aCat = categoryOrder[a.category] || 4;
+                            const bCat = categoryOrder[b.category] || 4;
+                            
+                            if (aCat !== bCat) return aCat - bCat;
+                            return a.number - b.number;
+                        });
+                    }
+            }
+        }
 
         // Function to toggle between card and list view
         function toggleView(view) {
@@ -691,7 +771,9 @@
                 filteredPlayers = filteredPlayers.filter(player => player.category === category);
             }
             
-            return filteredPlayers;
+            // Apply current sort
+            const sortBy = document.getElementById('sort-select') ? document.getElementById('sort-select').value : 'number';
+            return sortPlayerArray(filteredPlayers, sortBy);
         }
 
         // Function to load roster data from API
