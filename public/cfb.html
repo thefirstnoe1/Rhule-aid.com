@@ -1,0 +1,1439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>College Football Schedule - Live Scores & Games</title>
+    <link rel="icon" type="image/png" href="images/favicon-rhuleaid.png">
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        /* Enhanced CFB-specific styles for dynamic content */
+        .cfb-hero {
+            background: linear-gradient(135deg, #1a237e, #3949ab);
+            color: white;
+            padding: 60px 20px;
+            text-align: center;
+            margin-top: 0;
+        }
+
+        .cfb-controls {
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: var(--shadow);
+            margin: 30px auto;
+            max-width: 1200px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            align-items: center;
+            border: 1px solid var(--border-color);
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .control-group label {
+            font-weight: 600;
+            color: var(--text-color);
+            font-size: 0.9em;
+        }
+
+        .cfb-select, .cfb-input {
+            padding: 12px 16px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--card-bg);
+            color: var(--text-color);
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .cfb-select:focus, .cfb-input:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.1);
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 10px 20px;
+            border: 2px solid var(--accent-color);
+            background: var(--card-bg);
+            color: var(--accent-color);
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+
+        .filter-btn:hover, .filter-btn.active {
+            background: var(--accent-color);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .cfb-game-card {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Add top padding only for cards with status badges */
+        .cfb-game-card.live,
+        .cfb-game-card.completed {
+            padding-top: 50px;
+        }
+
+        .teams-matchup {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 10px 0 20px 0;
+            /* Only add right padding for cards with status badge */
+        }
+
+        .cfb-game-card.live .teams-matchup,
+        .cfb-game-card.completed .teams-matchup {
+            padding-right: 100px;
+        }
+
+        .cfb-game-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+
+        .cfb-game-card.live {
+            border-left: 4px solid #ff4444;
+            animation: pulse 2s infinite;
+        }
+
+        .cfb-game-card.completed {
+            border-left: 4px solid #4caf50;
+        }
+
+        .cfb-game-card.upcoming {
+            border-left: 4px solid #2196f3;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0); }
+        }
+
+        .game-status-badge {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            padding: 6px 14px;
+            border-radius: 15px;
+            font-size: 0.75em;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            /* Ensure badge stays above content */
+            z-index: 10;
+            /* Add a subtle shadow for better visibility */
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        }
+
+        .status-live {
+            background: #ff4444;
+            color: white;
+        }
+
+        .status-completed {
+            background: #4caf50;
+            color: white;
+        }
+
+        .status-upcoming {
+            background: #2196f3;
+            color: white;
+        }
+
+        .teams-matchup {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 10px 0 20px 0;
+            /* Ensure teams don't overlap with status badge */
+            padding-right: 100px;
+        }
+
+        .cfb-team {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+            min-width: 0;
+            /* Ensure proper layout for scores */
+            justify-content: space-between;
+            max-width: calc(50% - 20px);
+        }
+
+        .cfb-team-logo {
+            width: 48px;
+            height: 48px;
+            flex-shrink: 0;
+        }
+
+        .cfb-team-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 50%;
+        }
+
+        .cfb-team-info {
+            flex: 1;
+            min-width: 0;
+            /* Prevent text from overlapping scores */
+            margin-right: 8px;
+        }
+
+        .cfb-team-name {
+            font-size: 1em;
+            font-weight: 700;
+            color: var(--text-color);
+            line-height: 1.2;
+            margin-bottom: 2px;
+            /* Prevent text overflow */
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .cfb-team-record {
+            font-size: 0.85em;
+            color: var(--secondary-text);
+            /* Prevent text overflow */
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .cfb-team-score {
+            font-size: 1.6em;
+            font-weight: 900;
+            color: var(--text-color);
+            background: rgba(var(--accent-color-rgb), 0.1);
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: 2px solid rgba(var(--accent-color-rgb), 0.2);
+            min-width: 35px;
+            text-align: center;
+            flex-shrink: 0;
+            /* Ensure scores don't overlap */
+            margin-left: auto;
+        }
+
+        /* Highlight winning team score */
+        .cfb-team.winner .cfb-team-score {
+            background: var(--accent-color);
+            color: white;
+            border-color: var(--accent-color);
+            box-shadow: 0 2px 8px rgba(var(--accent-color-rgb), 0.3);
+        }
+
+        .cfb-team.winner .cfb-team-name {
+            color: var(--accent-color);
+            font-weight: 800;
+        }
+
+        .cfb-vs {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: var(--secondary-text);
+            padding: 0 12px;
+        }
+
+        .game-meta {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid var(--border-color);
+            font-size: 0.9em;
+        }
+
+        .meta-item {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .meta-label {
+            font-size: 0.8em;
+            color: var(--secondary-text);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .meta-value {
+            font-weight: 600;
+            color: var(--text-color);
+        }
+
+        .loading-container {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--secondary-text);
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid var(--border-color);
+            border-top: 4px solid var(--accent-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-container {
+            text-align: center;
+            padding: 40px 20px;
+            background: var(--card-bg);
+            border-radius: 15px;
+            margin: 20px auto;
+            max-width: 600px;
+            border: 1px solid var(--border-color);
+        }
+
+        .no-games {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--secondary-text);
+        }
+
+        .refresh-btn {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .refresh-btn:hover {
+            background: var(--accent-color);
+            transform: translateY(-2px);
+            filter: brightness(1.1);
+        }
+
+        /* View Toggle Styles */
+        .view-toggle {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .view-btn {
+            padding: 8px 16px;
+            border: 2px solid var(--accent-color);
+            background: var(--card-bg);
+            color: var(--accent-color);
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .view-btn:hover, .view-btn.active {
+            background: var(--accent-color);
+            color: white;
+        }
+
+        .view-btn span {
+            font-size: 14px;
+        }
+
+        /* List View Styles */
+        .games-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .cfb-game-card.list-view {
+            padding: 16px 20px;
+            border-radius: 10px;
+        }
+
+        .cfb-game-card.list-view .teams-matchup {
+            margin: 0 0 12px 0;
+            padding-right: 0;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .cfb-game-card.list-view .cfb-team {
+            max-width: 40%;
+            gap: 10px;
+        }
+
+        .cfb-game-card.list-view .cfb-team-logo {
+            width: 32px;
+            height: 32px;
+        }
+
+        .cfb-game-card.list-view .cfb-team-name {
+            font-size: 0.95em;
+        }
+
+        .cfb-game-card.list-view .cfb-team-record {
+            font-size: 0.8em;
+        }
+
+        .cfb-game-card.list-view .cfb-team-score {
+            font-size: 1.4em;
+            padding: 4px 8px;
+            min-width: 30px;
+        }
+
+        .cfb-game-card.list-view .cfb-vs {
+            font-size: 1em;
+            padding: 0 8px;
+            flex-shrink: 0;
+        }
+
+        .cfb-game-card.list-view .game-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border-color);
+            font-size: 0.85em;
+        }
+
+        .cfb-game-card.list-view .meta-item {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .cfb-game-card.list-view .meta-label {
+            font-size: 0.75em;
+            color: var(--secondary-text);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .cfb-game-card.list-view .meta-value {
+            font-weight: 600;
+            color: var(--text-color);
+            font-size: 0.9em;
+        }
+
+        .cfb-game-card.list-view .game-status-badge {
+            top: 10px;
+            right: 10px;
+            padding: 3px 8px;
+            font-size: 0.7em;
+        }
+
+        /* List view status badges positioning */
+        .cfb-game-card.list-view.live,
+        .cfb-game-card.list-view.completed {
+            padding-top: 35px;
+        }
+
+        /* Compact betting display for list view */
+        .cfb-game-card.list-view .betting-info {
+            background: rgba(var(--accent-color-rgb), 0.05);
+            border-radius: 6px;
+            padding: 6px 10px;
+            border-left: 2px solid var(--accent-color);
+        }
+
+        .cfb-game-card.list-view .betting-lines {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .cfb-game-card.list-view .betting-line {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.8em;
+        }
+
+        .cfb-game-card.list-view .betting-label {
+            font-weight: 600;
+            color: var(--text-color);
+        }
+
+        .cfb-game-card.list-view .betting-value {
+            font-weight: 500;
+            color: var(--accent-color);
+            background: rgba(var(--accent-color-rgb), 0.1);
+            padding: 1px 6px;
+            border-radius: 3px;
+        }
+
+        @media (max-width: 768px) {
+            .cfb-game-card.list-view .teams-matchup {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .cfb-game-card.list-view .cfb-team {
+                max-width: 100%;
+                width: 100%;
+            }
+
+            .cfb-game-card.list-view .cfb-vs {
+                order: 2;
+            }
+
+            .cfb-game-card.list-view .game-meta {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+
+            .cfb-game-card.list-view .betting-lines {
+                flex-direction: column;
+                gap: 6px;
+            }
+        }
+        .color-legend {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px auto;
+            max-width: 1200px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+        }
+
+        .legend-title {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: var(--text-color);
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .legend-items {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9em;
+            color: var(--text-color);
+        }
+
+        .legend-color {
+            width: 4px;
+            height: 24px;
+            border-radius: 2px;
+        }
+
+        .legend-color.live {
+            background: #ff4444;
+            box-shadow: 0 0 8px rgba(255, 68, 68, 0.4);
+        }
+
+        .legend-color.completed {
+            background: #4caf50;
+        }
+
+        .legend-color.upcoming {
+            background: #2196f3;
+        }
+
+        @media (max-width: 768px) {
+            .legend-items {
+                gap: 20px;
+            }
+            
+            .legend-item {
+                font-size: 0.85em;
+            }
+        }
+        .betting-info {
+            background: rgba(var(--accent-color-rgb), 0.05);
+            border-radius: 8px;
+            padding: 8px 12px;
+            border-left: 3px solid var(--accent-color);
+        }
+
+        .betting-lines {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .betting-line {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.9em;
+        }
+
+        .betting-label {
+            font-weight: 600;
+            color: var(--text-color);
+        }
+
+        .betting-value {
+            font-weight: 500;
+            color: var(--accent-color);
+            background: rgba(var(--accent-color-rgb), 0.1);
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        @media (max-width: 768px) {
+            .cfb-hero {
+                padding: 40px 20px;
+            }
+
+            .cfb-controls {
+                grid-template-columns: 1fr;
+                margin: 20px 15px;
+                padding: 20px;
+            }
+
+            .games-grid {
+                grid-template-columns: 1fr;
+                padding: 0 15px;
+                gap: 15px;
+            }
+
+            .cfb-game-card {
+                /* Only reduce top padding for upcoming games on mobile */
+                padding-top: 20px;
+            }
+
+            .cfb-game-card.live,
+            .cfb-game-card.completed {
+                /* Keep top padding for games with status badges */
+                padding-top: 45px;
+            }
+
+            .game-status-badge {
+                /* Make status badge smaller on mobile */
+                top: 12px;
+                right: 12px;
+                padding: 4px 10px;
+                font-size: 0.7em;
+            }
+
+            .teams-matchup {
+                flex-direction: column;
+                gap: 10px;
+                text-align: center;
+                /* Remove right padding on mobile since teams stack vertically */
+                padding-right: 0;
+                margin: 5px 0 20px 0;
+            }
+
+            .cfb-vs {
+                order: 2;
+                padding: 8px 0;
+            }
+
+            .cfb-team {
+                justify-content: space-between;
+                max-width: 100%;
+                /* Fix mobile layout for scores */
+                width: 100%;
+                padding: 8px 12px;
+                background: rgba(var(--accent-color-rgb), 0.05);
+                border-radius: 8px;
+                margin: 4px 0;
+            }
+
+            .cfb-team-info {
+                margin-right: 0;
+                flex: 1;
+                text-align: left;
+            }
+
+            .cfb-team-score {
+                /* Make scores more readable on mobile */
+                font-size: 1.4em;
+                margin-left: 8px;
+                padding: 4px 8px;
+                min-width: 32px;
+            }
+
+            .game-meta {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .filter-buttons {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="site-header">
+        <div class="container">
+            <div class="header-content">
+                <div class="header-left">
+                    <div class="site-logo">
+                        <a href="index.html">
+                            <img src="./images/logos/nebraska-logo.png" alt="Nebraska Logo" class="site-nav-logo">
+                            <h1 class="site-title">Nebraska Cornhuskers</h1>
+                        </a>
+                    </div>
+                    <nav class="site-nav" id="site-nav">
+                        <ul>
+                            <li><a href="index.html">🏠 Home</a></li>
+                            <li><a href="schedule.html">📅 Schedule</a></li>
+                            <li><a href="cfb.html" class="active">🏈 CFB Schedule</a></li>
+                            <li><a href="roster.html">👥 Roster</a></li>
+                            <li><a href="news.html">📰 News</a></li>
+                            <li><a href="rhule-aid.html">🍺 Rhule-aid</a></li>
+                            <li><a href="gameday.html">🏈 Game Day</a></li>
+                        </ul>
+                    </nav>
+                </div>
+                <div class="header-actions">
+                    <button class="dark-mode-toggle" onclick="toggleDarkMode()" title="Toggle Dark Mode">
+                        <span class="dark-mode-icon">🌙</span>
+                    </button>
+                    <button class="mobile-menu-toggle" 
+                            id="mobile-menu-btn"
+                            onclick="handleMobileMenuToggle(this)"
+                            title="Toggle Navigation Menu">☰</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="cfb-hero">
+        <h1 style="font-size: 3em; margin: 0 0 10px 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">College Football Schedule</h1>
+        <p style="font-size: 1.3em; margin: 0; opacity: 0.9;">Live Scores, Games & Results</p>
+    </div>
+
+    <div class="cfb-controls">
+        <div class="control-group">
+            <label for="week-select">Week</label>
+            <select id="week-select" class="cfb-select" onchange="loadGames()">
+                <option value="1" selected>Week 1</option>
+                <option value="2">Week 2</option>
+                <option value="3">Week 3</option>
+                <option value="4">Week 4</option>
+                <option value="5">Week 5</option>
+                <option value="6">Week 6</option>
+                <option value="7">Week 7</option>
+                <option value="8">Week 8</option>
+                <option value="9">Week 9</option>
+                <option value="10">Week 10</option>
+                <option value="11">Week 11</option>
+                <option value="12">Week 12</option>
+                <option value="13">Week 13</option>
+                <option value="14">Week 14</option>
+                <option value="15">Week 15</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <label for="date-select">Date</label>
+            <input type="date" id="date-select" class="cfb-input" onchange="loadGames()">
+        </div>
+
+        <div class="control-group">
+            <label>Filters</label>
+            <div class="filter-buttons">
+                <button class="filter-btn active" onclick="filterGames('all')">All Games</button>
+                <button class="filter-btn" onclick="filterGames('live')">Live</button>
+                <button class="filter-btn" onclick="filterGames('completed')">Final</button>
+                <button class="filter-btn" onclick="filterGames('upcoming')">Upcoming</button>
+                <button class="filter-btn" onclick="filterGames('ranked')">Top 25</button>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label for="search-input">Search Teams</label>
+            <input type="text" id="search-input" class="cfb-input" placeholder="Search teams..." oninput="filterGames('search')">
+        </div>
+
+        <div class="control-group">
+            <label for="timezone-select">Time Zone</label>
+            <select id="timezone-select" class="cfb-select" onchange="updateGameTimes()">
+                <option value="ET">Eastern Time</option>
+                <option value="CT">Central Time</option>
+                <option value="MT">Mountain Time</option>
+                <option value="PT">Pacific Time</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label>View Mode</label>
+            <div class="view-toggle">
+                <button class="view-btn active" onclick="toggleView('grid')" data-view="grid">
+                    <span>⊞</span> Grid
+                </button>
+                <button class="view-btn" onclick="toggleView('list')" data-view="list">
+                    <span>☰</span> List
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Color Legend -->
+    <div class="color-legend">
+        <div class="legend-title">Game Status Legend</div>
+        <div class="legend-items">
+            <div class="legend-item">
+                <div class="legend-color live"></div>
+                <span>Live Games</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color completed"></div>
+                <span>Completed Games</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color upcoming"></div>
+                <span>Upcoming Games</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="games-container">
+        <div class="loading-container">
+            <div class="loading-spinner"></div>
+            <h3>Loading games...</h3>
+            <p>Fetching the latest college football schedule</p>
+        </div>
+    </div>
+
+    <script src="js/script.js"></script>
+    <script>
+        // CFB Schedule App State
+        let allGames = [];
+        let currentFilter = 'all';
+        let rankedTeams = new Set();
+        let currentView = 'grid'; // Track current view mode
+        let currentTimezone = 'ET'; // Default timezone
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, initializing page...');
+            try {
+                initializePage();
+                loadGames();
+            } catch (error) {
+                console.error('Error during initialization:', error);
+                // Try to show an error message
+                showError('Failed to initialize page. Please refresh and try again.');
+            }
+            
+            // Auto-refresh every 2 minutes for live games
+            setInterval(() => {
+                try {
+                    if (hasLiveGames()) {
+                        loadGames(true); // Silent refresh
+                    }
+                } catch (error) {
+                    console.error('Error in auto-refresh:', error);
+                }
+            }, 120000);
+        });
+
+        function toggleView(viewMode) {
+            currentView = viewMode;
+            
+            // Update button states
+            document.querySelectorAll('.view-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`[data-view="${viewMode}"]`).classList.add('active');
+            
+            // Re-display games with new view
+            displayGames(allGames);
+        }
+
+        function initializePage() {
+            try {
+                console.log('Initializing page...');
+                
+                // Set default date to today
+                const dateSelect = document.getElementById('date-select');
+                if (dateSelect) {
+                    const today = new Date().toISOString().split('T')[0];
+                    dateSelect.value = today;
+                }
+
+                // Initialize timezone based on user's location
+                try {
+                    initializeTimezone();
+                } catch (error) {
+                    console.error('Error initializing timezone:', error);
+                }
+
+                // Load ranked teams for filtering
+                try {
+                    loadRankedTeams();
+                } catch (error) {
+                    console.error('Error loading ranked teams:', error);
+                }
+                
+                console.log('Page initialization completed');
+            } catch (error) {
+                console.error('Error in initializePage:', error);
+            }
+        }
+
+        function initializeTimezone() {
+            // Try to detect user's timezone and set closest US timezone
+            try {
+                const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                const timezoneSelect = document.getElementById('timezone-select');
+                
+                // Map common US timezones to our options
+                const timezoneMapping = {
+                    'America/New_York': 'ET',
+                    'America/Detroit': 'ET',
+                    'America/Chicago': 'CT',
+                    'America/Denver': 'MT',
+                    'America/Phoenix': 'MT',
+                    'America/Los_Angeles': 'PT',
+                    'America/Seattle': 'PT'
+                };
+                
+                const detectedZone = timezoneMapping[userTimezone];
+                if (detectedZone) {
+                    timezoneSelect.value = detectedZone;
+                    currentTimezone = detectedZone;
+                } else {
+                    // Default to Eastern Time if we can't detect
+                    currentTimezone = 'ET';
+                }
+            } catch (error) {
+                console.warn('Could not detect timezone, defaulting to ET:', error);
+                currentTimezone = 'ET';
+            }
+        }
+
+        function updateGameTimes() {
+            const timezoneSelect = document.getElementById('timezone-select');
+            currentTimezone = timezoneSelect.value;
+            
+            // Re-display games with updated times
+            displayGames(allGames);
+        }
+
+        function convertGameTime(gameDate, gameStatus) {
+            // If game is completed or in progress, show the original status
+            if (gameStatus.completed || gameStatus.inProgress) {
+                return gameStatus.detail;
+            }
+
+            try {
+                // Handle both old cached format and new ISO format
+                let date;
+                if (gameDate.includes('T') && gameDate.includes('Z')) {
+                    // New ISO format: 2025-09-05T23:00Z
+                    date = new Date(gameDate);
+                } else {
+                    // Old cached format: "Saturday, August 23, 2025" - fallback to original status
+                    return gameStatus.detail;
+                }
+                
+                // Convert to selected timezone using built-in Intl API for accuracy
+                const timeString = date.toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true,
+                    timeZone: getTimezoneString(currentTimezone)
+                });
+                
+                return `${timeString} ${currentTimezone}`;
+            } catch (error) {
+                console.warn('Error converting game time:', error);
+                return gameStatus.detail; // Fallback to original
+            }
+        }
+
+        function getTimezoneString(timezone) {
+            const timezoneMap = {
+                'ET': 'America/New_York',
+                'CT': 'America/Chicago', 
+                'MT': 'America/Denver',
+                'PT': 'America/Los_Angeles'
+            };
+            return timezoneMap[timezone] || 'America/New_York';
+        }
+
+        function getCurrentCollegeFootballWeek() {
+            // For 2025, college football season starts around late August
+            const now = new Date();
+            const year = now.getFullYear();
+            
+            // For testing in August 2025, let's default to week 1
+            if (year === 2025 && now.getMonth() === 7) { // August 2025
+                console.log('2025 season - defaulting to week 1');
+                return 1;
+            }
+            
+            // College football season start date (approximate - last Saturday of August)
+            const seasonStart = new Date(year, 7, 1); // August 1st
+            const lastSaturdayOfAugust = new Date(seasonStart);
+            
+            // Find the last Saturday of August
+            lastSaturdayOfAugust.setDate(31);
+            while (lastSaturdayOfAugust.getDay() !== 6) { // 6 = Saturday
+                lastSaturdayOfAugust.setDate(lastSaturdayOfAugust.getDate() - 1);
+            }
+            
+            // Calculate weeks since season start
+            const diffTime = now.getTime() - lastSaturdayOfAugust.getTime();
+            const diffWeeks = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7)) + 1;
+            
+            // Clamp between 1 and 15
+            const week = Math.max(1, Math.min(15, diffWeeks));
+            
+            // During off-season (January-July), default to week 1
+            if (now.getMonth() < 7) { // January through July
+                return 1;
+            }
+            
+            console.log('Calculated current CFB week:', week);
+            return week;
+        }
+
+        async function loadRankedTeams() {
+            try {
+                const response = await fetch('/api/rankings/ap');
+                const data = await response.json();
+                if (data.success && data.data) {
+                    rankedTeams = new Set(data.data.map(team => team.team_name?.toLowerCase()));
+                }
+            } catch (error) {
+                console.warn('Could not load rankings for filtering:', error);
+            }
+        }
+
+        async function loadGames(silent = false) {
+            if (!silent) {
+                showLoading();
+            }
+
+            try {
+                let week = document.getElementById('week-select').value;
+                const date = document.getElementById('date-select').value;
+                
+                // Default to week 1 if no week selected
+                if (!week) {
+                    week = '1';
+                }
+                
+                let url = '/api/cfb?groups=80'; // FBS only
+                if (week) url += `&week=${week}`;
+                if (date) url += `&date=${date.replace(/-/g, '')}`;
+
+                console.log('Loading games from:', url); // Debug log
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                console.log('API response:', data); // Debug log
+
+                if (data.success) {
+                    allGames = data.data || [];
+                    console.log('Loaded games:', allGames.length);
+                    displayGames(allGames);
+                } else {
+                    console.error('API returned error:', data.error);
+                    showError(data.error || 'Failed to load games');
+                }
+            } catch (error) {
+                console.error('Error loading games:', error);
+                showError('Network error loading games');
+            }
+        }
+
+        function displayGames(games) {
+            const container = document.getElementById('games-container');
+            
+            try {
+                console.log('Displaying games:', games.length);
+                
+                if (!games || games.length === 0) {
+                    container.innerHTML = `
+                        <div class="no-games">
+                            <h3>No games found</h3>
+                            <p>Try selecting a different week or date</p>
+                            <button class="refresh-btn" onclick="loadGames()">Refresh</button>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const gamesHTML = games.map(game => {
+                    try {
+                        return createGameCard(game);
+                    } catch (error) {
+                        console.error('Error creating game card:', error, game);
+                        return `<div class="cfb-game-card">Error loading game: ${game.id || 'unknown'}</div>`;
+                    }
+                }).join('');
+                
+                const containerClass = currentView === 'list' ? 'games-list' : 'games-grid';
+                container.innerHTML = `<div class="${containerClass}">${gamesHTML}</div>`;
+                
+                console.log('Games displayed successfully');
+            } catch (error) {
+                console.error('Error in displayGames:', error);
+                container.innerHTML = `
+                    <div class="error-container">
+                        <h3>⚠️ Error Displaying Games</h3>
+                        <p>There was an error displaying the games. Please refresh the page.</p>
+                        <button class="refresh-btn" onclick="location.reload()">Refresh Page</button>
+                    </div>
+                `;
+            }
+        }
+
+        function createGameCard(game) {
+            try {
+                const statusClass = game.status.inProgress ? 'live' : 
+                                   game.status.completed ? 'completed' : 'upcoming';
+                
+                const statusText = game.status.inProgress ? 'LIVE' : 
+                                  game.status.completed ? 'FINAL' : '';
+
+                const awayScore = game.status.completed || game.status.inProgress ? 
+                                 parseInt(game.awayTeam.score || '0') : null;
+                const homeScore = game.status.completed || game.status.inProgress ? 
+                                 parseInt(game.homeTeam.score || '0') : null;
+
+                // Determine winner for completed games
+                let awayWinner = false;
+                let homeWinner = false;
+                if (game.status.completed && awayScore !== null && homeScore !== null) {
+                    if (awayScore > homeScore) {
+                        awayWinner = true;
+                    } else if (homeScore > awayScore) {
+                        homeWinner = true;
+                    }
+                    // Tie games: neither team gets winner class
+                }
+
+                const venue = game.venue.city && game.venue.state ? 
+                             `${game.venue.name}, ${game.venue.city}, ${game.venue.state}` : 
+                             game.venue.name;
+
+                const broadcasts = game.broadcasts.length > 0 ? 
+                                  game.broadcasts.join(', ') : 'TBA';
+
+                // Add betting lines if available (only for upcoming games)
+                let bettingHTML = '';
+                if (game.odds && game.odds.spread && game.odds.total && !game.status.completed && !game.status.inProgress) {
+                    bettingHTML = `
+                        <div class="meta-item betting-info">
+                            <div class="meta-label">Betting Lines</div>
+                            <div class="meta-value betting-lines">
+                                <div class="betting-line">
+                                    <span class="betting-label">Spread:</span>
+                                    <span class="betting-value">${game.homeTeam.displayName} ${game.odds.spread.home}</span>
+                                </div>
+                                <div class="betting-line">
+                                    <span class="betting-label">O/U:</span>
+                                    <span class="betting-value">${game.odds.total}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // Only show status badge for LIVE and FINAL games
+                const statusBadgeHTML = statusText ? 
+                    `<div class="game-status-badge status-${statusClass}">${statusText}</div>` : '';
+
+                const listViewClass = currentView === 'list' ? ' list-view' : '';
+                
+                // Get converted time with error handling
+                let convertedTime;
+                try {
+                    convertedTime = convertGameTime(game.date, game.status);
+                } catch (error) {
+                    console.warn('Error converting game time, using fallback:', error);
+                    convertedTime = game.status.detail || 'TBA';
+                }
+                
+                const gameMetaHTML = `
+                    <div class="game-meta">
+                        <div class="meta-item">
+                            <div class="meta-label">Time</div>
+                            <div class="meta-value">${convertedTime}</div>
+                        </div>
+                        <div class="meta-item">
+                            <div class="meta-label">TV</div>
+                            <div class="meta-value">${broadcasts}</div>
+                        </div>
+                        <div class="meta-item" ${currentView === 'grid' ? 'style="grid-column: 1 / -1;"' : ''}>
+                            <div class="meta-label">Venue</div>
+                            <div class="meta-value">${venue}</div>
+                        </div>
+                        ${bettingHTML}
+                    </div>
+                `;
+
+                return `
+                    <div class="cfb-game-card ${statusClass}${listViewClass}" data-game-id="${game.id}">
+                        ${statusBadgeHTML}
+                        
+                        <div class="teams-matchup">
+                            <div class="cfb-team away-team ${awayWinner ? 'winner' : ''}">
+                                <div class="cfb-team-logo">
+                                    <img src="${game.awayTeam.logo}" alt="${game.awayTeam.name}" 
+                                         onerror="this.src='/images/logos/default-logo.png'">
+                                </div>
+                                <div class="cfb-team-info">
+                                    <div class="cfb-team-name">${game.awayTeam.displayName}</div>
+                                    <div class="cfb-team-record">${game.awayTeam.record || ''}</div>
+                                </div>
+                                ${awayScore !== null ? `<div class="cfb-team-score">${awayScore}</div>` : ''}
+                            </div>
+                            
+                            <div class="cfb-vs">@</div>
+                            
+                            <div class="cfb-team home-team ${homeWinner ? 'winner' : ''}">
+                                <div class="cfb-team-logo">
+                                    <img src="${game.homeTeam.logo}" alt="${game.homeTeam.name}" 
+                                         onerror="this.src='/images/logos/default-logo.png'">
+                                </div>
+                                <div class="cfb-team-info">
+                                    <div class="cfb-team-name">${game.homeTeam.displayName}</div>
+                                    <div class="cfb-team-record">${game.homeTeam.record || ''}</div>
+                                </div>
+                                ${homeScore !== null ? `<div class="cfb-team-score">${homeScore}</div>` : ''}
+                            </div>
+                        </div>
+                        
+                        ${gameMetaHTML}
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error in createGameCard:', error, game);
+                return `
+                    <div class="cfb-game-card">
+                        <div class="teams-matchup">
+                            <div style="text-align: center; color: red;">
+                                Error loading game data
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function filterGames(filterType) {
+            // Update active button
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            if (filterType !== 'search') {
+                event.target.classList.add('active');
+                currentFilter = filterType;
+            }
+
+            let filteredGames = [...allGames];
+
+            // Apply filter
+            switch (filterType) {
+                case 'live':
+                    filteredGames = allGames.filter(game => game.status.inProgress);
+                    break;
+                case 'completed':
+                    filteredGames = allGames.filter(game => game.status.completed);
+                    break;
+                case 'upcoming':
+                    filteredGames = allGames.filter(game => !game.status.completed && !game.status.inProgress);
+                    break;
+                case 'ranked':
+                    filteredGames = allGames.filter(game => 
+                        isRankedTeam(game.homeTeam.name) || isRankedTeam(game.awayTeam.name)
+                    );
+                    break;
+                case 'search':
+                    const searchTerm = document.getElementById('search-input').value.toLowerCase();
+                    if (searchTerm) {
+                        filteredGames = allGames.filter(game =>
+                            game.homeTeam.displayName.toLowerCase().includes(searchTerm) ||
+                            game.awayTeam.displayName.toLowerCase().includes(searchTerm)
+                        );
+                    }
+                    break;
+                case 'all':
+                default:
+                    // Show all games
+                    break;
+            }
+
+            displayGames(filteredGames);
+        }
+
+        function isRankedTeam(teamName) {
+            return rankedTeams.has(teamName.toLowerCase());
+        }
+
+        function hasLiveGames() {
+            return allGames.some(game => game.status.inProgress);
+        }
+
+        function showLoading() {
+            document.getElementById('games-container').innerHTML = `
+                <div class="loading-container">
+                    <div class="loading-spinner"></div>
+                    <h3>Loading games...</h3>
+                    <p>Fetching the latest college football schedule</p>
+                </div>
+            `;
+        }
+
+        function showError(message) {
+            document.getElementById('games-container').innerHTML = `
+                <div class="error-container">
+                    <h3>⚠️ Error Loading Games</h3>
+                    <p>${message}</p>
+                    <button class="refresh-btn" onclick="loadGames()">Try Again</button>
+                </div>
+            `;
+        }
+
+        // Mobile menu functionality (inherited from other pages)
+        window.mobileMenuOpen = false;
+        
+        function handleMobileMenuToggle(button) {
+            var nav = document.getElementById('site-nav');
+            var btn = button;
+            
+            if (!nav || !btn) return;
+            
+            if (window.mobileMenuOpen) {
+                nav.classList.remove('mobile-active');
+                btn.innerHTML = '☰';
+                window.mobileMenuOpen = false;
+            } else {
+                nav.classList.add('mobile-active');
+                btn.innerHTML = '✕';
+                window.mobileMenuOpen = true;
+            }
+        }
+
+        // Dark mode functionality
+        function toggleDarkMode() {
+            try {
+                var html = document.documentElement;
+                var currentTheme = html.getAttribute('data-theme');
+                var newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                
+                html.setAttribute('data-theme', newTheme);
+                
+                try {
+                    localStorage.setItem('theme', newTheme);
+                } catch (e) {
+                    console.warn('localStorage not available:', e);
+                }
+                
+                var icon = document.querySelector('.dark-mode-icon');
+                if (icon) {
+                    icon.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+                }
+            } catch (error) {
+                console.error('Dark mode toggle error:', error);
+            }
+        }
+
+        // Initialize dark mode
+        function initDarkMode() {
+            try {
+                var savedTheme = null;
+                var prefersDark = false;
+                
+                try {
+                    savedTheme = localStorage.getItem('theme');
+                } catch (e) {
+                    console.warn('localStorage not available:', e);
+                }
+                
+                try {
+                    if (window.matchMedia) {
+                        prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    }
+                } catch (e) {
+                    console.warn('matchMedia not available:', e);
+                }
+                
+                var theme = savedTheme || (prefersDark ? 'dark' : 'light');
+                document.documentElement.setAttribute('data-theme', theme);
+                
+                var icon = document.querySelector('.dark-mode-icon');
+                if (icon) {
+                    icon.textContent = theme === 'dark' ? '☀️' : '🌙';
+                }
+            } catch (error) {
+                console.error('Dark mode init error:', error);
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initDarkMode);
+        } else {
+            initDarkMode();
+        }
+    </script>
+</body>
+</html>
