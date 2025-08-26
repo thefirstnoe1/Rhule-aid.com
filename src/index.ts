@@ -1,21 +1,11 @@
-export interface Env {
-  DB: any;
-  SCHEDULE_CACHE: any;
-  ROSTER_CACHE: any;
-  NEWS_CACHE: any;
-  WEATHER_CACHE: any;
-  RANKINGS_CACHE: any;
-  STANDINGS_CACHE: any;
-  ASSETS: any;
-  OPENWEATHER_API_KEY: string;
-}
-
+import { Env } from './types';
 import { scrapeAPPoll, scrapeCFPPoll, scrapeBigTenStandings } from './scrapers';
 import { handleScheduleRequest } from './api/schedule';
 import { handleNewsRequest } from './api/news';
 import { handleRosterRequest } from './api/roster';
 import { handleWeatherRequest } from './api/weather';
 import { handleLogoRequest } from './api/logo';
+import { onRequest as handleCFBScheduleRequest } from './api/cfb-schedule';
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -49,6 +39,8 @@ async function handleAPIRequest(request: Request, env: Env, pathname: string): P
     switch (pathname) {
       case '/api/schedule':
         return await handleScheduleRequest(request, env);
+      case '/api/cfb-schedule':
+        return await handleCFBScheduleRequest({ request, env });
       case '/api/news':
         return await handleNewsRequest(request, env);
       case '/api/roster':

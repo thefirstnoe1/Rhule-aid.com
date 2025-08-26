@@ -41,6 +41,10 @@
       "id": "$WEATHER_CACHE_ID"
     },
     {
+      "binding": "CFB_SCHEDULE_CACHE",
+      "id": "$CFB_SCHEDULE_CACHE_ID"
+    },
+    {
       "binding": "RANKINGS_CACHE",
       "id": "$RANKINGS_CACHE_ID"
     },

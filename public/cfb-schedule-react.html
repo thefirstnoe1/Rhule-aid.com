@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>College Football Schedule - Rhule Aid</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="icon" type="image/png" href="/images/favicon-rhuleaid.png">
+    
+    <!-- React Production -->
+    <script crossorigin src="https://unpkg.com/react@19/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@19/umd/react-dom.production.min.js"></script>
+    
+    <style>
+        /* Additional styles for React components */
+        .schedule-controls {
+            background: var(--card-bg);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .filter-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .filter-group label {
+            font-weight: 500;
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .filter-group select, .filter-group input[type="checkbox"] {
+            padding: 0.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: var(--bg-color);
+            color: var(--text-color);
+        }
+        
+        .refresh-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        .refresh-icon {
+            display: inline-block;
+            transition: transform 0.3s ease;
+        }
+        
+        .btn:hover .refresh-icon {
+            transform: rotate(180deg);
+        }
+        
+        .last-updated {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+        
+        .date-section {
+            margin-bottom: 2rem;
+        }
+        
+        .date-header {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 0.5rem;
+        }
+        
+        .games-grid {
+            display: grid;
+            gap: 1rem;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+        }
+        
+        .game-card {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            border-left: 4px solid var(--border-color);
+        }
+        
+        .game-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        .game-card.live {
+            border-left-color: #e74c3c;
+            background: linear-gradient(135deg, var(--card-bg) 0%, rgba(231, 76, 60, 0.05) 100%);
+        }
+        
+        .game-card.completed {
+            border-left-color: #27ae60;
+        }
+        
+        .game-card.scheduled {
+            border-left-color: var(--primary-color);
+        }
+        
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .game-time {
+            font-weight: 500;
+            color: var(--text-color);
+        }
+        
+        .game-status {
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+        
+        .game-status.live {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        .game-status.completed {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .game-status.scheduled {
+            background: var(--border-color);
+            color: var(--text-color);
+        }
+        
+        .teams {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .team {
+            flex: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .team-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .team-logo {
+            width: 32px;
+            height: 32px;
+            object-fit: contain;
+        }
+        
+        .team-details {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .team-name {
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .rank {
+            background: var(--primary-color);
+            color: white;
+            padding: 0.125rem 0.375rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .team-conference {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+        
+        .team-score {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            min-width: 2rem;
+            text-align: center;
+        }
+        
+        .vs-separator {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+        
+        .game-details {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
+            font-size: 0.875rem;
+        }
+        
+        .venue-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        
+        .venue {
+            font-weight: 500;
+        }
+        
+        .location {
+            color: var(--text-muted);
+        }
+        
+        .broadcast-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            text-align: right;
+        }
+        
+        .tv {
+            font-weight: 500;
+            color: var(--primary-color);
+        }
+        
+        .spread {
+            color: var(--text-muted);
+        }
+        
+        .no-games {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-muted);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 3rem;
+        }
+        
+        .spinner {
+            border: 4px solid var(--border-color);
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error-message {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-muted);
+        }
+        
+        @media (max-width: 768px) {
+            .games-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .filter-controls {
+                grid-template-columns: 1fr;
+            }
+            
+            .refresh-controls {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: stretch;
+            }
+            
+            .teams {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .vs-separator {
+                transform: rotate(90deg);
+            }
+            
+            .game-details {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: stretch;
+            }
+            
+            .broadcast-info {
+                text-align: left;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="nav">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <img src="/images/logos/nebraska-logo.png" alt="Nebraska Logo" class="logo">
+                <a href="/" class="nav-title">Rhule Aid</a>
+            </div>
+            
+            <!-- Mobile menu button -->
+            <button class="mobile-menu-btn" id="mobile-menu-btn">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            
+            <!-- Navigation Links -->
+            <div class="nav-links" id="nav-links">
+                <a href="/" class="nav-link">Home</a>
+                <a href="/schedule.html" class="nav-link">Schedule</a>
+                <a href="/roster.html" class="nav-link">Roster</a>
+                <a href="/news.html" class="nav-link">News</a>
+                <a href="/cfb-schedule-react.html" class="nav-link active">CFB Schedule</a>
+                <a href="/gameday.html" class="nav-link">Game Day</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main">
+        <div class="container">
+            <!-- Header -->
+            <div class="header">
+                <h1>⚡ College Football Schedule</h1>
+                <p class="subtitle">Live scores and schedules from across college football</p>
+            </div>
+
+            <!-- React App Container -->
+            <div id="cfb-schedule-app"></div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2025 Rhule Aid. Supporting Nebraska football with data and passion.</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="/js/mobile-menu.js"></script>
+    <script src="/js/react/cfb-schedule.js"></script>
+    <script>
+        // Mount React component
+        const container = document.getElementById('cfb-schedule-app');
+        const root = ReactDOM.createRoot(container);
+        root.render(React.createElement(CFBScheduleApp.default));
+    </script>
+</body>
+</html>

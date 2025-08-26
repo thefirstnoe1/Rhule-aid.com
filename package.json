@@ -3,18 +3,29 @@
   "version": "1.0.0",
   "description": "Nebraska Cornhuskers Football Fan Website built on Cloudflare Workers",
   "main": "src/index.ts",
+  "type": "module",
   "scripts": {
     "start": "wrangler dev",
-    "build": "tsc",
+    "build": "npm run build:worker && npm run build:react",
+    "build:worker": "tsc",
+    "build:react": "NODE_ENV=production node build-react.js",
+    "build:react:dev": "NODE_ENV=development node build-react.js",
     "dev": "wrangler dev",
+    "dev:react": "npm run build:react:dev && wrangler dev",
     "deploy": "wrangler deploy",
     "test": "echo \"No tests specified\" && exit 0"
   },
   "dependencies": {
-    "cheerio": "^1.0.0-rc.12"
-  },  "devDependencies": {
+    "@types/react": "^19.1.11",
+    "@types/react-dom": "^19.1.7",
+    "cheerio": "^1.0.0-rc.12",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
     "@cloudflare/workers-types": "^4.20231218.0",
     "@types/node": "^18.19.0",
+    "esbuild": "^0.25.9",
     "nodemon": "^3.0.0",
     "typescript": "^5.3.0",
     "wrangler": "^4.26.1"
@@ -27,6 +38,7 @@
     "workers",
     "web-scraping",
     "sports-data"
-  ],  "author": "Nebraska Football Fan",
+  ],
+  "author": "Nebraska Football Fan",
   "license": "MIT"
 }

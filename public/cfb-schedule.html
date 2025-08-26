@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>College Football Schedule - Rhule Aid</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="icon" type="image/png" href="/images/favicon-rhuleaid.png">
+    <meta name="description" content="Complete college football schedule with live scores, rankings, and TV coverage information.">
+</head>
+<body>
+    <header>
+        <nav class="navbar">
+            <div class="nav-container">
+                <div class="nav-logo">
+                    <img src="/images/logos/nebraska-logo.png" alt="Nebraska Logo" class="logo">
+                    <h1>Rhule Aid</h1>
+                </div>
+                <div class="nav-toggle" id="mobile-menu">
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                </div>
+                <ul class="nav-menu" id="nav-menu">
+                    <li class="nav-item">
+                        <a href="/" class="nav-link">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="/schedule.html" class="nav-link">Schedule</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="/roster.html" class="nav-link">Roster</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="/news.html" class="nav-link">News</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="/cfb-schedule.html" class="nav-link active">CFB Schedule</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="/gameday.html" class="nav-link">Game Day</a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+    </header>
+
+    <main class="main-content">
+        <div class="container">
+            <div class="page-header">
+                <h1>College Football Schedule</h1>
+                <p>Complete schedule with live scores and rankings</p>
+            </div>
+
+            <div class="schedule-controls">
+                <div class="filter-controls">
+                    <div class="filter-group">
+                        <label for="week-filter">Week:</label>
+                        <select id="week-filter">
+                            <option value="">All Weeks</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="conference-filter">Conference:</label>
+                        <select id="conference-filter">
+                            <option value="">All Conferences</option>
+                            <option value="Big Ten">Big Ten</option>
+                            <option value="SEC">SEC</option>
+                            <option value="ACC">ACC</option>
+                            <option value="Big 12">Big 12</option>
+                            <option value="Pac-12">Pac-12</option>
+                            <option value="American">American</option>
+                            <option value="Mountain West">Mountain West</option>
+                            <option value="Sun Belt">Sun Belt</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="status-filter">Status:</label>
+                        <select id="status-filter">
+                            <option value="">All Games</option>
+                            <option value="scheduled">Scheduled</option>
+                            <option value="live">Live</option>
+                            <option value="completed">Completed</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="ranked-filter">
+                            <input type="checkbox" id="ranked-filter">
+                            Ranked Teams Only
+                        </label>
+                    </div>
+                </div>
+
+                <div class="refresh-controls">
+                    <button id="refresh-btn" class="btn btn-primary">
+                        <span class="refresh-icon">↻</span> Refresh
+                    </button>
+                    <span id="last-updated" class="last-updated"></span>
+                </div>
+            </div>
+
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+                <p>Loading schedule...</p>
+            </div>
+
+            <div id="error-message" class="error-message" style="display: none;">
+                <p>Unable to load schedule. Please try again later.</p>
+                <button id="retry-btn" class="btn btn-secondary">Retry</button>
+            </div>
+
+            <div id="schedule-container" class="schedule-container">
+                <!-- Schedule content will be loaded here -->
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Rhule Aid. All rights reserved.</p>
+            <p>Not affiliated with the University of Nebraska or any athletic conference.</p>
+        </div>
+    </footer>
+
+    <script src="/js/mobile-menu.js"></script>
+    <script src="/js/cfb-schedule.js"></script>
+</body>
+</html>
