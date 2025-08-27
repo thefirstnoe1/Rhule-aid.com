@@ -669,6 +669,95 @@
             background: #2196f3;
         }
 
+        /* Date Header Styles */
+        .date-header {
+            margin: 40px 0 25px 0;
+            padding: 0 20px;
+            max-width: 1400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .date-header:first-child {
+            margin-top: 20px;
+        }
+
+        .date-header-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 25px;
+            background: var(--card-bg);
+            border-radius: 15px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+            border-left: 4px solid var(--accent-color);
+        }
+
+        .date-title {
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .day-of-week {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: var(--accent-color);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .date-text {
+            font-size: 1.4em;
+            font-weight: 700;
+            color: var(--text-color);
+            line-height: 1.2;
+        }
+
+        .game-count {
+            background: rgba(var(--accent-color-rgb), 0.1);
+            color: var(--accent-color);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 600;
+            border: 1px solid rgba(var(--accent-color-rgb), 0.2);
+        }
+
+        /* Responsive Date Headers */
+        @media (max-width: 768px) {
+            .date-header {
+                margin: 30px 0 20px 0;
+                padding: 0 15px;
+            }
+
+            .date-header-content {
+                padding: 15px 20px;
+                flex-direction: column;
+                gap: 12px;
+                text-align: center;
+            }
+
+            .date-title {
+                align-items: center;
+            }
+
+            .day-of-week {
+                font-size: 1em;
+            }
+
+            .date-text {
+                font-size: 1.2em;
+            }
+
+            .game-count {
+                font-size: 0.85em;
+                padding: 6px 14px;
+            }
+        }
+
         @media (max-width: 768px) {
             .legend-items {
                 gap: 20px;
@@ -811,7 +900,6 @@
                         <ul>
                             <li><a href="index.html">🏠 Home</a></li>
                             <li><a href="schedule.html">📅 Schedule</a></li>
-                            <li><a href="cfb.html" class="active">🏈 CFB Schedule</a></li>
                             <li><a href="roster.html">👥 Roster</a></li>
                             <li><a href="news.html">📰 News</a></li>
                             <li><a href="rhule-aid.html">🍺 Rhule-aid</a></li>
@@ -1318,22 +1406,152 @@
                     return;
                 }
 
-                const gamesHTML = games.map(game => {
-                    try {
-                        return createGameCard(game);
-                    } catch (error) {
-                        console.error('Error creating game card:', error, game);
-                        return `<div class="cfb-game-card">Error loading game: ${game.id || 'unknown'}</div>`;
-                    }
-                }).join('');
+                // Group games by date
+                const gamesByDate = groupGamesByDate(games);
                 
-                const containerClass = currentView === 'list' ? 'games-list' : 'games-grid';
-                container.innerHTML = `<div class="${containerClass}">${gamesHTML}</div>`;
+                // Create HTML for each date group
+                const datesHTML = Object.keys(gamesByDate)
+                    .sort((a, b) => new Date(a).getTime() - new Date(b).getTime()) // Sort dates chronologically
+                    .map(dateKey => {
+                        const dateGames = gamesByDate[dateKey];
+                        const gamesHTML = dateGames.map(game => {
+                            try {
+                                return createGameCard(game);
+                            } catch (error) {
+                                console.error('Error creating game card:', error, game);
+                                return `<div class="cfb-game-card">Error loading game: ${game.id || 'unknown'}</div>`;
+                            }
+                        }).join('');
+                        
+                        const containerClass = currentView === 'list' ? 'games-list' : 'games-grid';
+                        const dateHeaderHTML = createDateHeader(dateKey, dateGames.length);
+                        
+                        return `
+                            ${dateHeaderHTML}
+                            <div class="${containerClass}">${gamesHTML}</div>
+                        `;
+                    }).join('');
                 
-                console.log('Games displayed successfully');
+                container.innerHTML = datesHTML;
+                
+                console.log('Games displayed successfully with date organization');
             } catch (error) {
                 console.error('Error in displayGames:', error);
                 showError('Error displaying games. Please refresh the page.');
+            }
+        }
+
+        function groupGamesByDate(games) {
+            const groups = {};
+            
+            games.forEach(game => {
+                try {
+                    let dateKey;
+                    
+                    // First, try to extract date from status.detail which often has the correct local date
+                    if (game.status && game.status.detail) {
+                        const statusDetail = game.status.detail;
+                        // Look for patterns like "Thu, August 28th", "Saturday, August 31st", etc.
+                        const dateMatch = statusDetail.match(/(\w+),\s+(\w+)\s+(\d+)(?:st|nd|rd|th)/i);
+                        if (dateMatch) {
+                            const [, dayOfWeek, month, day] = dateMatch;
+                            const year = new Date().getFullYear(); // Use current year
+                            
+                            // Parse the extracted date
+                            const monthMap = {
+                                'january': 0, 'february': 1, 'march': 2, 'april': 3,
+                                'may': 4, 'june': 5, 'july': 6, 'august': 7,
+                                'september': 8, 'october': 9, 'november': 10, 'december': 11
+                            };
+                            
+                            const monthNum = monthMap[month.toLowerCase()];
+                            if (monthNum !== undefined) {
+                                const localDate = new Date(year, monthNum, parseInt(day));
+                                dateKey = localDate.toISOString().split('T')[0];
+                            }
+                        }
+                    }
+                    
+                    // Fallback to UTC date conversion if status parsing failed
+                    if (!dateKey && game.date && game.date.includes('T') && game.date.includes('Z')) {
+                        // Convert UTC to Eastern Time for date grouping (most CFB games are in US)
+                        const utcDate = new Date(game.date);
+                        const easternDate = new Date(utcDate.getTime() - (4 * 60 * 60 * 1000)); // EDT offset
+                        dateKey = easternDate.toISOString().split('T')[0];
+                    } else if (!dateKey && game.date) {
+                        // Last fallback: try to parse whatever format we have
+                        const gameDate = new Date(game.date);
+                        dateKey = gameDate.toISOString().split('T')[0];
+                    }
+                    
+                    // Final fallback if all parsing failed
+                    if (!dateKey) {
+                        dateKey = 'unknown-date';
+                    }
+                    
+                    if (!groups[dateKey]) {
+                        groups[dateKey] = [];
+                    }
+                    groups[dateKey].push(game);
+                } catch (error) {
+                    console.warn('Error parsing game date:', error, game);
+                    // Add to a fallback group if date parsing fails
+                    const fallbackKey = 'unknown-date';
+                    if (!groups[fallbackKey]) {
+                        groups[fallbackKey] = [];
+                    }
+                    groups[fallbackKey].push(game);
+                }
+            });
+            
+            return groups;
+        }
+
+        function createDateHeader(dateKey, gameCount) {
+            try {
+                let displayDate;
+                let dayOfWeek;
+                
+                if (dateKey === 'unknown-date') {
+                    displayDate = 'Unknown Date';
+                    dayOfWeek = '';
+                } else {
+                    // Parse the date key and create a local date
+                    const [year, month, day] = dateKey.split('-').map(Number);
+                    const date = new Date(year, month - 1, day); // month is 0-indexed in Date constructor
+                    
+                    // Get day of week
+                    dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
+                    
+                    // Format date nicely
+                    displayDate = date.toLocaleDateString('en-US', { 
+                        month: 'long', 
+                        day: 'numeric', 
+                        year: 'numeric' 
+                    });
+                }
+                
+                return `
+                    <div class="date-header">
+                        <div class="date-header-content">
+                            <h2 class="date-title">
+                                <span class="day-of-week">${dayOfWeek}</span>
+                                <span class="date-text">${displayDate}</span>
+                            </h2>
+                            <div class="game-count">${gameCount} game${gameCount !== 1 ? 's' : ''}</div>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                console.warn('Error creating date header:', error);
+                return `
+                    <div class="date-header">
+                        <div class="date-header-content">
+                            <h2 class="date-title">Games</h2>
+                            <div class="game-count">${gameCount} game${gameCount !== 1 ? 's' : ''}</div>
+                        </div>
+                    </div>
+                `;
             }
         }
 
