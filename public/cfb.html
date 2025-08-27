@@ -855,8 +855,89 @@
         </div>
     </div>
 
-    <script src="js/script.js"></script>
     <script>
+        // Essential functions that need to be available immediately
+        
+        // Mobile menu functionality
+        window.mobileMenuOpen = false;
+        
+        function handleMobileMenuToggle(button) {
+            var nav = document.getElementById('site-nav');
+            var btn = button;
+            
+            if (!nav || !btn) return;
+            
+            if (window.mobileMenuOpen) {
+                nav.classList.remove('mobile-active');
+                btn.innerHTML = '☰';
+                window.mobileMenuOpen = false;
+            } else {
+                nav.classList.add('mobile-active');
+                btn.innerHTML = '✕';
+                window.mobileMenuOpen = true;
+            }
+        }
+
+        // Dark mode functionality
+        function toggleDarkMode() {
+            try {
+                var html = document.documentElement;
+                var currentTheme = html.getAttribute('data-theme');
+                var newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                
+                html.setAttribute('data-theme', newTheme);
+                
+                try {
+                    localStorage.setItem('theme', newTheme);
+                } catch (e) {
+                    console.warn('localStorage not available:', e);
+                }
+                
+                var icon = document.querySelector('.dark-mode-icon');
+                if (icon) {
+                    icon.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+                }
+            } catch (error) {
+                console.error('Dark mode toggle error:', error);
+            }
+        }
+
+        // Initialize dark mode immediately
+        function initDarkMode() {
+            try {
+                var savedTheme = null;
+                var prefersDark = false;
+                
+                try {
+                    savedTheme = localStorage.getItem('theme');
+                } catch (e) {
+                    console.warn('localStorage not available:', e);
+                }
+                
+                try {
+                    if (window.matchMedia) {
+                        prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    }
+                } catch (e) {
+                    console.warn('matchMedia not available:', e);
+                }
+                
+                var theme = savedTheme || (prefersDark ? 'dark' : 'light');
+                document.documentElement.setAttribute('data-theme', theme);
+                
+                var icon = document.querySelector('.dark-mode-icon');
+                if (icon) {
+                    icon.textContent = theme === 'dark' ? '☀️' : '🌙';
+                }
+            } catch (error) {
+                console.error('Dark mode init error:', error);
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        }
+
+        // Initialize dark mode immediately
+        initDarkMode();
+
         // CFB Schedule App State
         let allGames = [];
         let currentFilter = 'all';
@@ -869,10 +950,13 @@
             console.log('DOM loaded, initializing page...');
             try {
                 initializePage();
-                loadGames();
+                // Add a small delay to ensure everything is ready
+                setTimeout(() => {
+                    console.log('Calling loadGames...');
+                    loadGames();
+                }, 100);
             } catch (error) {
                 console.error('Error during initialization:', error);
-                // Try to show an error message
                 showError('Failed to initialize page. Please refresh and try again.');
             }
             
@@ -1063,27 +1147,27 @@
         }
 
         async function loadGames(silent = false) {
+            console.log('loadGames called, silent:', silent);
+            
             if (!silent) {
                 showLoading();
             }
 
             try {
-                let week = document.getElementById('week-select').value;
-                const date = document.getElementById('date-select').value;
+                let week = document.getElementById('week-select')?.value || '1';
+                const date = document.getElementById('date-select')?.value || '';
                 
-                // Default to week 1 if no week selected
-                if (!week) {
-                    week = '1';
-                    document.getElementById('week-select').value = '1';
-                }
+                console.log('Selected week:', week, 'date:', date);
                 
                 let url = '/api/cfb?groups=80'; // FBS only
                 if (week) url += `&week=${week}`;
                 if (date) url += `&date=${date.replace(/-/g, '')}`;
 
-                console.log('Loading games from:', url); // Debug log
+                console.log('Fetching from URL:', url);
 
                 const response = await fetch(url);
+                
+                console.log('Response status:', response.status, response.statusText);
                 
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -1091,15 +1175,21 @@
                 
                 const data = await response.json();
 
-                console.log('API response:', data); // Debug log
+                console.log('API response received:', {
+                    success: data.success,
+                    count: data.count,
+                    dataLength: data.data ? data.data.length : 'null'
+                });
 
                 if (data.success) {
                     allGames = data.data || [];
-                    console.log('Loaded games:', allGames.length);
+                    console.log('Setting allGames, length:', allGames.length);
                     
                     if (allGames.length === 0) {
+                        console.log('No games found, showing no games message');
                         showNoGames();
                     } else {
+                        console.log('Calling displayGames with', allGames.length, 'games');
                         displayGames(allGames);
                     }
                 } else {
@@ -1360,89 +1450,6 @@
                     <button class="refresh-btn" onclick="loadGames()">Try Again</button>
                 </div>
             `;
-        }
-
-        // Mobile menu functionality (inherited from other pages)
-        window.mobileMenuOpen = false;
-        
-        function handleMobileMenuToggle(button) {
-            var nav = document.getElementById('site-nav');
-            var btn = button;
-            
-            if (!nav || !btn) return;
-            
-            if (window.mobileMenuOpen) {
-                nav.classList.remove('mobile-active');
-                btn.innerHTML = '☰';
-                window.mobileMenuOpen = false;
-            } else {
-                nav.classList.add('mobile-active');
-                btn.innerHTML = '✕';
-                window.mobileMenuOpen = true;
-            }
-        }
-
-        // Dark mode functionality
-        function toggleDarkMode() {
-            try {
-                var html = document.documentElement;
-                var currentTheme = html.getAttribute('data-theme');
-                var newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-                
-                html.setAttribute('data-theme', newTheme);
-                
-                try {
-                    localStorage.setItem('theme', newTheme);
-                } catch (e) {
-                    console.warn('localStorage not available:', e);
-                }
-                
-                var icon = document.querySelector('.dark-mode-icon');
-                if (icon) {
-                    icon.textContent = newTheme === 'dark' ? '☀️' : '🌙';
-                }
-            } catch (error) {
-                console.error('Dark mode toggle error:', error);
-            }
-        }
-
-        // Initialize dark mode
-        function initDarkMode() {
-            try {
-                var savedTheme = null;
-                var prefersDark = false;
-                
-                try {
-                    savedTheme = localStorage.getItem('theme');
-                } catch (e) {
-                    console.warn('localStorage not available:', e);
-                }
-                
-                try {
-                    if (window.matchMedia) {
-                        prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                    }
-                } catch (e) {
-                    console.warn('matchMedia not available:', e);
-                }
-                
-                var theme = savedTheme || (prefersDark ? 'dark' : 'light');
-                document.documentElement.setAttribute('data-theme', theme);
-                
-                var icon = document.querySelector('.dark-mode-icon');
-                if (icon) {
-                    icon.textContent = theme === 'dark' ? '☀️' : '🌙';
-                }
-            } catch (error) {
-                console.error('Dark mode init error:', error);
-                document.documentElement.setAttribute('data-theme', 'light');
-            }
-        }
-
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initDarkMode);
-        } else {
-            initDarkMode();
         }
     </script>
 </body>
