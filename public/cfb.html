@@ -86,8 +86,8 @@
 
         .games-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
+            gap: 25px;
             max-width: 1400px;
             margin: 0 auto;
             padding: 0 20px;
@@ -96,12 +96,13 @@
         .cfb-game-card {
             background: var(--card-bg);
             border-radius: 15px;
-            padding: 20px;
+            padding: 25px;
             box-shadow: var(--shadow);
             border: 1px solid var(--border-color);
             transition: all 0.3s;
             position: relative;
             overflow: hidden;
+            min-height: 200px;
         }
 
         /* Add top padding only for cards with status badges */
@@ -112,10 +113,85 @@
 
         .teams-matchup {
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: space-between;
-            margin: 10px 0 20px 0;
-            /* Only add right padding for cards with status badge */
+            margin: 15px 0 25px 0;
+            gap: 15px;
+        }
+
+        .cfb-game-card.live .teams-matchup,
+        .cfb-game-card.completed .teams-matchup {
+            padding-right: 100px;
+        }
+
+        .cfb-team {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .cfb-team-logo {
+            width: 50px;
+            height: 50px;
+            flex-shrink: 0;
+        }
+
+        .cfb-team-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 50%;
+        }
+
+        .cfb-team-info {
+            flex: 1;
+            min-width: 0;
+            margin-right: 12px;
+        }
+
+        .cfb-team-name {
+            font-size: 1.1em;
+            font-weight: 700;
+            color: var(--text-color);
+            line-height: 1.3;
+            margin-bottom: 4px;
+            /* Remove truncation - allow wrapping */
+            word-wrap: break-word;
+            hyphens: auto;
+        }
+
+        .cfb-team-ranking {
+            display: inline-block;
+            background: var(--accent-color);
+            color: white;
+            font-size: 0.75em;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 6px;
+            vertical-align: middle;
+        }
+
+        .cfb-team-record {
+            font-size: 0.9em;
+            color: var(--secondary-text);
+            /* Remove truncation - allow wrapping */
+            word-wrap: break-word;
+        }
+
+        .cfb-team-score {
+            font-size: 1.8em;
+            font-weight: 900;
+            color: var(--text-color);
+            background: rgba(var(--accent-color-rgb), 0.1);
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 2px solid rgba(var(--accent-color-rgb), 0.2);
+            min-width: 40px;
+            text-align: center;
+            flex-shrink: 0;
         }
 
         .cfb-game-card.live .teams-matchup,
@@ -649,22 +725,20 @@
             .games-grid {
                 grid-template-columns: 1fr;
                 padding: 0 15px;
-                gap: 15px;
+                gap: 20px;
             }
 
             .cfb-game-card {
-                /* Only reduce top padding for upcoming games on mobile */
-                padding-top: 20px;
+                padding: 20px;
+                min-height: auto;
             }
 
             .cfb-game-card.live,
             .cfb-game-card.completed {
-                /* Keep top padding for games with status badges */
                 padding-top: 45px;
             }
 
             .game-status-badge {
-                /* Make status badge smaller on mobile */
                 top: 12px;
                 right: 12px;
                 padding: 4px 10px;
@@ -673,26 +747,24 @@
 
             .teams-matchup {
                 flex-direction: column;
-                gap: 10px;
+                gap: 15px;
                 text-align: center;
-                /* Remove right padding on mobile since teams stack vertically */
                 padding-right: 0;
-                margin: 5px 0 20px 0;
+                margin: 10px 0 20px 0;
             }
 
             .cfb-vs {
                 order: 2;
                 padding: 8px 0;
+                font-size: 1.2em;
             }
 
             .cfb-team {
                 justify-content: space-between;
-                max-width: 100%;
-                /* Fix mobile layout for scores */
                 width: 100%;
-                padding: 8px 12px;
+                padding: 12px 15px;
                 background: rgba(var(--accent-color-rgb), 0.05);
-                border-radius: 8px;
+                border-radius: 10px;
                 margin: 4px 0;
             }
 
@@ -702,12 +774,15 @@
                 text-align: left;
             }
 
+            .cfb-team-name {
+                font-size: 1em;
+            }
+
             .cfb-team-score {
-                /* Make scores more readable on mobile */
-                font-size: 1.4em;
+                font-size: 1.6em;
                 margin-left: 8px;
-                padding: 4px 8px;
-                min-width: 32px;
+                padding: 6px 10px;
+                min-width: 35px;
             }
 
             .game-meta {
@@ -942,6 +1017,7 @@
         let allGames = [];
         let currentFilter = 'all';
         let rankedTeams = new Set();
+        let teamRankings = new Map(); // Store team name -> ranking number
         let currentView = 'grid'; // Track current view mode
         let currentTimezone = 'ET'; // Default timezone
 
@@ -1142,9 +1218,20 @@
                 console.log('Rankings API response:', data);
                 
                 if (data.success && data.teams) {
-                    // API returns teams with 'school' field
-                    rankedTeams = new Set(data.teams.map(team => team.school?.toLowerCase()));
+                    // Store both team names and rankings
+                    rankedTeams.clear();
+                    teamRankings.clear();
+                    
+                    data.teams.forEach(team => {
+                        const teamName = team.school?.toLowerCase();
+                        if (teamName) {
+                            rankedTeams.add(teamName);
+                            teamRankings.set(teamName, team.rank);
+                        }
+                    });
+                    
                     console.log('Loaded ranked teams:', Array.from(rankedTeams));
+                    console.log('Team rankings map:', Array.from(teamRankings));
                 } else {
                     console.warn('Rankings API returned unexpected format:', data);
                 }
@@ -1302,6 +1389,10 @@
                     `;
                 }
 
+                // Get rankings for teams
+                const awayRanking = getTeamRanking(game.awayTeam.displayName);
+                const homeRanking = getTeamRanking(game.homeTeam.displayName);
+
                 // Only show status badge for LIVE and FINAL games
                 const statusBadgeHTML = statusText ? 
                     `<div class="game-status-badge status-${statusClass}">${statusText}</div>` : '';
@@ -1346,7 +1437,10 @@
                                          onerror="this.src='/images/logos/default-logo.png'">
                                 </div>
                                 <div class="cfb-team-info">
-                                    <div class="cfb-team-name">${game.awayTeam.displayName}</div>
+                                    <div class="cfb-team-name">
+                                        ${game.awayTeam.displayName}
+                                        ${awayRanking ? `<span class="cfb-team-ranking">#${awayRanking}</span>` : ''}
+                                    </div>
                                     <div class="cfb-team-record">${game.awayTeam.record || ''}</div>
                                 </div>
                                 ${awayScore !== null ? `<div class="cfb-team-score">${awayScore}</div>` : ''}
@@ -1360,7 +1454,10 @@
                                          onerror="this.src='/images/logos/default-logo.png'">
                                 </div>
                                 <div class="cfb-team-info">
-                                    <div class="cfb-team-name">${game.homeTeam.displayName}</div>
+                                    <div class="cfb-team-name">
+                                        ${game.homeTeam.displayName}
+                                        ${homeRanking ? `<span class="cfb-team-ranking">#${homeRanking}</span>` : ''}
+                                    </div>
                                     <div class="cfb-team-record">${game.homeTeam.record || ''}</div>
                                 </div>
                                 ${homeScore !== null ? `<div class="cfb-team-score">${homeScore}</div>` : ''}
@@ -1440,22 +1537,21 @@
             displayGames(filteredGames);
         }
 
-        function isRankedTeam(teamName) {
+        function getTeamRanking(teamName) {
             const fullTeamName = teamName.toLowerCase();
-            console.log('Checking if ranked:', teamName, '→', fullTeamName);
             
             // Check if any ranked team name is contained in the full team name
-            // e.g., "Kansas State" should match "Kansas State Wildcats"
             for (const rankedTeam of rankedTeams) {
-                console.log('  Comparing with ranked team:', rankedTeam);
                 if (fullTeamName.includes(rankedTeam)) {
-                    console.log('  ✅ MATCH FOUND:', teamName, 'matches', rankedTeam);
-                    return true;
+                    return teamRankings.get(rankedTeam);
                 }
             }
             
-            console.log('  ❌ No match found for:', teamName);
-            return false;
+            return null;
+        }
+
+        function isRankedTeam(teamName) {
+            return getTeamRanking(teamName) !== null;
         }
 
         function hasLiveGames() {
