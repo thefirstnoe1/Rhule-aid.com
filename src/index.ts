@@ -6,6 +6,7 @@ export interface Env {
   WEATHER_CACHE: any;
   RANKINGS_CACHE: any;
   STANDINGS_CACHE: any;
+  BETTING_CACHE: any;
   ASSETS: any;
   OPENWEATHER_API_KEY: string;
 }
@@ -16,6 +17,9 @@ import { handleNewsRequest } from './api/news';
 import { handleRosterRequest } from './api/roster';
 import { handleWeatherRequest } from './api/weather';
 import { handleLogoRequest } from './api/logo';
+import { handleCFBRequest } from './api/cfb';
+import { handleBettingRequest } from './api/betting';
+import { handleRankingsRequest } from './api/rankings';
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -57,10 +61,14 @@ async function handleAPIRequest(request: Request, env: Env, pathname: string): P
         return await handleWeatherRequest(request, env);
       case '/api/logo':
         return await handleLogoRequest(request, env);
+      case '/api/cfb':
+        return await handleCFBRequest(request, env);
+      case '/api/betting':
+        return await handleBettingRequest(request, env);
       case '/api/rankings/ap':
-        return await getRankings(env, 'AP');
+        return await handleRankingsRequest(request, env, 'AP');
       case '/api/rankings/cfp':
-        return await getRankings(env, 'CFP');
+        return await handleRankingsRequest(request, env, 'CFP');
       case '/api/standings/big-ten':
         return await getStandings(env, 'Big Ten');
       case '/api/update/rankings':
@@ -101,32 +109,6 @@ async function handleHTMLRequest(request: Request, env: Env, pathname: string): 
   }
   
   return new Response('Not Found', { status: 404 });
-}
-
-async function getRankings(env: Env, pollType: string): Promise<Response> {
-  const cacheKey = `rankings_${pollType.toLowerCase()}`;
-  const cached = await env.RANKINGS_CACHE.get(cacheKey);
-  
-  if (cached) {
-    return new Response(cached, {
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
-  
-  // Get latest rankings from database
-  const stmt = env.DB.prepare(
-    'SELECT * FROM rankings WHERE poll_type = ? ORDER BY week_date DESC, rank ASC LIMIT 25'
-  );
-  const result = await stmt.bind(pollType).all();
-  
-  const rankings = JSON.stringify(result.results);
-  
-  // Cache for 30 minutes
-  await env.RANKINGS_CACHE.put(cacheKey, rankings, { expirationTtl: 1800 });
-  
-  return new Response(rankings, {
-    headers: { 'Content-Type': 'application/json' }
-  });
 }
 
 async function getStandings(env: Env, conference: string): Promise<Response> {

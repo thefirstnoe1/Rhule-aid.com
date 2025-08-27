@@ -586,6 +586,7 @@
                         <ul>
                             <li><a href="index.html">🏠 Home</a></li>
                             <li><a href="schedule.html" class="active">📅 Schedule</a></li>
+                            <li><a href="cfb.html">🏈 CFB Schedule</a></li>
                             <li><a href="roster.html">👥 Roster</a></li>
                             <li><a href="news.html">📰 News</a></li>
                             <li><a href="rhule-aid.html">🍺 Rhule-aid</a></li>
@@ -905,14 +906,32 @@
             try {
                 const response = await fetch('/api/schedule');
                 const data = await response.json();
-                const games = data.data || data.games || [];
+                
+                if (!data.success || !data.data) {
+                    throw new Error('Invalid schedule data received');
+                }
+                
+                const games = data.data;
+                console.log('Loaded Nebraska schedule games:', games.length);
+                
+                if (games.length === 0) {
+                    document.getElementById('games-container').innerHTML = `
+                        <div style="text-align: center; padding: 40px; color: #666;">
+                            <h3>No games scheduled</h3>
+                            <p>Check back later for the 2025 schedule.</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
                 await displaySchedule(games);
+                
             } catch (error) {
                 console.error('Error loading schedule:', error);
                 document.getElementById('games-container').innerHTML = `
                     <div style="text-align: center; padding: 40px; color: #666;">
                         <h3>Unable to load schedule</h3>
-                        <p>Please try again later.</p>
+                        <p>Error: ${error.message}</p>
                     </div>
                 `;
             }
@@ -936,46 +955,22 @@
             container.innerHTML = gameCards.join('');
         }
 
+
+
         async function createGameCard(game) {
-            // Debug: Log the raw game data with TV network info
-            console.log('Game data:', { 
-                date: game.date, 
-                time: game.time, 
-                opponent: game.opponent,
-                tv: game.tv || game.network || game.television || 'NO TV DATA',
-                dateString: game.date + ' ' + game.time + ' EST',
-                allGameData: game
-            });
+            // Parse the date from the Nebraska schedule format
+            const gameDate = new Date(game.date + ' ' + game.time);
             
-            // Check for missing or undefined date/time
-            // Validate that we have necessary data for date parsing
-            if (!game.date || (!game.time && game.time !== 'TBD') || game.date === 'undefined' || (game.time === 'undefined')) {
-                console.error('Missing date/time data for game:', {
-                    opponent: game.opponent,
-                    tv: game.tv || game.network || 'NO TV DATA',
-                    date: game.date,
-                    time: game.time,
-                    fullGame: game
-                });
-            }
-            
-            // Source data is in Eastern Time, but we want to display in Central by default
-            let gameDate;
-            if (game.time === 'TBD') {
-                // For TBD times, just use the date at midnight
-                gameDate = new Date(game.date + ' 12:00 AM EST');
-            } else {
-                gameDate = new Date(game.date + ' ' + game.time + ' EST');
-            }
-            
-            // Debug: Check if the parsed date is valid
+            // Check if date is valid
             if (isNaN(gameDate.getTime())) {
-                console.error('Invalid date created for TV=' + (game.tvNetwork || 'TBD') + ':', {
-                    original: game.date + ' ' + game.time + ' EST',
-                    parsed: gameDate,
-                    tv: game.tvNetwork || 'TBD',
-                    game: game
-                });
+                console.error('Invalid date for game:', game);
+                // Try to parse just the date
+                const fallbackDate = new Date(game.date);
+                if (!isNaN(fallbackDate.getTime())) {
+                    gameDate.setTime(fallbackDate.getTime());
+                } else {
+                    console.error('Could not parse date:', game.date);
+                }
             }
             
             const now = new Date();
@@ -983,19 +978,15 @@
             
             // Determine game type for color coding
             let gameType = 'neutral-game';
-            const location = (game.location || game.stadium || '').toLowerCase();
-            const opponent = (game.opponent || '').toLowerCase();
-            
-            if (location.includes('memorial stadium') || location.includes('lincoln') || location.includes('nebraska')) {
+            if (game.isHome) {
                 gameType = 'home-game';
-            } else if (location.includes('neutral') || opponent.includes('cincinnati')) {
-                // Cincinnati game is neutral site
-                gameType = 'neutral-game';
+            } else if (game.isNeutral) {
+                gameType = 'neutral-game';  
             } else {
                 gameType = 'away-game';
             }
             
-            // Clean up opponent name and determine conference
+            // Clean up opponent name and determine conference  
             const cleanOpponentName = cleanTeamName(game.opponent);
             const conferenceInfo = await getConferenceInfo(game.opponent);
             
@@ -1064,20 +1055,20 @@
                         </div>
                     </div>
                     
-                    <div class="game-details">
-                        <div class="detail-item">
-                            <div class="detail-label">Time</div>
-                            <div class="detail-value game-time" data-original-time="${game.time}">${formatGameTimeFromString(game.time)}</div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="detail-label">Location</div>
-                            <div class="detail-value">${game.location || game.stadium || 'TBA'}</div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="detail-label">TV Network</div>
-                            <div class="detail-value">${game.tvNetwork || game.tv || 'TBA'}</div>
-                        </div>
-                    </div>
+                     <div class="game-details">
+                         <div class="detail-item">
+                             <div class="detail-label">Time</div>
+                             <div class="detail-value game-time" data-original-time="${game.time}">${formatGameTimeFromString(game.time)}</div>
+                         </div>
+                         <div class="detail-item">
+                             <div class="detail-label">Location</div>
+                             <div class="detail-value">${game.location || 'TBA'}</div>
+                         </div>
+                         <div class="detail-item">
+                             <div class="detail-label">TV Network</div>
+                             <div class="detail-value">${game.tvNetwork || 'TBA'}</div>
+                         </div>
+                     </div>
                 </div>
             `;
         }
@@ -1088,6 +1079,7 @@
             event.target.classList.add('active');
             
             const cards = document.querySelectorAll('.game-card');
+            
             cards.forEach(card => {
                 let show = true;
                 

@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "cheerio": "^1.0.0-rc.12"
-  },  "devDependencies": {
+  },
+  "devDependencies": {
     "@cloudflare/workers-types": "^4.20231218.0",
     "@types/node": "^18.19.0",
     "nodemon": "^3.0.0",
@@ -27,6 +28,7 @@
     "workers",
     "web-scraping",
     "sports-data"
-  ],  "author": "Nebraska Football Fan",
+  ],
+  "author": "Nebraska Football Fan",
   "license": "MIT"
 }

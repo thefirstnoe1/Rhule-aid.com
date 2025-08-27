@@ -1074,6 +1074,7 @@
                 // Default to week 1 if no week selected
                 if (!week) {
                     week = '1';
+                    document.getElementById('week-select').value = '1';
                 }
                 
                 let url = '/api/cfb?groups=80'; // FBS only
@@ -1083,6 +1084,11 @@
                 console.log('Loading games from:', url); // Debug log
 
                 const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
                 const data = await response.json();
 
                 console.log('API response:', data); // Debug log
@@ -1090,31 +1096,41 @@
                 if (data.success) {
                     allGames = data.data || [];
                     console.log('Loaded games:', allGames.length);
-                    displayGames(allGames);
+                    
+                    if (allGames.length === 0) {
+                        showNoGames();
+                    } else {
+                        displayGames(allGames);
+                    }
                 } else {
                     console.error('API returned error:', data.error);
                     showError(data.error || 'Failed to load games');
                 }
             } catch (error) {
                 console.error('Error loading games:', error);
-                showError('Network error loading games');
+                showError(`Network error: ${error.message}`);
             }
+        }
+
+        function showNoGames() {
+            const container = document.getElementById('games-container');
+            container.innerHTML = `
+                <div class="no-games">
+                    <h3>No games found</h3>
+                    <p>Try selecting a different week or date</p>
+                    <button class="refresh-btn" onclick="loadGames()">Refresh</button>
+                </div>
+            `;
         }
 
         function displayGames(games) {
             const container = document.getElementById('games-container');
             
             try {
-                console.log('Displaying games:', games.length);
+                console.log('Displaying games:', games ? games.length : 'null/undefined');
                 
                 if (!games || games.length === 0) {
-                    container.innerHTML = `
-                        <div class="no-games">
-                            <h3>No games found</h3>
-                            <p>Try selecting a different week or date</p>
-                            <button class="refresh-btn" onclick="loadGames()">Refresh</button>
-                        </div>
-                    `;
+                    showNoGames();
                     return;
                 }
 
@@ -1133,13 +1149,7 @@
                 console.log('Games displayed successfully');
             } catch (error) {
                 console.error('Error in displayGames:', error);
-                container.innerHTML = `
-                    <div class="error-container">
-                        <h3>⚠️ Error Displaying Games</h3>
-                        <p>There was an error displaying the games. Please refresh the page.</p>
-                        <button class="refresh-btn" onclick="location.reload()">Refresh Page</button>
-                    </div>
-                `;
+                showError('Error displaying games. Please refresh the page.');
             }
         }
 

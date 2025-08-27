@@ -8,11 +8,12 @@
 /* Dark mode CSS variables */
 :root {
     --bg-color: #f8f9fa;
-    --text-color: var(--text-color);
+    --text-color: #1f2937;
     --card-bg: #ffffff;
     --border-color: #e5e7eb;
     --secondary-text: #6b7280;
     --accent-color: #dc2626;
+    --accent-color-rgb: 220, 38, 38;
     --shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
     --input-bg: #ffffff;
     --hover-bg: #f3f4f6;
@@ -27,6 +28,7 @@
     --border-color: #404040;
     --secondary-text: #9ca3af;
     --accent-color: #ef4444;
+    --accent-color-rgb: 239, 68, 68;
     --shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
     --input-bg: #374151;
     --hover-bg: #374151;
@@ -746,7 +748,6 @@ nav a:hover {
 .team-logo {
     width: 48px;
     height: 48px;
-    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -870,7 +871,6 @@ nav a:hover {
     height: 100%;
     object-fit: contain;
     background: var(--card-bg);
-    border-radius: 50%;
     padding: 3px;
     box-sizing: border-box;
     transition: transform 0.3s ease;
