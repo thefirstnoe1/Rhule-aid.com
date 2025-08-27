@@ -946,10 +946,10 @@
         let currentTimezone = 'ET'; // Default timezone
 
         // Initialize app
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
             console.log('DOM loaded, initializing page...');
             try {
-                initializePage();
+                await initializePage();
                 // Add a small delay to ensure everything is ready
                 setTimeout(() => {
                     console.log('Calling loadGames...');
@@ -985,7 +985,7 @@
             displayGames(allGames);
         }
 
-        function initializePage() {
+        async function initializePage() {
             try {
                 console.log('Initializing page...');
                 
@@ -1003,9 +1003,9 @@
                     console.error('Error initializing timezone:', error);
                 }
 
-                // Load ranked teams for filtering
+                // Load ranked teams for filtering (await since it's async)
                 try {
-                    loadRankedTeams();
+                    await loadRankedTeams();
                 } catch (error) {
                     console.error('Error loading ranked teams:', error);
                 }
@@ -1136,10 +1136,17 @@
 
         async function loadRankedTeams() {
             try {
+                console.log('Loading ranked teams...');
                 const response = await fetch('/api/rankings/ap');
                 const data = await response.json();
-                if (data.success && data.data) {
-                    rankedTeams = new Set(data.data.map(team => team.team_name?.toLowerCase()));
+                console.log('Rankings API response:', data);
+                
+                if (data.success && data.teams) {
+                    // API returns teams with 'school' field
+                    rankedTeams = new Set(data.teams.map(team => team.school?.toLowerCase()));
+                    console.log('Loaded ranked teams:', Array.from(rankedTeams));
+                } else {
+                    console.warn('Rankings API returned unexpected format:', data);
                 }
             } catch (error) {
                 console.warn('Could not load rankings for filtering:', error);
@@ -1425,7 +1432,17 @@
         }
 
         function isRankedTeam(teamName) {
-            return rankedTeams.has(teamName.toLowerCase());
+            const fullTeamName = teamName.toLowerCase();
+            
+            // Check if any ranked team name is contained in the full team name
+            // e.g., "Kansas State" should match "Kansas State Wildcats"
+            for (const rankedTeam of rankedTeams) {
+                if (fullTeamName.includes(rankedTeam)) {
+                    return true;
+                }
+            }
+            
+            return false;
         }
 
         function hasLiveGames() {
