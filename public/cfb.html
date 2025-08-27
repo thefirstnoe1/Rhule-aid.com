@@ -1409,9 +1409,18 @@
                     filteredGames = allGames.filter(game => !game.status.completed && !game.status.inProgress);
                     break;
                 case 'ranked':
-                    filteredGames = allGames.filter(game => 
-                        isRankedTeam(game.homeTeam.name) || isRankedTeam(game.awayTeam.name)
-                    );
+                    console.log('Filtering for ranked teams. Total games:', allGames.length);
+                    console.log('Ranked teams loaded:', Array.from(rankedTeams));
+                    filteredGames = allGames.filter(game => {
+                        const homeRanked = isRankedTeam(game.homeTeam.displayName);
+                        const awayRanked = isRankedTeam(game.awayTeam.displayName);
+                        const isRanked = homeRanked || awayRanked;
+                        if (isRanked) {
+                            console.log('Found ranked game:', game.awayTeam.displayName, 'vs', game.homeTeam.displayName);
+                        }
+                        return isRanked;
+                    });
+                    console.log('Filtered to', filteredGames.length, 'ranked games');
                     break;
                 case 'search':
                     const searchTerm = document.getElementById('search-input').value.toLowerCase();
@@ -1433,15 +1442,19 @@
 
         function isRankedTeam(teamName) {
             const fullTeamName = teamName.toLowerCase();
+            console.log('Checking if ranked:', teamName, '→', fullTeamName);
             
             // Check if any ranked team name is contained in the full team name
             // e.g., "Kansas State" should match "Kansas State Wildcats"
             for (const rankedTeam of rankedTeams) {
+                console.log('  Comparing with ranked team:', rankedTeam);
                 if (fullTeamName.includes(rankedTeam)) {
+                    console.log('  ✅ MATCH FOUND:', teamName, 'matches', rankedTeam);
                     return true;
                 }
             }
             
+            console.log('  ❌ No match found for:', teamName);
             return false;
         }
 
