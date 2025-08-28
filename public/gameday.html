@@ -587,6 +587,100 @@
             font-weight: 500;
         }
 
+        /* Hourly Forecast Styles for Gameday Weather */
+        .hourly-forecast-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 5px;
+        }
+
+        .hourly-forecast-item {
+            background: rgba(220, 38, 38, 0.05);
+            border-radius: 10px;
+            padding: 12px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .hourly-forecast-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .hourly-forecast-item.kickoff-hour {
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.15), rgba(220, 38, 38, 0.08));
+            border: 2px solid var(--accent-color);
+            position: relative;
+        }
+
+        .hourly-forecast-item.kickoff-hour::before {
+            content: "KICKOFF!";
+            position: absolute;
+            top: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--accent-color);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.65em;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        .hourly-time {
+            font-size: 0.85em;
+            font-weight: 600;
+            color: var(--text-color);
+            margin-bottom: 6px;
+        }
+
+        .hourly-temp {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: var(--accent-color);
+            margin-bottom: 4px;
+        }
+
+        .hourly-condition {
+            font-size: 0.75em;
+            color: var(--secondary-text);
+            margin-bottom: 6px;
+            min-height: 1.2em;
+        }
+
+        .hourly-details {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .hourly-detail {
+            font-size: 0.65em;
+            color: var(--secondary-text);
+            font-weight: 500;
+        }
+
+        @media (max-width: 768px) {
+            .hourly-forecast-grid {
+                grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+                gap: 8px;
+            }
+
+            .hourly-forecast-item {
+                padding: 8px;
+            }
+
+            .hourly-forecast-item.kickoff-hour::before {
+                font-size: 0.6em;
+                padding: 1px 6px;
+            }
+        }
+
         .weather-loading {
             text-align: center;
             padding: 40px;
@@ -982,9 +1076,35 @@
                 // Find the next upcoming game
                 const now = new Date();
                 const upcomingGames = data.data.filter(game => {
-                    const gameDate = new Date(game.date);
-                    return gameDate > now;
-                }).sort((a, b) => new Date(a.date) - new Date(b.date));
+                    // Create proper game datetime for comparison
+                    let gameDateTime;
+                    if (game.time === 'TBD' || game.time === 'TBA' || !game.time) {
+                        // For TBD games, use noon on the game date in EDT
+                        const edtString = game.date + ' 12:00 PM';
+                        const edtDate = new Date(edtString + ' EDT');
+                        gameDateTime = edtDate;
+                    } else {
+                        // Source times are in EDT (Eastern Daylight Time)
+                        const edtString = game.date + ' ' + game.time;
+                        const edtDate = new Date(edtString + ' EDT');
+                        gameDateTime = edtDate;
+                    }
+                    
+                    // Include games that haven't started yet (including today's game)
+                    return gameDateTime >= now;
+                }).sort((a, b) => {
+                    // Sort by actual game datetime, not just date
+                    const getGameDateTime = (game) => {
+                        if (game.time === 'TBD' || game.time === 'TBA' || !game.time) {
+                            const edtString = game.date + ' 12:00 PM';
+                            return new Date(edtString + ' EDT');
+                        } else {
+                            const edtString = game.date + ' ' + game.time;
+                            return new Date(edtString + ' EDT');
+                        }
+                    };
+                    return getGameDateTime(a) - getGameDateTime(b);
+                });
 
                 if (upcomingGames.length === 0) {
                     displayNoUpcomingGames();
@@ -1377,6 +1497,19 @@
             try {
                 console.log('Loading weather information for location:', gameLocation || 'Lincoln, NE (default)');
                 
+                // Check if we have a game and are within 24 hours
+                if (nextGame && gameLocation) {
+                    const shouldUseGamedayAPI = await shouldUseGamedayWeather(nextGame);
+                    
+                    if (shouldUseGamedayAPI) {
+                        console.log('Using Tomorrow.io gameday weather API');
+                        await loadGamedayWeather(gameLocation, nextGame);
+                        return;
+                    }
+                }
+                
+                console.log('Using standard weather API');
+                
                 // Build the API URL with location parameter if provided
                 let weatherUrl = '/api/weather';
                 if (gameLocation) {
@@ -1397,6 +1530,152 @@
                 displayWeatherError();
             }
         }
+        
+        async function shouldUseGamedayWeather(game) {
+            if (!game || !game.date || !game.time) {
+                return false;
+            }
+            
+            // Create proper game datetime using same logic as loadGamedayWeather
+            let gameDateTime;
+            if (game.time === 'TBD' || game.time === 'TBA' || !game.time) {
+                // Default to 8 PM Central Time for TBD games
+                const gameDate = new Date(game.date + 'T20:00:00-05:00'); // Explicitly CDT
+                gameDateTime = gameDate;
+            } else {
+                // Parse the EDT time from the schedule API
+                // The schedule API provides times in EDT, so 9:00 PM EDT = 8:00 PM CDT
+                const edtTimeString = game.date + ' ' + game.time + ' EDT';
+                gameDateTime = new Date(edtTimeString);
+            }
+            
+            const now = new Date();
+            const hoursUntilGame = (gameDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+            
+            console.log('Game time check for weather API:', {
+                gameDateTime: gameDateTime.toISOString(),
+                gameTimeInCentral: gameDateTime.toLocaleString('en-US', { timeZone: 'America/Chicago' }),
+                now: now.toISOString(),
+                hoursUntilGame: hoursUntilGame
+            });
+            
+            // Use gameday weather if within 24 hours and not more than 8 hours past
+            return hoursUntilGame <= 24 && hoursUntilGame >= -8;
+        }
+        
+        async function loadGamedayWeather(gameLocation, game) {
+            try {
+                // Create proper game datetime for API
+                let gameDateTime;
+                if (game.time === 'TBD' || game.time === 'TBA' || !game.time) {
+                    // Default to 8 PM Central Time for TBD games
+                    const gameDate = new Date(game.date + 'T20:00:00-05:00'); // Explicitly CDT
+                    gameDateTime = gameDate;
+                } else {
+                    // Parse the EDT time from the schedule API
+                    // The schedule API provides times in EDT, so 9:00 PM EDT = 8:00 PM CDT
+                    const edtTimeString = game.date + ' ' + game.time + ' EDT';
+                    gameDateTime = new Date(edtTimeString);
+                }
+                
+                console.log('Game datetime calculation:', {
+                    originalDate: game.date,
+                    originalTime: game.time,
+                    calculatedGameDateTime: gameDateTime.toISOString(),
+                    gameTimeInCentral: gameDateTime.toLocaleString('en-US', { timeZone: 'America/Chicago' }),
+                    gameTimeInEastern: gameDateTime.toLocaleString('en-US', { timeZone: 'America/New_York' })
+                });
+                
+                const gamedayUrl = `/api/gameday-weather?location=${encodeURIComponent(gameLocation)}&gameTime=${encodeURIComponent(gameDateTime.toISOString())}&debug=true`;
+                
+                console.log('Calling gameday weather API:', gamedayUrl);
+                
+                const response = await fetch(gamedayUrl);
+                const data = await response.json();
+                
+                console.log('Gameday weather API response:', data);
+                
+                if (!data.success) {
+                    throw new Error(data.error || 'Gameday weather data not available');
+                }
+
+                displayGamedayWeather(data, gameLocation);
+
+            } catch (error) {
+                console.error('Error loading gameday weather:', error);
+                // Fallback to regular weather
+                await loadWeather(gameLocation);
+            }
+        }
+        function displayGamedayWeather(weatherData, gameLocation = null) {
+            const weatherContent = document.getElementById('weatherContent');
+            
+            // Update the weather header to show the actual location
+            const weatherLocationElement = document.querySelector('.weather-location');
+            if (weatherLocationElement && gameLocation) {
+                const locationMatch = gameLocation.match(/([^,]+),\s*([^,]+)$/);
+                if (locationMatch) {
+                    const [, city, state] = locationMatch;
+                    weatherLocationElement.textContent = `${city.trim()}, ${state.trim()}`;
+                } else {
+                    weatherLocationElement.textContent = gameLocation;
+                }
+            } else if (weatherLocationElement) {
+                weatherLocationElement.textContent = 'Game Location';
+            }
+            
+            const hourly = weatherData.hourly;
+            const gameTimeHour = hourly.find(hour => hour.isGameTime);
+            const currentConditions = hourly[0]; // First hour is closest to now
+            
+            const currentHTML = `
+                <div class="current-weather">
+                    <div class="current-temp">${Math.round(currentConditions.temperature)}°F</div>
+                    <div class="current-details">
+                        <div class="weather-detail">
+                            <div class="weather-detail-label">Conditions</div>
+                            <div class="weather-detail-value">${currentConditions.weatherDescription}</div>
+                        </div>
+                        <div class="weather-detail">
+                            <div class="weather-detail-label">Humidity</div>
+                            <div class="weather-detail-value">${Math.round(currentConditions.humidity)}%</div>
+                        </div>
+                        <div class="weather-detail">
+                            <div class="weather-detail-label">Wind</div>
+                            <div class="weather-detail-value">${currentConditions.windDirection} ${Math.round(currentConditions.windSpeed)} mph</div>
+                        </div>
+                        <div class="weather-detail">
+                            <div class="weather-detail-label">Rain Chance</div>
+                            <div class="weather-detail-value">${Math.round(currentConditions.precipitationProbability)}%</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            const hourlyHTML = `
+                <h4 style="margin: 20px 0 15px 0; color: var(--text-color); font-size: 1.2em;">
+                    🏈 Game Day Hourly Forecast (4 hrs before → 4 hrs after kickoff)
+                    ${weatherData.note ? '<span style="font-size: 0.8em; color: orange; margin-left: 10px;">(' + weatherData.note + ')</span>' : ''}
+                </h4>
+                <div class="hourly-forecast-grid">
+                    ${hourly.map(hour => `
+                        <div class="hourly-forecast-item ${hour.isGameTime ? 'kickoff-hour' : ''}">
+                            <div class="hourly-time">${hour.timeLocal}${hour.isGameTime ? ' 🏈' : ''}</div>
+                            <div class="hourly-temp">${Math.round(hour.temperature)}°F</div>
+                            <div class="hourly-condition">${hour.weatherDescription}</div>
+                            <div class="hourly-details">
+                                <div class="hourly-detail">🌧️ ${Math.round(hour.precipitationProbability)}%</div>
+                                <div class="hourly-detail">💨 ${Math.round(hour.windSpeed)} mph</div>
+                                <div class="hourly-detail">🌫️ ${Math.round(hour.humidity)}%</div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            weatherContent.innerHTML = currentHTML + hourlyHTML;
+        }
+        
         function displayWeather(weatherData, gameLocation = null) {
             const weatherContent = document.getElementById('weatherContent');
             

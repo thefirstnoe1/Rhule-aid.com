@@ -9,6 +9,7 @@ export interface Env {
   BETTING_CACHE: any;
   ASSETS: any;
   OPENWEATHER_API_KEY: string;
+  TOMORROW_API_KEY: string;
 }
 
 import { scrapeAPPoll, scrapeCFPPoll, scrapeBigTenStandings } from './scrapers';
@@ -16,10 +17,12 @@ import { handleScheduleRequest } from './api/schedule';
 import { handleNewsRequest } from './api/news';
 import { handleRosterRequest } from './api/roster';
 import { handleWeatherRequest } from './api/weather';
+import { handleGamedayWeatherRequest } from './api/gamedayWeather';
 import { handleLogoRequest } from './api/logo';
 import { handleCFBRequest } from './api/cfb';
 import { handleBettingRequest } from './api/betting';
 import { handleRankingsRequest } from './api/rankings';
+import { handleTeamScheduleRequest } from './api/teamSchedule';
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -32,7 +35,7 @@ export default {
     }
 
     // Handle static assets
-    if (pathname.startsWith('/css/') || pathname.startsWith('/js/') || pathname.startsWith('/images/')) {
+    if (pathname.startsWith('/css/') || pathname.startsWith('/js/') || pathname.startsWith('/images/') || pathname.startsWith('/cfb-react/')) {
       return env.ASSETS.fetch(request);
     }
 
@@ -59,10 +62,18 @@ async function handleAPIRequest(request: Request, env: Env, pathname: string): P
         return await handleRosterRequest(request, env);
       case '/api/weather':
         return await handleWeatherRequest(request, env);
+      case '/api/gameday-weather':
+        return await handleGamedayWeatherRequest(request, env);
+      case '/api/test-gameday':
+        return new Response(JSON.stringify({ success: true, message: 'Test endpoint working' }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
       case '/api/logo':
         return await handleLogoRequest(request, env);
       case '/api/cfb':
         return await handleCFBRequest(request, env);
+      case '/api/team-schedule':
+        return await handleTeamScheduleRequest(request, env);
       case '/api/betting':
         return await handleBettingRequest(request, env);
       case '/api/rankings/ap':
@@ -95,8 +106,12 @@ async function handleAPIRequest(request: Request, env: Env, pathname: string): P
 async function handleHTMLRequest(request: Request, env: Env, pathname: string): Promise<Response> {
   let htmlPath = pathname;
   
+  // React app route
+  if (pathname === '/cfb-react' || pathname === '/cfb-react/') {
+    htmlPath = '/cfb-react/index.html';
+  }
   // Default routes
-  if (pathname === '/') {
+  else if (pathname === '/') {
     htmlPath = '/index.html';
   }
   

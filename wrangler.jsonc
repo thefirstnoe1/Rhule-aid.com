@@ -56,8 +56,7 @@
   
   // Environment variables
   "vars": {
-    "ENVIRONMENT": "production",
-    "OPENWEATHER_API_KEY": "$OPENWEATHER_API_KEY"
+    "ENVIRONMENT": "production"
   },
   
   // Custom domains configuration
