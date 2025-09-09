@@ -1,1 +1,1 @@
-{"version":3,"file":"cfb-schedule.d.ts","sourceRoot":"","sources":["cfb-schedule.tsx"],"names":[],"mappings":"AAAA,OAAO,KAA2C,MAAM,OAAO,CAAC;AAyChE,QAAA,MAAM,WAAW,EAAE,KAAK,CAAC,EAwVxB,CAAC;AAEF,eAAe,WAAW,CAAC"}
+{"version":3,"file":"cfb-schedule.d.ts","sourceRoot":"","sources":["cfb-schedule.tsx"],"names":[],"mappings":"AAAA,OAAO,KAAK,KAAK,MAAM,OAAO,CAAC;AA0C/B,QAAA,MAAM,WAAW,EAAE,KAAK,CAAC,EAwVxB,CAAC;AAEF,eAAe,WAAW,CAAC"}

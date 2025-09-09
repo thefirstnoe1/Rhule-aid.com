@@ -1,5 +1,5 @@
 export async function handleScheduleRequest(request, env) {
-    const CACHE_KEY = 'nebraska_schedule_2025_dynamic';
+    const CACHE_KEY = 'nebraska_schedule_2025_dynamic_v2';
     const CACHE_TTL = 60 * 60 * 24; // 24 hours
     const corsHeaders = {
         'Content-Type': 'application/json',
@@ -109,7 +109,7 @@ function getHardcodedSchedule() {
         {
             date: "Saturday, September 6, 2025",
             opponent: "Akron Zips",
-            time: "7:30 PM",
+            time: "6:30 PM",
             location: "Memorial Stadium, Lincoln, NE",
             tvNetwork: "BTN",
             isHome: true

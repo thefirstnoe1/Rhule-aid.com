@@ -57,7 +57,14 @@ function convertTimeToTimezone(timeString, targetTimezone) {
     }
     
     try {
-        // Parse the time string (e.g., "7:00 PM" or "7:00 PM ET")
+        // For simplicity, assume our schedule times are already in Central Time (Nebraska's timezone)
+        // since we control the data and it makes sense for local display
+        if (targetTimezone === 'America/Chicago') {
+            // Already in Central Time, just add CT suffix
+            return timeString + ' CT';
+        }
+        
+        // Parse the time string (e.g., "7:00 PM" or "6:30 PM")
         const cleanTime = timeString.replace(/ (CT|ET|MT|PT)$/i, '');
         
         const [time, period] = cleanTime.split(' ');
@@ -70,24 +77,16 @@ function convertTimeToTimezone(timeString, targetTimezone) {
             hour24 = 0;
         }
         
-        // Create a date object for a game day (using a future Saturday for proper timezone handling)
-        // FBSchedules.com times are in Eastern Time
-        const gameDate = new Date('2025-09-01'); // Use a date in the football season
-        gameDate.setHours(hour24, minutes || 0, 0, 0);
+        // Create a Central Time date for conversion
+        const centralTimeString = `2025-09-01T${hour24.toString().padStart(2, '0')}:${(minutes || 0).toString().padStart(2, '0')}:00-05:00`;
+        const centralDate = new Date(centralTimeString);
         
-        // Convert from Eastern Time to target timezone
-        // First create the time as if it's in Eastern Time
-        const easternTime = new Date(gameDate.getTime());
+        if (isNaN(centralDate.getTime())) {
+            console.warn('Invalid date created from time:', timeString);
+            return timeString;
+        }
         
-        // Create formatter for Eastern Time to get the actual time
-        const easternFormatter = new Intl.DateTimeFormat('en-US', {
-            timeZone: 'America/New_York',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: false
-        });
-        
-        // Create formatter for target timezone
+        // Format in target timezone
         const targetFormatter = new Intl.DateTimeFormat('en-US', {
             timeZone: targetTimezone,
             hour: 'numeric',
@@ -95,12 +94,7 @@ function convertTimeToTimezone(timeString, targetTimezone) {
             hour12: true
         });
         
-        // Create a proper Eastern Time date
-        const easternDateStr = `2025-09-01T${hour24.toString().padStart(2, '0')}:${(minutes || 0).toString().padStart(2, '0')}:00-04:00`; // EDT offset
-        const properEasternDate = new Date(easternDateStr);
-        
-        // Format in target timezone
-        const convertedTime = targetFormatter.format(properEasternDate);
+        const convertedTime = targetFormatter.format(centralDate);
         const timezoneAbbr = getTimezoneAbbreviation(targetTimezone);
         
         return convertedTime + ' ' + timezoneAbbr;
@@ -410,7 +404,11 @@ function renderSchedule(filter = 'all') {
         const dayOfWeek = gameDate.toLocaleDateString('en-US', { weekday: 'short' });
         const month = gameDate.toLocaleDateString('en-US', { month: 'short' });
         const day = gameDate.getDate();
-        const convertedTime = convertTimeToTimezone(game.time, currentTimezone);
+        // For now, display time as-is since our schedule times are already in Central Time
+        // Only convert if user selected a different timezone
+        const displayTime = currentTimezone === 'America/Chicago' ? 
+            (game.time ? game.time + ' CT' : 'TBD') : 
+            convertTimeToTimezone(game.time, currentTimezone);
         
         return `
         <div class="game-card ${game.isNeutral ? 'neutral' : (game.isHome ? 'home' : 'away')}">
@@ -423,7 +421,7 @@ function renderSchedule(filter = 'all') {
                     </div>
                 </div>
                 <div class="game-status">
-                    <span class="time-badge">${convertedTime}</span>
+                    <span class="time-badge">${displayTime}</span>
                 </div>
             </div>
             
@@ -524,17 +522,17 @@ function initializeCountdown() {
         
         // Find next game
         for (let game of currentScheduleData) {
-            // Parse the date more reliably for Safari
+            // Parse the date more reliably
             const gameDate = new Date(game.date);
             if (isNaN(gameDate.getTime())) {
                 console.warn('Invalid date:', game.date);
                 continue;
             }
             
-            // Set time if available
+            // Set time if available - assume times are in Central Time
             let gameDateTime = gameDate.getTime();
             if (game.time && game.time !== 'TBD') {
-                const timeStr = game.time.replace(' CT', '').replace(' ET', '');
+                const timeStr = game.time.replace(/ (CT|ET|MT|PT)$/i, '');
                 const [time, period] = timeStr.split(' ');
                 if (time && period) {
                     let [hours, minutes] = time.split(':').map(Number);
@@ -587,8 +585,9 @@ function initializeCountdown() {
         secondsElement.textContent = seconds.toString().padStart(2, '0');
         
         if (nextGameInfo) {
-            const convertedTime = convertTimeToTimezone(nextGame.time, currentTimezone);
-            nextGameInfo.textContent = `vs ${nextGame.opponent} • ${nextGame.date.replace(', 2025', '')} • ${convertedTime}`;
+            // Show time without conversion since it's already in local time
+            const displayTime = nextGame.time && nextGame.time !== 'TBD' ? nextGame.time + ' CT' : 'TBD';
+            nextGameInfo.textContent = `vs ${nextGame.opponent} • ${nextGame.date.replace(', 2025', '')} • ${displayTime}`;
         }
         
         console.log('Countdown updated:', days, 'days', hours, 'hours');

@@ -18,43 +18,78 @@ export async function onRequest(context) {
                 }
             });
         }
-        let apiUrl = 'https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard';
-        const params = new URLSearchParams();
-        if (week) {
-            params.append('week', week);
-        }
-        if (date) {
-            params.append('dates', date);
-        }
-        if (params.toString()) {
-            apiUrl += `?${params.toString()}`;
-        }
-        const response = await fetch(apiUrl, {
-            headers: {
-                'User-Agent': 'Rhule-aid.com/1.0'
+        // Fetch from all conference groups to get complete game coverage
+        const groupIds = [0, 1, 151, 4, 5, 8, 9, 15, 18]; // top25, acc, american, big12, big10, sec, pac12, mac, independent
+        const allGames = [];
+        let weeksData = null;
+        for (const groupId of groupIds) {
+            const params = new URLSearchParams();
+            params.append('groups', groupId.toString());
+            if (week) {
+                params.append('week', week);
             }
-        });
-        if (!response.ok) {
-            throw new Error(`ESPN API error: ${response.status}`);
+            if (date) {
+                params.append('dates', date);
+            }
+            const apiUrl = `https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?${params.toString()}`;
+            try {
+                const response = await fetch(apiUrl, {
+                    headers: {
+                        'User-Agent': 'Rhule-aid.com/1.0'
+                    }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.events) {
+                        allGames.push(...data.events);
+                    }
+                    // Capture weeks data from the first successful response
+                    if (!weeksData && data.leagues) {
+                        weeksData = data.leagues;
+                    }
+                }
+            }
+            catch (groupError) {
+                console.warn(`Failed to fetch group ${groupId}:`, groupError);
+                // Continue with other groups
+            }
         }
-        const data = await response.json();
-        const processedGames = processGames(data.events);
+        // Remove duplicate games (same game might appear in multiple groups)
+        const uniqueGames = allGames.reduce((acc, game) => {
+            if (!acc.find(existing => existing.id === game.id)) {
+                acc.push(game);
+            }
+            return acc;
+        }, []);
+        const processedGames = processGames(uniqueGames);
+        // Determine if there are live games for adaptive caching
+        const hasLiveGames = processedGames.some(game => {
+            const status = game.status.toLowerCase();
+            return !game.isCompleted && (status.includes('q') ||
+                status.includes('half') ||
+                status.includes('ot') ||
+                status.includes('quarter') ||
+                status.includes('halftime'));
+        });
+        // Adaptive cache time: shorter for live games, longer for scheduled/completed
+        const cacheTime = hasLiveGames ? 60 : 900; // 1 minute vs 15 minutes
         const result = {
             games: processedGames,
-            weeks: extractWeeks(data),
-            lastUpdated: new Date().toISOString()
+            weeks: weeksData ? extractWeeks({ events: [], leagues: weeksData }) : getFallbackWeeks(),
+            lastUpdated: new Date().toISOString(),
+            hasLiveGames
         };
         const resultString = JSON.stringify(result);
         if (env.CFB_SCHEDULE_CACHE) {
             await env.CFB_SCHEDULE_CACHE.put(cacheKey, resultString, {
-                expirationTtl: 900 // 15 minutes
+                expirationTtl: cacheTime
             });
         }
         return new Response(resultString, {
             headers: {
                 'Content-Type': 'application/json',
                 'Access-Control-Allow-Origin': '*',
-                'Cache-Control': 'public, max-age=900'
+                'Cache-Control': `public, max-age=${cacheTime}`
             }
         });
     }

@@ -7,12 +7,12 @@
     <link rel="stylesheet" href="/css/styles.css">
     <link rel="icon" type="image/png" href="/images/favicon-rhuleaid.png">
     
-    <!-- React Production -->
-    <script crossorigin src="https://unpkg.com/react@19/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@19/umd/react-dom.production.min.js"></script>
+    <!-- React Development -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     
     <style>
-        /* Additional styles for React components */
+        /* Styles for React components */
         .schedule-controls {
             background: var(--card-bg);
             padding: 1.5rem;
@@ -330,7 +330,7 @@
     <nav class="nav">
         <div class="nav-container">
             <div class="nav-logo">
-                <img src="/images/logos/nebraska-logo.png" alt="Nebraska Logo" class="logo">
+                <img src="/images/logos/nebraska-logo.png" alt="Nebraska Logo" class="nav-logo">
                 <a href="/" class="nav-title">Rhule Aid</a>
             </div>
             
@@ -376,12 +376,424 @@
 
     <!-- Scripts -->
     <script src="/js/mobile-menu.js"></script>
-    <script src="/js/react/cfb-schedule.js"></script>
     <script>
-        // Mount React component
-        const container = document.getElementById('cfb-schedule-app');
-        const root = ReactDOM.createRoot(container);
-        root.render(React.createElement(CFBScheduleApp.default));
+        // Simple React component using classic syntax
+        const { useState, useEffect, useCallback } = React;
+        const { createRoot } = ReactDOM;
+        
+        function CFBSchedule() {
+            const [scheduleData, setScheduleData] = useState(null);
+            const [filteredGames, setFilteredGames] = useState([]);
+            const [filters, setFilters] = useState({
+                week: '',
+                conference: '',
+                status: '',
+                rankedOnly: false
+            });
+            const [loading, setLoading] = useState(false);
+            const [error, setError] = useState(false);
+            const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
+            const [nextRefresh, setNextRefresh] = useState(null);
+            const [countdown, setCountdown] = useState(0);
+
+            const getGameStatusCategory = useCallback((status, isCompleted) => {
+                if (isCompleted) return 'completed';
+                if (status.includes('Q') || status.includes('Half') || status.includes('OT')) return 'live';
+                return 'scheduled';
+            }, []);
+
+            const hasLiveGames = useCallback(() => {
+                if (!filteredGames) return false;
+                return filteredGames.some(game => 
+                    getGameStatusCategory(game.status, game.isCompleted) === 'live'
+                );
+            }, [filteredGames, getGameStatusCategory]);
+
+            const loadSchedule = useCallback(async () => {
+                setLoading(true);
+                setError(false);
+
+                try {
+                    const url = new URL('/api/cfb-schedule', window.location.origin);
+                    if (filters.week) {
+                        url.searchParams.set('week', filters.week);
+                    }
+
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    setScheduleData(data);
+                } catch (err) {
+                    console.error('Error loading schedule:', err);
+                    setError(true);
+                } finally {
+                    setLoading(false);
+                }
+            }, [filters.week]);
+
+            const applyFilters = useCallback(() => {
+                if (!scheduleData?.games) return;
+
+                const filtered = scheduleData.games.filter(game => {
+                    // Week filter
+                    if (filters.week && game.week.toString() !== filters.week) {
+                        return false;
+                    }
+
+                    // Conference filter
+                    if (filters.conference) {
+                        const hasConference = game.homeTeam.conference === filters.conference ||
+                                            game.awayTeam.conference === filters.conference;
+                        if (!hasConference) return false;
+                    }
+
+                    // Status filter
+                    if (filters.status) {
+                        const gameStatus = getGameStatusCategory(game.status, game.isCompleted);
+                        if (gameStatus !== filters.status) return false;
+                    }
+
+                    // Ranked teams filter
+                    if (filters.rankedOnly) {
+                        const hasRankedTeam = game.homeTeam.rank || game.awayTeam.rank;
+                        if (!hasRankedTeam) return false;
+                    }
+
+                    return true;
+                });
+
+                setFilteredGames(filtered);
+            }, [scheduleData, filters, getGameStatusCategory]);
+
+            const groupGamesByDate = useCallback((games) => {
+                const grouped = {};
+                games.forEach(game => {
+                    if (!grouped[game.date]) {
+                        grouped[game.date] = [];
+                    }
+                    grouped[game.date].push(game);
+                });
+
+                // Sort games within each date by time
+                Object.keys(grouped).forEach(date => {
+                    grouped[date].sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
+                });
+
+                return grouped;
+            }, []);
+
+            // Countdown timer for next refresh
+            useEffect(() => {
+                if (!nextRefresh || !autoRefreshEnabled) return;
+                
+                const timer = setInterval(() => {
+                    const remaining = Math.max(0, Math.ceil((nextRefresh - Date.now()) / 1000));
+                    setCountdown(remaining);
+                }, 1000);
+
+                return () => clearInterval(timer);
+            }, [nextRefresh, autoRefreshEnabled]);
+
+            // Load schedule on mount
+            useEffect(() => {
+                loadSchedule();
+            }, [loadSchedule]);
+
+            // Apply filters when data or filters change
+            useEffect(() => {
+                applyFilters();
+            }, [applyFilters]);
+
+            // Auto-refresh for live games with adaptive intervals
+            useEffect(() => {
+                if (!autoRefreshEnabled) return;
+                
+                let interval;
+                const refreshInterval = hasLiveGames() ? 30000 : 300000; // 30s for live games, 5min otherwise
+                
+                const doRefresh = () => {
+                    loadSchedule();
+                    setNextRefresh(Date.now() + refreshInterval);
+                };
+                
+                interval = setInterval(doRefresh, refreshInterval);
+                setNextRefresh(Date.now() + refreshInterval);
+
+                return () => clearInterval(interval);
+            }, [hasLiveGames, loadSchedule, autoRefreshEnabled]);
+
+            // Page visibility - refresh when user returns to tab
+            useEffect(() => {
+                const handleVisibilityChange = () => {
+                    if (!document.hidden && hasLiveGames() && autoRefreshEnabled) {
+                        loadSchedule();
+                    }
+                };
+
+                document.addEventListener('visibilitychange', handleVisibilityChange);
+                return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+            }, [hasLiveGames, loadSchedule, autoRefreshEnabled]);
+
+            // Window focus - refresh when user focuses window
+            useEffect(() => {
+                const handleFocus = () => {
+                    if (hasLiveGames() && autoRefreshEnabled) {
+                        loadSchedule();
+                    }
+                };
+
+                window.addEventListener('focus', handleFocus);
+                return () => window.removeEventListener('focus', handleFocus);
+            }, [hasLiveGames, loadSchedule, autoRefreshEnabled]);
+
+            // Keyboard shortcuts
+            useEffect(() => {
+                const handleKeyDown = (e) => {
+                    if (e.key === 'r' && (e.ctrlKey || e.metaKey)) {
+                        e.preventDefault();
+                        loadSchedule();
+                    }
+                    if (e.key === 'F5') {
+                        e.preventDefault();
+                        loadSchedule();
+                    }
+                };
+
+                document.addEventListener('keydown', handleKeyDown);
+                return () => document.removeEventListener('keydown', handleKeyDown);
+            }, [loadSchedule]);
+
+            const handleFilterChange = (key, value) => {
+                setFilters(prev => ({ ...prev, [key]: value }));
+            };
+
+            const GameCard = ({ game }) => {
+                const gameStatus = getGameStatusCategory(game.status, game.isCompleted);
+                const statusClass = gameStatus === 'live' ? 'live' : gameStatus === 'completed' ? 'completed' : 'scheduled';
+
+                return React.createElement('div', { className: `game-card ${statusClass}` },
+                    React.createElement('div', { className: 'game-header' },
+                        React.createElement('span', { className: 'game-time' }, game.time),
+                        React.createElement('span', { className: `game-status ${statusClass}` }, game.status)
+                    ),
+                    React.createElement('div', { className: 'teams' },
+                        React.createElement('div', { className: 'team away-team' },
+                            React.createElement('div', { className: 'team-info' },
+                                React.createElement('img', {
+                                    src: game.awayTeam.logo,
+                                    alt: game.awayTeam.name,
+                                    className: 'team-logo',
+                                    onError: (e) => {
+                                        e.target.src = '/images/logos/default-logo.png';
+                                    }
+                                }),
+                                React.createElement('div', { className: 'team-details' },
+                                    React.createElement('div', { className: 'team-name' },
+                                        game.awayTeam.rank && React.createElement('span', { className: 'rank' }, `#${game.awayTeam.rank}`),
+                                        game.awayTeam.shortName
+                                    ),
+                                    React.createElement('div', { className: 'team-conference' }, game.awayTeam.conference)
+                                )
+                            ),
+                            React.createElement('div', { className: 'team-score' },
+                                (game.isCompleted || gameStatus === 'live') ? game.awayTeam.score : ''
+                            )
+                        ),
+                        React.createElement('div', { className: 'vs-separator' }, '@'),
+                        React.createElement('div', { className: 'team home-team' },
+                            React.createElement('div', { className: 'team-info' },
+                                React.createElement('img', {
+                                    src: game.homeTeam.logo,
+                                    alt: game.homeTeam.name,
+                                    className: 'team-logo',
+                                    onError: (e) => {
+                                        e.target.src = '/images/logos/default-logo.png';
+                                    }
+                                }),
+                                React.createElement('div', { className: 'team-details' },
+                                    React.createElement('div', { className: 'team-name' },
+                                        game.homeTeam.rank && React.createElement('span', { className: 'rank' }, `#${game.homeTeam.rank}`),
+                                        game.homeTeam.shortName
+                                    ),
+                                    React.createElement('div', { className: 'team-conference' }, game.homeTeam.conference)
+                                )
+                            ),
+                            React.createElement('div', { className: 'team-score' },
+                                (game.isCompleted || gameStatus === 'live') ? game.homeTeam.score : ''
+                            )
+                        )
+                    ),
+                    React.createElement('div', { className: 'game-details' },
+                        React.createElement('div', { className: 'venue-info' },
+                            React.createElement('span', { className: 'venue' }, game.venue),
+                            React.createElement('span', { className: 'location' }, game.location)
+                        ),
+                        React.createElement('div', { className: 'broadcast-info' },
+                            React.createElement('span', { className: 'tv' }, game.tv),
+                            game.spread && React.createElement('span', { className: 'spread' }, game.spread)
+                        )
+                    )
+                );
+            };
+
+            const DateSection = ({ games }) => {
+                const dateObj = new Date(games[0]?.datetime || '');
+                const formattedDate = dateObj.toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                });
+
+                return React.createElement('div', { className: 'date-section' },
+                    React.createElement('h2', { className: 'date-header' }, formattedDate),
+                    React.createElement('div', { className: 'games-grid' },
+                        games.map(game => React.createElement(GameCard, { key: game.id, game }))
+                    )
+                );
+            };
+
+            const gamesByDate = groupGamesByDate(filteredGames);
+
+            return React.createElement('div', null,
+                React.createElement('div', { className: 'schedule-controls' },
+                    React.createElement('div', { className: 'filter-controls' },
+                        React.createElement('div', { className: 'filter-group' },
+                            React.createElement('label', { htmlFor: 'week-filter' }, 'Week'),
+                            React.createElement('select', {
+                                id: 'week-filter',
+                                value: filters.week,
+                                onChange: (e) => handleFilterChange('week', e.target.value)
+                            },
+                                React.createElement('option', { value: '' }, 'All Weeks'),
+                                scheduleData?.weeks?.map(week => 
+                                    React.createElement('option', { key: week.value, value: week.value }, week.label)
+                                )
+                            )
+                        ),
+                        React.createElement('div', { className: 'filter-group' },
+                            React.createElement('label', { htmlFor: 'conference-filter' }, 'Conference'),
+                            React.createElement('select', {
+                                id: 'conference-filter',
+                                value: filters.conference,
+                                onChange: (e) => handleFilterChange('conference', e.target.value)
+                            },
+                                React.createElement('option', { value: '' }, 'All Conferences'),
+                                React.createElement('option', { value: 'Big Ten' }, 'Big Ten'),
+                                React.createElement('option', { value: 'SEC' }, 'SEC'),
+                                React.createElement('option', { value: 'ACC' }, 'ACC'),
+                                React.createElement('option', { value: 'Big 12' }, 'Big 12'),
+                                React.createElement('option', { value: 'Pac-12' }, 'Pac-12'),
+                                React.createElement('option', { value: 'Mountain West' }, 'Mountain West'),
+                                React.createElement('option', { value: 'American Athletic' }, 'American Athletic'),
+                                React.createElement('option', { value: 'Conference USA' }, 'Conference USA'),
+                                React.createElement('option', { value: 'MAC' }, 'MAC'),
+                                React.createElement('option', { value: 'Sun Belt' }, 'Sun Belt')
+                            )
+                        ),
+                        React.createElement('div', { className: 'filter-group' },
+                            React.createElement('label', { htmlFor: 'status-filter' }, 'Game Status'),
+                            React.createElement('select', {
+                                id: 'status-filter',
+                                value: filters.status,
+                                onChange: (e) => handleFilterChange('status', e.target.value)
+                            },
+                                React.createElement('option', { value: '' }, 'All Games'),
+                                React.createElement('option', { value: 'scheduled' }, 'Scheduled'),
+                                React.createElement('option', { value: 'live' }, 'Live'),
+                                React.createElement('option', { value: 'completed' }, 'Completed')
+                            )
+                        ),
+                        React.createElement('div', { className: 'filter-group' },
+                            React.createElement('label', { htmlFor: 'ranked-filter' },
+                                React.createElement('input', {
+                                    type: 'checkbox',
+                                    id: 'ranked-filter',
+                                    checked: filters.rankedOnly,
+                                    onChange: (e) => handleFilterChange('rankedOnly', e.target.checked)
+                                }),
+                                'Ranked Teams Only'
+                            )
+                        )
+                    ),
+                    React.createElement('div', { className: 'refresh-controls' },
+                        React.createElement('div', { style: { display: 'flex', gap: '1rem', alignItems: 'center' } },
+                            React.createElement('button', {
+                                id: 'refresh-btn',
+                                className: 'btn btn-primary',
+                                onClick: () => loadSchedule(),
+                                disabled: loading,
+                                title: 'Ctrl+R or F5 to refresh'
+                            },
+                                React.createElement('span', { className: 'refresh-icon' }, '🔄'),
+                                ' Refresh'
+                            ),
+                            React.createElement('label', { style: { display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' } },
+                                React.createElement('input', {
+                                    type: 'checkbox',
+                                    checked: autoRefreshEnabled,
+                                    onChange: (e) => setAutoRefreshEnabled(e.target.checked)
+                                }),
+                                'Auto-refresh',
+                                hasLiveGames() && autoRefreshEnabled && React.createElement('span', { 
+                                    style: { color: 'var(--primary-color)', fontWeight: '500' } 
+                                }, '(30s)')
+                            )
+                        ),
+                        React.createElement('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' } },
+                            scheduleData?.lastUpdated && React.createElement('span', { className: 'last-updated' },
+                                'Last updated: ', new Date(scheduleData.lastUpdated).toLocaleTimeString()
+                            ),
+                            hasLiveGames() && autoRefreshEnabled && nextRefresh && React.createElement('span', { 
+                                className: 'last-updated',
+                                style: { fontSize: '0.75rem' }
+                            },
+                                '⏱️ Next refresh: ', countdown, 's'
+                            )
+                        )
+                    )
+                ),
+                loading && React.createElement('div', { className: 'loading' },
+                    React.createElement('div', { className: 'spinner' }),
+                    React.createElement('p', null, 'Loading schedule...')
+                ),
+                error && React.createElement('div', { className: 'error-message' },
+                    React.createElement('p', null, '⚠️ Unable to load schedule data'),
+                    React.createElement('button', {
+                        id: 'retry-btn',
+                        className: 'btn',
+                        onClick: () => loadSchedule()
+                    }, 'Try Again')
+                ),
+                !loading && !error && React.createElement('div', { id: 'schedule-container' },
+                    filteredGames.length === 0 ? 
+                        React.createElement('div', { className: 'no-games' },
+                            React.createElement('p', null, 'No games found matching your filters.')
+                        ) :
+                        Object.keys(gamesByDate).map(date => 
+                            React.createElement(DateSection, { 
+                                key: date, 
+                                games: gamesByDate[date] || [] 
+                            })
+                        )
+                )
+            );
+        }
+
+        // Mount the component
+        document.addEventListener('DOMContentLoaded', function() {
+            const container = document.getElementById('cfb-schedule-app');
+            if (container) {
+                const root = createRoot(container);
+                root.render(React.createElement(CFBSchedule));
+                console.log('React component mounted successfully');
+            } else {
+                console.error('Container not found');
+            }
+        });
     </script>
 </body>
 </html>

@@ -23,13 +23,18 @@ async function buildReactComponents() {
       outfile: 'public/js/react/cfb-schedule.js',
       format: 'iife',
       globalName: 'CFBScheduleApp',
-      jsx: 'automatic',
+      jsx: 'transform',
+      jsxFactory: 'React.createElement',
+      jsxFragment: 'React.Fragment',
       define: {
         'process.env.NODE_ENV': isProduction ? '"production"' : '"development"'
       },
       external: ['react', 'react-dom'],
       minify: isProduction,
       sourcemap: !isProduction,
+      footer: {
+        js: 'window.CFBScheduleComponent = CFBScheduleApp;'
+      }
     });
 
     console.log(`✅ React components built successfully (${isProduction ? 'production' : 'development'} mode)`);

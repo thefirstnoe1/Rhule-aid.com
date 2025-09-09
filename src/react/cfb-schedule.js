@@ -1,5 +1,6 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
-import { useState, useEffect, useCallback } from 'react';
+import * as React from 'react';
+const { useState, useEffect, useCallback } = React;
 const CFBSchedule = () => {
     const [scheduleData, setScheduleData] = useState(null);
     const [filteredGames, setFilteredGames] = useState([]);
