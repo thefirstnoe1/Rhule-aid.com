@@ -5,6 +5,7 @@ import { handleNewsRequest } from './api/news';
 import { handleRosterRequest } from './api/roster';
 import { handleWeatherRequest } from './api/weather';
 import { handleLogoRequest } from './api/logo';
+import { handleConferencesRequest } from './api/conferences';
 import { onRequest as handleCFBScheduleRequest } from './api/cfb-schedule';
 
 export default {
@@ -49,6 +50,8 @@ async function handleAPIRequest(request: Request, env: Env, pathname: string): P
         return await handleWeatherRequest(request, env);
       case '/api/logo':
         return await handleLogoRequest(request, env);
+      case '/api/conferences':
+        return await handleConferencesRequest(request, env);
       case '/api/rankings/ap':
         return await getRankings(env, 'AP');
       case '/api/rankings/cfp':
@@ -95,30 +98,53 @@ async function handleHTMLRequest(request: Request, env: Env, pathname: string): 
   return new Response('Not Found', { status: 404 });
 }
 
-async function getRankings(env: Env, pollType: string): Promise<Response> {
-  const cacheKey = `rankings_${pollType.toLowerCase()}`;
-  const cached = await env.RANKINGS_CACHE.get(cacheKey);
-  
-  if (cached) {
-    return new Response(cached, {
+async function getRankings(_env: Env, pollType: string): Promise<Response> {
+  try {
+    // For now, fetch directly from ESPN API to bypass database issues
+    if (pollType === 'AP') {
+      console.log('Fetching AP rankings directly from ESPN API...');
+      const response = await fetch('https://site.api.espn.com/apis/site/v2/sports/football/college-football/rankings');
+      
+      if (!response.ok) {
+        throw new Error(`ESPN API error: ${response.status}`);
+      }
+      
+      const data = await response.json() as any;
+      const apPoll = data.rankings?.find((ranking: any) => ranking.type === 'ap' || ranking.name?.includes('AP'));
+      
+      if (!apPoll || !apPoll.ranks) {
+        return new Response(JSON.stringify({ teams: [] }), {
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+      
+      const teams = apPoll.ranks.slice(0, 25).map((teamData: any) => ({
+        rank: teamData.current,
+        team: teamData.team.location,
+        school: teamData.team.location,
+        points: teamData.points || 0,
+        firstPlaceVotes: teamData.firstPlaceVotes || 0
+      }));
+      
+      return new Response(JSON.stringify({ teams }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    } else {
+      // CFP rankings not available early in season
+      return new Response(JSON.stringify({ teams: [] }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+  } catch (error) {
+    console.error('Error fetching rankings:', error);
+    return new Response(JSON.stringify({
+      teams: [],
+      error: 'Unable to fetch rankings'
+    }), {
+      status: 500,
       headers: { 'Content-Type': 'application/json' }
     });
   }
-  
-  // Get latest rankings from database
-  const stmt = env.DB.prepare(
-    'SELECT * FROM rankings WHERE poll_type = ? ORDER BY week_date DESC, rank ASC LIMIT 25'
-  );
-  const result = await stmt.bind(pollType).all();
-  
-  const rankings = JSON.stringify(result.results);
-  
-  // Cache for 30 minutes
-  await env.RANKINGS_CACHE.put(cacheKey, rankings, { expirationTtl: 1800 });
-  
-  return new Response(rankings, {
-    headers: { 'Content-Type': 'application/json' }
-  });
 }
 
 async function getStandings(env: Env, conference: string): Promise<Response> {
@@ -151,7 +177,7 @@ async function updateRankingsAndStandings(env: Env): Promise<void> {
   const currentDate = new Date().toISOString().split('T')[0];
   
   try {
-    // Scrape AP Poll
+    // Scrape AP Poll using ESPN API
     const apPoll = await scrapeAPPoll();
     if (apPoll && apPoll.length > 0) {
       for (const team of apPoll) {
@@ -164,7 +190,7 @@ async function updateRankingsAndStandings(env: Env): Promise<void> {
       }
     }
     
-    // Scrape CFP Poll
+    // Scrape CFP Poll (not available early in season)
     const cfpPoll = await scrapeCFPPoll();
     if (cfpPoll && cfpPoll.length > 0) {
       for (const team of cfpPoll) {
@@ -197,8 +223,8 @@ async function updateRankingsAndStandings(env: Env): Promise<void> {
     }
     
     // Clear caches
-    await env.RANKINGS_CACHE.delete('rankings_ap');
-    await env.RANKINGS_CACHE.delete('rankings_cfp');
+    await env.RANKINGS_CACHE.delete('rankings_v2_ap');
+    await env.RANKINGS_CACHE.delete('rankings_v2_cfp');
     await env.STANDINGS_CACHE.delete('standings_big_ten');
     
   } catch (error) {

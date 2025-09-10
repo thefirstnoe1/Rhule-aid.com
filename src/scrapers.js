@@ -1,55 +1,41 @@
 export async function scrapeAPPoll() {
     try {
-        const response = await fetch('https://www.ncaa.com/rankings/football/fbs/associated-press');
-        const html = await response.text();
-        // Simple regex parsing since we can't use cheerio in Workers
-        const teams = [];
-        // Match table rows with ranking data
-        const rowRegex = /<tr[^>]*>[\s\S]*?<td[^>]*>(\d+)<\/td>[\s\S]*?<td[^>]*>([^<(]+?)(?:\s*\((\d+)\))?<\/td>[\s\S]*?<td[^>]*>(\d+)[\s\S]*?<\/tr>/gi;
-        let match;
-        while ((match = rowRegex.exec(html)) !== null) {
-            const rank = match[1] ? parseInt(match[1]) : 0;
-            const team = match[2] ? match[2].trim() : '';
-            const firstPlaceVotes = match[3] ? parseInt(match[3]) : 0;
-            const points = match[4] ? parseInt(match[4]) : 0;
-            if (rank && team && points) {
-                teams.push({
-                    rank,
-                    team,
-                    points,
-                    firstPlaceVotes
-                });
-            }
+        console.log('Fetching AP Poll from ESPN API...');
+        const response = await fetch('https://site.api.espn.com/apis/site/v2/sports/football/college-football/rankings');
+        if (!response.ok) {
+            throw new Error(`ESPN API error: ${response.status} ${response.statusText}`);
         }
-        return teams.slice(0, 25); // Top 25
+        const data = await response.json();
+        // Find AP Poll in rankings array
+        const apPoll = data.rankings?.find((ranking) => ranking.type === 'ap' || ranking.name?.includes('AP'));
+        if (!apPoll || !apPoll.ranks) {
+            console.warn('No AP Poll data found in ESPN response');
+            return [];
+        }
+        const teams = apPoll.ranks.map((teamData) => ({
+            rank: teamData.current,
+            team: teamData.team.location,
+            school: teamData.team.location, // Frontend expects 'school' property
+            points: teamData.points || 0,
+            firstPlaceVotes: teamData.firstPlaceVotes || 0
+        }));
+        console.log(`Fetched AP Poll for ${apPoll.occurrence?.displayValue || 'current week'}, ${teams.length} teams`);
+        return teams.slice(0, 25); // Ensure top 25
     }
     catch (error) {
-        console.error('Error scraping AP Poll:', error);
+        console.error('Error fetching AP Poll from ESPN:', error);
         return [];
     }
 }
 export async function scrapeCFPPoll() {
     try {
-        const response = await fetch('https://www.ncaa.com/rankings/football/fbs/college-football-playoff');
-        const html = await response.text();
-        const teams = [];
-        // Match table rows with ranking data
-        const rowRegex = /<tr[^>]*>[\s\S]*?<td[^>]*>(\d+)<\/td>[\s\S]*?<td[^>]*>([^<]+?)<\/td>[\s\S]*?<\/tr>/gi;
-        let match;
-        while ((match = rowRegex.exec(html)) !== null) {
-            const rank = match[1] ? parseInt(match[1]) : 0;
-            const team = match[2] ? match[2].trim() : '';
-            if (rank && team) {
-                teams.push({
-                    rank,
-                    team
-                });
-            }
-        }
-        return teams.slice(0, 25); // Top 25
+        // CFP rankings are not available on ESPN API, only available via CFBD
+        // For now, return empty array until CFP rankings are released
+        console.log('CFP rankings not yet available (season just started)');
+        return [];
     }
     catch (error) {
-        console.error('Error scraping CFP Poll:', error);
+        console.error('Error fetching CFP Poll:', error);
         return [];
     }
 }

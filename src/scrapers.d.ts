@@ -1,6 +1,7 @@
 export interface APPollTeam {
     rank: number;
     team: string;
+    school?: string;
     points: number;
     firstPlaceVotes?: number;
 }
