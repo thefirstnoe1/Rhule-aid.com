@@ -30,8 +30,8 @@ interface CachedData {
 }
 
 export async function handleScheduleRequest(request: Request, env: any): Promise<Response> {
-  const CACHE_KEY = 'nebraska_schedule_2025_dynamic_v2';
-  const CACHE_TTL = 60 * 60 * 24; // 24 hours
+  const CACHE_KEY = 'nebraska_schedule_2025_espn_v1';
+  const CACHE_TTL = 60 * 60 * 6; // 6 hours (schedule info can change)
   
   const corsHeaders = {
     'Content-Type': 'application/json',
@@ -79,9 +79,25 @@ export async function handleScheduleRequest(request: Request, env: any): Promise
       });
     }
 
-    // Fetch fresh data
-    let scheduleData = getHardcodedSchedule();
-    let dataSource = 'hardcoded-fallback';
+    // Fetch fresh data from ESPN
+    let scheduleData: ScheduleGame[] = [];
+    let dataSource = 'espn-api';
+    
+    try {
+      const espnResponse = await fetch('https://site.api.espn.com/apis/site/v2/sports/football/college-football/teams/158/schedule');
+      
+      if (espnResponse.ok) {
+        const espnData = await espnResponse.json();
+        scheduleData = parseESPNSchedule(espnData);
+        console.log(`Fetched ${scheduleData.length} games from ESPN API`);
+      } else {
+        throw new Error(`ESPN API returned ${espnResponse.status}`);
+      }
+    } catch (error) {
+      console.error('Error fetching from ESPN:', error);
+      scheduleData = getHardcodedSchedule();
+      dataSource = 'hardcoded-fallback';
+    }
     
     // Cache the fresh data
     if (env.SCHEDULE_CACHE && scheduleData.length > 0) {
@@ -136,6 +152,64 @@ export async function handleScheduleRequest(request: Request, env: any): Promise
       }
     });
   }
+}
+
+function parseESPNSchedule(espnData: any): ScheduleGame[] {
+  const games: ScheduleGame[] = [];
+  
+  if (!espnData?.events || !Array.isArray(espnData.events)) {
+    return games;
+  }
+  
+  for (const event of espnData.events) {
+    const competition = event.competitions?.[0];
+    if (!competition) continue;
+    
+    const competitors = competition.competitors || [];
+    const nebraskaCompetitor = competitors.find((c: any) => c.team.id === '158');
+    const opponentCompetitor = competitors.find((c: any) => c.team.id !== '158');
+    
+    if (!nebraskaCompetitor || !opponentCompetitor) continue;
+    
+    const isHome = nebraskaCompetitor.homeAway === 'home';
+    const isNeutral = competition.neutralSite === true;
+    
+    const gameDate = new Date(event.date);
+    const dateString = gameDate.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric',
+      timeZone: 'America/Chicago'
+    });
+    
+    let timeString = 'TBD';
+    if (competition.timeValid) {
+      const ctTime = gameDate.toLocaleTimeString('en-US', { 
+        hour: 'numeric', 
+        minute: '2-digit',
+        timeZone: 'America/Chicago'
+      });
+      timeString = ctTime.replace(/\s+/g, ' ');
+    }
+    
+    const tvNetwork = competition.broadcasts?.[0]?.media?.shortName || 'TBD';
+    
+    const venue = competition.venue;
+    const location = venue ? `${venue.fullName}${venue.address?.city ? ', ' + venue.address.city : ''}${venue.address?.state ? ', ' + venue.address.state : ''}` : 'TBA';
+    
+    games.push({
+      date: dateString,
+      opponent: opponentCompetitor.team.displayName,
+      time: timeString,
+      location: location,
+      tvNetwork: tvNetwork,
+      isHome: isHome,
+      isNeutral: isNeutral
+    });
+  }
+  
+  return games;
 }
 
 function getHardcodedSchedule(): ScheduleGame[] {

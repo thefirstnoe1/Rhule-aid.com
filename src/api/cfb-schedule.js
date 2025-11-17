@@ -123,30 +123,39 @@ function processGames(games) {
             throw new Error('Invalid game data: missing home or away team');
         }
         const gameDate = new Date(competition.date);
+        const dateInCentral = new Date(gameDate.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+        const year = dateInCentral.getFullYear();
+        const month = String(dateInCentral.getMonth() + 1).padStart(2, '0');
+        const day = String(dateInCentral.getDate()).padStart(2, '0');
+        const dateString = `${year}-${month}-${day}`;
+        const getRank = (rank) => {
+            return rank && rank <= 25 ? rank : undefined;
+        };
         return {
             id: game.id,
-            date: gameDate.toLocaleDateString(),
+            date: dateString,
             time: gameDate.toLocaleTimeString('en-US', {
                 hour: 'numeric',
                 minute: '2-digit',
+                timeZone: 'America/Chicago',
                 timeZoneName: 'short'
             }),
             datetime: competition.date,
             week: game.week.number,
             homeTeam: {
-                name: homeTeam.team.displayName,
-                shortName: homeTeam.team.shortDisplayName,
-                logo: homeTeam.team.logo,
+                name: homeTeam.team.displayName || homeTeam.team.name || 'Unknown Team',
+                shortName: homeTeam.team.shortDisplayName || homeTeam.team.abbreviation || homeTeam.team.name || 'Unknown',
+                logo: homeTeam.team.logo || '/images/logos/default-logo.png',
                 score: parseInt(homeTeam.score) || 0,
-                rank: homeTeam.curatedRank?.current,
+                rank: getRank(homeTeam.curatedRank?.current),
                 conference: getConferenceName(homeTeam.team.conferenceId)
             },
             awayTeam: {
-                name: awayTeam.team.displayName,
-                shortName: awayTeam.team.shortDisplayName,
-                logo: awayTeam.team.logo,
+                name: awayTeam.team.displayName || awayTeam.team.name || 'Unknown Team',
+                shortName: awayTeam.team.shortDisplayName || awayTeam.team.abbreviation || awayTeam.team.name || 'Unknown',
+                logo: awayTeam.team.logo || '/images/logos/default-logo.png',
                 score: parseInt(awayTeam.score) || 0,
-                rank: awayTeam.curatedRank?.current,
+                rank: getRank(awayTeam.curatedRank?.current),
                 conference: getConferenceName(awayTeam.team.conferenceId)
             },
             venue: competition.venue?.fullName || 'TBD',
