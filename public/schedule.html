@@ -733,6 +733,9 @@
         <!-- Left Sidebar - Big Ten Standings -->
         <div class="sidebar" id="standings-sidebar">
             <h3>🏟️ Big Ten Standings</h3>
+            <div style="font-size: 0.8em; color: var(--secondary-text); text-align: center; margin-bottom: 15px; padding: 8px; background: rgba(var(--accent-color-rgb), 0.05); border-radius: 6px;">
+                Conf Record (Overall Record)
+            </div>
             <ul class="standings-list" id="standings-list">
                 <li style="text-align: center; padding: 20px; color: #666;">Loading standings...</li>
             </ul>
@@ -795,7 +798,7 @@
             try {
                 const response = await fetch('/api/standings/big-ten');
                 const data = await response.json();
-                const teams = data.teams || [];
+                const teams = data.data || [];
                 displayStandings(teams);
             } catch (error) {
                 console.error('Error loading standings:', error);
@@ -835,15 +838,28 @@
                 return;
             }
 
-            const standingsHTML = teams.map((team, index) => {
-                const isNebraska = team.school.toLowerCase().includes('nebraska');
-                const rank = index + 1;
+            const standingsHTML = teams.map((team) => {
+                const isNebraska = team.market.toLowerCase().includes('nebraska');
+                const rank = team.team_rank;
+                
+                // The data array contains objects with different metrics
+                // Find the specific records from the data array
+                let confRecord = '0-0';
+                let ovrRecord = '0-0';
+                
+                team.data.forEach(item => {
+                    if (item.conf_record) confRecord = item.conf_record;
+                    if (item.ovr_record) ovrRecord = item.ovr_record;
+                });
+                
+                // Always show both records: conf record (overall record)
+                const displayRecord = `${confRecord} (${ovrRecord})`;
                 
                 return `
                     <li class="standings-item ${isNebraska ? 'nebraska' : ''}">
                         <div class="team-rank">${rank}</div>
-                        <div class="team-name-sidebar">${team.school}</div>
-                        <div class="team-record">${team.confWins}-${team.confLosses}</div>
+                        <div class="team-name-sidebar">${team.market}</div>
+                        <div class="team-record">${displayRecord}</div>
                     </li>
                 `;
             }).join('');
@@ -936,6 +952,20 @@
             container.innerHTML = gameCards.join('');
         }
 
+        function getCentralOffset(dateStr) {
+            const date = new Date(dateStr);
+            const year = date.getFullYear();
+            const dstStart = new Date(year, 2, 14);
+            dstStart.setDate(14 - dstStart.getDay());
+            const dstEnd = new Date(year, 10, 7);
+            dstEnd.setDate(7 - dstEnd.getDay());
+            
+            if (date >= dstStart && date < dstEnd) {
+                return '-05:00';
+            }
+            return '-06:00';
+        }
+
         async function createGameCard(game) {
             // Debug: Log the raw game data with TV network info
             console.log('Game data:', { 
@@ -943,7 +973,7 @@
                 time: game.time, 
                 opponent: game.opponent,
                 tv: game.tv || game.network || game.television || 'NO TV DATA',
-                dateString: game.date + ' ' + game.time + ' EST',
+                dateString: game.date + ' ' + game.time + ' CST/CDT',
                 allGameData: game
             });
             
@@ -959,19 +989,49 @@
                 });
             }
             
-            // Source data is in Eastern Time, but we want to display in Central by default
+            // Source data is in Central Time from API - parse with proper timezone
             let gameDate;
-            if (game.time === 'TBD') {
-                // For TBD times, just use the date at midnight
-                gameDate = new Date(game.date + ' 12:00 AM EST');
-            } else {
-                gameDate = new Date(game.date + ' ' + game.time + ' EST');
+            try {
+                const dateParts = game.date.match(/(\w+), (\w+) (\d+), (\d+)/);
+                if (!dateParts) {
+                    gameDate = new Date(game.date + ' 12:00 PM');
+                } else {
+                    const [, , month, day, year] = dateParts;
+                    const monthMap = {
+                        'January': '01', 'February': '02', 'March': '03', 'April': '04',
+                        'May': '05', 'June': '06', 'July': '07', 'August': '08',
+                        'September': '09', 'October': '10', 'November': '11', 'December': '12'
+                    };
+                    const isoDate = `${year}-${monthMap[month]}-${day.padStart(2, '0')}`;
+                    
+                    let timeStr = '12:00';
+                    if (game.time && game.time !== 'TBD') {
+                        const timeMatch = game.time.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+                        if (timeMatch) {
+                            let hours = parseInt(timeMatch[1]);
+                            const minutes = timeMatch[2];
+                            const ampm = timeMatch[3].toUpperCase();
+                            
+                            if (ampm === 'PM' && hours !== 12) hours += 12;
+                            if (ampm === 'AM' && hours === 12) hours = 0;
+                            
+                            timeStr = `${hours.toString().padStart(2, '0')}:${minutes}`;
+                        }
+                    }
+                    
+                    const offset = getCentralOffset(isoDate);
+                    const isoDateString = `${isoDate}T${timeStr}:00${offset}`;
+                    gameDate = new Date(isoDateString);
+                }
+            } catch (error) {
+                console.error('Error parsing game date:', error);
+                gameDate = new Date(game.date + ' ' + (game.time || '12:00 PM'));
             }
             
             // Debug: Check if the parsed date is valid
             if (isNaN(gameDate.getTime())) {
                 console.error('Invalid date created for TV=' + (game.tvNetwork || 'TBD') + ':', {
-                    original: game.date + ' ' + game.time + ' EST',
+                    original: game.date + ' ' + game.time,
                     parsed: gameDate,
                     tv: game.tvNetwork || 'TBD',
                     game: game
@@ -1141,8 +1201,8 @@
                         }
                         
                         // Create date with ISO format for better Safari compatibility
-                        // Source times are in EDT (UTC-4)
-                        const isoDateString = `2025-09-01T${cleanTime}:00-04:00`; // Eastern Daylight Time
+                        // Source times are in CST/CDT from API
+                        const isoDateString = `2025-09-01T${cleanTime}:00-05:00`; // Central Standard Time
                         const gameDate = new Date(isoDateString);
                         
                         // Check if date is valid
@@ -1241,8 +1301,8 @@
                 
                 // Create a date with proper format for better cross-browser compatibility
                 // Use ISO format which works better on Safari
-                // Source times are in EDT (UTC-4), convert to selected timezone
-                const isoDateString = `2025-09-01T${cleanTime}:00-04:00`; // Eastern Daylight Time (UTC-4)
+                // Source times are in CST/CDT from API
+                const isoDateString = `2025-09-01T${cleanTime}:00-05:00`; // Central Standard Time (UTC-5)
                 const gameDate = new Date(isoDateString);
                 
                 // Check if date is valid
