@@ -1147,14 +1147,14 @@
             }
         }
 
-        function formatGameTimeFromCT(timeString) {
+        function formatGameTimeFromCT(timeString, gameDate) {
             // Handle TBD, TBA or missing time
             if (!timeString || timeString.toLowerCase() === 'tba' || timeString.toLowerCase() === 'tbd' || timeString.trim() === '') {
                 return 'TBD';
             }
             
             try {
-                // Use Central Time as default timezone (same logic as schedule page)
+                // Use Central Time as default timezone
                 const selectedTimezone = 'America/Chicago';
                 
                 // Clean the time string and handle different formats
@@ -1162,7 +1162,6 @@
                 
                 // Handle common time formats and convert to 24-hour for better parsing
                 if (cleanTime.match(/^\d{1,2}:\d{2}\s*(AM|PM)$/i)) {
-                    // Format: "3:30 PM" 
                     const timeMatch = cleanTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
                     if (timeMatch) {
                         let hours = parseInt(timeMatch[1]);
@@ -1178,7 +1177,6 @@
                         cleanTime = `${hours.toString().padStart(2, '0')}:${minutes}`;
                     }
                 } else if (cleanTime.match(/^\d{1,2}\s*(AM|PM)$/i)) {
-                    // Format: "3 PM"
                     const timeMatch = cleanTime.match(/^(\d{1,2})\s*(AM|PM)$/i);
                     if (timeMatch) {
                         let hours = parseInt(timeMatch[1]);
@@ -1194,19 +1192,36 @@
                     }
                 }
                 
-                // Create a date with proper format for better cross-browser compatibility
-                // Use ISO format which works better on Safari
-                // Source times are in EDT (UTC-4), convert to Central Time
-                const isoDateString = `2025-09-01T${cleanTime}:00-04:00`; // Eastern Daylight Time (UTC-4)
-                const gameDate = new Date(isoDateString);
+                // Use actual game date if provided, otherwise use a date to determine current season
+                let isoDate;
+                if (gameDate) {
+                    const gameDateObj = new Date(gameDate);
+                    isoDate = gameDateObj.toISOString().split('T')[0];
+                } else {
+                    // Use today's date to get current timezone
+                    const today = new Date();
+                    isoDate = today.toISOString().split('T')[0];
+                }
+                
+                // Determine if the date is in DST
+                const dateObj = new Date(isoDate);
+                const year = dateObj.getFullYear();
+                const dstStart = new Date(year, 2, 14);
+                dstStart.setDate(14 - dstStart.getDay());
+                const dstEnd = new Date(year, 10, 7);
+                dstEnd.setDate(7 - dstEnd.getDay());
+                const offset = (dateObj >= dstStart && dateObj < dstEnd) ? '-05:00' : '-06:00';
+                
+                const isoDateString = `${isoDate}T${cleanTime}:00${offset}`;
+                const fullGameDate = new Date(isoDateString);
                 
                 // Check if date is valid
-                if (isNaN(gameDate.getTime())) {
+                if (isNaN(fullGameDate.getTime())) {
                     console.warn('Invalid date created from time:', timeString, 'cleaned to:', cleanTime);
                     return 'TBD';
                 }
                 
-                return gameDate.toLocaleTimeString('en-US', { 
+                return fullGameDate.toLocaleTimeString('en-US', { 
                     hour: 'numeric', 
                     minute: '2-digit',
                     timeZone: selectedTimezone,
@@ -1233,8 +1248,8 @@
 
             const formattedDate = gameDate.toLocaleDateString('en-US', dateOptions);
             
-            // Format time using the same logic as schedule page
-            const formattedTime = formatGameTimeFromCT(game.time);
+            // Format time using the game date to get correct timezone
+            const formattedTime = formatGameTimeFromCT(game.time, game.date);
 
             // Get opponent logo using the same service as schedule page
             const opponentLogoUrl = `/api/logo?team=${encodeURIComponent(game.opponent)}`;
