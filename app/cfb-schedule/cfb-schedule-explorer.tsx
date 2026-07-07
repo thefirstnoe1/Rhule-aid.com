@@ -43,6 +43,8 @@ type Filters = {
   rankedOnly: boolean;
 };
 
+type LayoutMode = 'cards' | 'compact' | 'tv';
+
 const conferences = ['Big Ten', 'SEC', 'ACC', 'Big 12', 'Pac-12', 'Mountain West', 'American', 'Conference USA', 'MAC', 'Sun Belt', 'Independent'];
 
 const timezones = [
@@ -53,10 +55,17 @@ const timezones = [
   { value: 'UTC', label: 'UTC' }
 ];
 
+const layoutModes: Array<{ value: LayoutMode; label: string }> = [
+  { value: 'cards', label: 'Cards' },
+  { value: 'compact', label: 'Compact' },
+  { value: 'tv', label: 'TV Grid' }
+];
+
 export function CFBScheduleExplorer({ initialData }: { initialData: CFBScheduleData }) {
   const [scheduleData, setScheduleData] = useState(initialData);
   const [filters, setFilters] = useState<Filters>({ week: '', conference: '', status: '', rankedOnly: false });
   const [timezone, setTimezone] = useState('America/Chicago');
+  const [layout, setLayout] = useState<LayoutMode>('cards');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(Boolean(initialData.error));
 
@@ -75,6 +84,17 @@ export function CFBScheduleExplorer({ initialData }: { initialData: CFBScheduleD
       groups[game.date] = [...(groups[game.date] || []), game];
       return groups;
     }, {});
+  }, [filteredGames]);
+
+  const summary = useMemo(() => {
+    return filteredGames.reduce<{ live: number; completed: number; ranked: number; networks: Set<string> }>((totals, game) => {
+      const status = getGameStatus(game);
+      if (status === 'live') totals.live += 1;
+      if (status === 'completed') totals.completed += 1;
+      if (game.homeTeam.rank || game.awayTeam.rank) totals.ranked += 1;
+      if (game.tv && game.tv !== 'TBD') totals.networks.add(game.tv);
+      return totals;
+    }, { live: 0, completed: 0, ranked: 0, networks: new Set<string>() });
   }, [filteredGames]);
 
   async function loadSchedule() {
@@ -116,42 +136,59 @@ export function CFBScheduleExplorer({ initialData }: { initialData: CFBScheduleD
 
   return (
     <div className="container-shell pb-20">
-      <SurfaceCard className="mb-6 rounded-[1.75rem] p-4 md:p-5">
-        <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            <FilterSelect label="Week" value={filters.week} onChange={(value) => setFilters((current) => ({ ...current, week: value }))}>
+      <SurfaceCard className="mb-5 overflow-hidden rounded-[2rem]">
+        <div className="grid border-b border-[var(--border)] md:grid-cols-4">
+          <Stat label="Games Showing" value={filteredGames.length.toString()} />
+          <Stat label="Live" value={summary.live.toString()} tone="scarlet" />
+          <Stat label="Ranked Matchups" value={summary.ranked.toString()} />
+          <Stat label="Networks" value={summary.networks.size.toString()} />
+        </div>
+
+        <div className="grid gap-4 p-4 md:p-5 xl:grid-cols-[1fr_auto] xl:items-center">
+          <div className="flex flex-wrap gap-2">
+            <PillSelect label="Week" value={filters.week} onChange={(value) => setFilters((current) => ({ ...current, week: value }))}>
               <option value="">All Weeks</option>
               {scheduleData.weeks.map((week) => <option key={week.value} value={week.value}>{week.label}</option>)}
-            </FilterSelect>
+            </PillSelect>
 
-            <FilterSelect label="Conference" value={filters.conference} onChange={(value) => setFilters((current) => ({ ...current, conference: value }))}>
+            <PillSelect label="Conference" value={filters.conference} onChange={(value) => setFilters((current) => ({ ...current, conference: value }))}>
               <option value="">All Conferences</option>
               {conferences.map((conference) => <option key={conference} value={conference}>{conference}</option>)}
-            </FilterSelect>
+            </PillSelect>
 
-            <FilterSelect label="Status" value={filters.status} onChange={(value) => setFilters((current) => ({ ...current, status: value }))}>
+            <PillSelect label="Status" value={filters.status} onChange={(value) => setFilters((current) => ({ ...current, status: value }))}>
               <option value="">All Games</option>
               <option value="scheduled">Scheduled</option>
               <option value="live">Live</option>
               <option value="completed">Completed</option>
-            </FilterSelect>
+            </PillSelect>
 
-            <FilterSelect label="Timezone" value={timezone} onChange={setTimezone}>
+            <PillSelect label="Time" value={timezone} onChange={setTimezone}>
               {timezones.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-            </FilterSelect>
+            </PillSelect>
 
-            <label className="flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm font-black text-[var(--foreground)]">
-              <input
-                type="checkbox"
-                checked={filters.rankedOnly}
-                onChange={(event) => setFilters((current) => ({ ...current, rankedOnly: event.target.checked }))}
-                className="h-4 w-4 accent-[var(--scarlet)]"
-              />
+            <button
+              type="button"
+              onClick={() => setFilters((current) => ({ ...current, rankedOnly: !current.rankedOnly }))}
+              className={`rounded-full px-4 py-2 text-xs font-black uppercase tracking-[0.14em] transition ${filters.rankedOnly ? 'bg-[var(--scarlet)] text-white shadow-[0_14px_30px_var(--scarlet-shadow)]' : 'border border-[var(--border)] bg-[var(--surface-strong)] text-[var(--muted)] hover:text-[var(--foreground)]'}`}
+            >
               Ranked Only
-            </label>
+            </button>
           </div>
 
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center lg:justify-end">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center xl:justify-end">
+            <div className="inline-flex rounded-full border border-[var(--border)] bg-[var(--surface-strong)] p-1">
+              {layoutModes.map((mode) => (
+                <button
+                  key={mode.value}
+                  type="button"
+                  onClick={() => setLayout(mode.value)}
+                  className={`rounded-full px-3 py-2 text-xs font-black uppercase tracking-[0.14em] transition ${layout === mode.value ? 'bg-[var(--foreground)] text-[var(--background)]' : 'text-[var(--muted)] hover:text-[var(--foreground)]'}`}
+                >
+                  {mode.label}
+                </button>
+              ))}
+            </div>
             <button
               type="button"
               onClick={() => void loadSchedule()}
@@ -181,21 +218,30 @@ export function CFBScheduleExplorer({ initialData }: { initialData: CFBScheduleD
 
       <div className="grid gap-8">
         {Object.keys(gamesByDate).sort().map((date) => (
-          <DateSection key={date} date={date} games={gamesByDate[date] || []} timezone={timezone} />
+          <DateSection key={date} date={date} games={gamesByDate[date] || []} timezone={timezone} layout={layout} />
         ))}
       </div>
     </div>
   );
 }
 
-function FilterSelect({ label, value, onChange, children }: { label: string; value: string; onChange: (value: string) => void; children: React.ReactNode }) {
+function Stat({ label, value, tone }: { label: string; value: string; tone?: 'scarlet' }) {
   return (
-    <label className="grid gap-2 text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">
-      {label}
+    <div className="border-b border-[var(--border)] p-4 md:border-b-0 md:border-r md:last:border-r-0">
+      <div className={`text-3xl font-black tracking-[-0.08em] ${tone === 'scarlet' ? 'text-[var(--scarlet)]' : 'text-[var(--foreground)]'}`}>{value}</div>
+      <div className="mt-1 text-[0.65rem] font-black uppercase tracking-[0.16em] text-[var(--muted)]">{label}</div>
+    </div>
+  );
+}
+
+function PillSelect({ label, value, onChange, children }: { label: string; value: string; onChange: (value: string) => void; children: React.ReactNode }) {
+  return (
+    <label className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-strong)] py-1 pl-4 pr-2 text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">
+      <span>{label}</span>
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm font-bold normal-case tracking-normal text-[var(--foreground)] outline-none"
+        className="max-w-40 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-bold normal-case tracking-normal text-[var(--foreground)] outline-none"
       >
         {children}
       </select>
@@ -203,18 +249,22 @@ function FilterSelect({ label, value, onChange, children }: { label: string; val
   );
 }
 
-function DateSection({ date, games, timezone }: { date: string; games: Game[]; timezone: string }) {
+function DateSection({ date, games, timezone, layout }: { date: string; games: Game[]; timezone: string; layout: LayoutMode }) {
   const formattedDate = formatDate(date);
   const sortedGames = [...games].sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
 
   return (
     <section>
       <div className="mb-4 flex items-end justify-between gap-4 border-b border-[var(--border)] pb-3">
-        <h2 className="text-3xl font-black tracking-[-0.06em]">{formattedDate}</h2>
+        <h2 className="text-2xl font-black tracking-[-0.06em] sm:text-4xl">{formattedDate}</h2>
         <span className="text-xs font-black uppercase tracking-[0.16em] text-[var(--muted)]">{games.length} games</span>
       </div>
-      <div className="grid gap-4 xl:grid-cols-2">
-        {sortedGames.map((game) => <GameCard key={game.id} game={game} timezone={timezone} />)}
+      <div className={layout === 'cards' ? 'grid gap-4 xl:grid-cols-2' : layout === 'compact' ? 'grid gap-2' : 'grid gap-3 md:grid-cols-2 xl:grid-cols-3'}>
+        {sortedGames.map((game) => {
+          if (layout === 'compact') return <CompactGame key={game.id} game={game} timezone={timezone} />;
+          if (layout === 'tv') return <TVGame key={game.id} game={game} timezone={timezone} />;
+          return <GameCard key={game.id} game={game} timezone={timezone} />;
+        })}
       </div>
     </section>
   );
@@ -224,8 +274,8 @@ function GameCard({ game, timezone }: { game: Game; timezone: string }) {
   const status = getGameStatus(game);
 
   return (
-    <SurfaceCard className={`overflow-hidden rounded-[1.75rem] transition hover:-translate-y-0.5 ${status === 'live' ? 'border-[var(--scarlet)]' : ''}`}>
-      <div className="grid gap-4 p-5">
+    <SurfaceCard className={`overflow-hidden rounded-[2rem] transition hover:-translate-y-0.5 hover:border-[var(--scarlet)] ${status === 'live' ? 'border-[var(--scarlet)]' : ''}`}>
+      <div className="grid gap-4 p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap gap-2">
             <span className={`rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.14em] ${status === 'live' ? 'bg-[var(--scarlet)] text-white' : 'border border-[var(--border)] text-[var(--muted)]'}`}>
@@ -237,9 +287,9 @@ function GameCard({ game, timezone }: { game: Game; timezone: string }) {
         </div>
 
         <div className="grid gap-3">
-          <TeamRow team={game.awayTeam} showScore={status !== 'scheduled'} />
+          <TeamRow team={game.awayTeam} showScore={status !== 'scheduled'} winner={status !== 'scheduled' && game.awayTeam.score > game.homeTeam.score} />
           <div className="px-2 text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">at</div>
-          <TeamRow team={game.homeTeam} showScore={status !== 'scheduled'} />
+          <TeamRow team={game.homeTeam} showScore={status !== 'scheduled'} winner={status !== 'scheduled' && game.homeTeam.score > game.awayTeam.score} />
         </div>
 
         <div className="grid gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-sm sm:grid-cols-2">
@@ -258,9 +308,59 @@ function GameCard({ game, timezone }: { game: Game; timezone: string }) {
   );
 }
 
-function TeamRow({ team, showScore }: { team: Team; showScore: boolean }) {
+function CompactGame({ game, timezone }: { game: Game; timezone: string }) {
+  const status = getGameStatus(game);
+
   return (
-    <div className="grid grid-cols-[3.5rem_1fr_auto] items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-3">
+    <SurfaceCard className={`rounded-[1.25rem] p-3 transition hover:border-[var(--scarlet)] ${status === 'live' ? 'border-[var(--scarlet)]' : ''}`}>
+      <div className="grid gap-3 md:grid-cols-[7rem_1fr_7rem_8rem] md:items-center">
+        <div className="text-sm font-black">{formatTime(game.datetime, timezone)}</div>
+        <div className="grid gap-2 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+          <MiniTeam team={game.awayTeam} align="left" />
+          <span className="hidden text-xs font-black uppercase tracking-[0.16em] text-[var(--muted)] sm:block">at</span>
+          <MiniTeam team={game.homeTeam} align="right" />
+        </div>
+        <div className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)] md:text-center">{game.tv}</div>
+        <div className={`rounded-full px-3 py-1 text-center text-xs font-black uppercase tracking-[0.14em] ${status === 'live' ? 'bg-[var(--scarlet)] text-white' : 'border border-[var(--border)] text-[var(--muted)]'}`}>{game.status}</div>
+      </div>
+    </SurfaceCard>
+  );
+}
+
+function TVGame({ game, timezone }: { game: Game; timezone: string }) {
+  const status = getGameStatus(game);
+
+  return (
+    <SurfaceCard className="overflow-hidden rounded-[1.5rem] transition hover:-translate-y-0.5 hover:border-[var(--scarlet)]">
+      <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3">
+        <div className="text-lg font-black tracking-[-0.04em]">{game.tv || 'TBD'}</div>
+        <div className={status === 'live' ? 'text-xs font-black uppercase tracking-[0.14em] text-[var(--scarlet)]' : 'text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]'}>{formatTime(game.datetime, timezone)}</div>
+      </div>
+      <div className="grid gap-3 p-4">
+        <MiniTeam team={game.awayTeam} />
+        <MiniTeam team={game.homeTeam} />
+        <div className="truncate text-xs font-bold text-[var(--muted)]">{game.venue}</div>
+      </div>
+    </SurfaceCard>
+  );
+}
+
+function MiniTeam({ team, align = 'left' }: { team: Team; align?: 'left' | 'right' }) {
+  return (
+    <div className={`flex items-center gap-2 ${align === 'right' ? 'sm:justify-end' : ''}`}>
+      <img src={team.logo || '/images/logos/default-logo.png'} alt="" className="h-7 w-7 rounded-full bg-white object-contain p-1" loading="lazy" />
+      <span className="truncate text-sm font-black">
+        {team.rank && team.rank <= 25 && <span className="mr-1 text-[var(--scarlet)]">#{team.rank}</span>}
+        {team.shortName || team.name}
+      </span>
+      <span className="text-sm font-black">{team.score || ''}</span>
+    </div>
+  );
+}
+
+function TeamRow({ team, showScore, winner }: { team: Team; showScore: boolean; winner: boolean }) {
+  return (
+    <div className={`grid grid-cols-[3.5rem_1fr_auto] items-center gap-3 rounded-2xl border p-3 ${winner ? 'border-[var(--scarlet)] bg-[color-mix(in_srgb,var(--scarlet)_10%,var(--surface-strong))]' : 'border-[var(--border)] bg-[var(--surface-strong)]'}`}>
       <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white p-2 shadow-sm">
         <img src={team.logo || '/images/logos/default-logo.png'} alt={`${team.name} logo`} className="max-h-full max-w-full object-contain" loading="lazy" />
       </div>
