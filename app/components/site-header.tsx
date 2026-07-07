@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ThemeToggle } from './theme-toggle';
 
 const navItems = [
@@ -16,9 +16,23 @@ const navItems = [
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
+  const [hidden, setHidden] = useState(false);
+
+  useEffect(() => {
+    let lastScrollY = window.scrollY;
+
+    function handleScroll() {
+      const currentScrollY = window.scrollY;
+      setHidden(currentScrollY > 120 && currentScrollY > lastScrollY);
+      lastScrollY = currentScrollY;
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   return (
-    <header className="container-shell py-4">
+    <header className={`container-shell sticky top-4 z-40 py-4 transition-transform duration-300 ${hidden && !open ? '-translate-y-28 pointer-events-none' : 'translate-y-0'}`}>
       <div className="surface-card rounded-[1.5rem] px-4 py-3 md:rounded-full md:px-5">
         <div className="flex items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-3 no-underline" onClick={() => setOpen(false)}>
