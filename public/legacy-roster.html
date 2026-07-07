@@ -619,7 +619,7 @@
     </script>
 
     <div class="roster-hero">
-        <h1 style="font-size: 3em; margin: 0 0 10px 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">2025 Roster</h1>
+        <h1 style="font-size: 3em; margin: 0 0 10px 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">2026 Roster</h1>
         <p style="font-size: 1.3em; margin: 0; opacity: 0.9;">Nebraska Cornhuskers Football</p>
     </div>
 
@@ -805,36 +805,6 @@
             }
         }
 
-        // Fallback roster data in case API fails
-        const sampleRoster = [
-            { number: 1, name: "Dylan Raiola", position: "QB", year: "Fr", height: "6'3\"", weight: "220", hometown: "Chandler, AZ", category: "offense" },
-            { number: 2, name: "Ceyair Wright", position: "CB", year: "Jr", height: "6'1\"", weight: "185", hometown: "Los Angeles, CA", category: "defense" },
-            { number: 3, name: "Rahmir Johnson", position: "RB", year: "Sr", height: "5'11\"", weight: "215", hometown: "Newark, NJ", category: "offense" },
-            { number: 4, name: "Dante Dowdell", position: "RB", year: "So", height: "6'1\"", weight: "225", hometown: "Pickerington, OH", category: "offense" },
-            { number: 5, name: "Isaiah Neyor", position: "WR", year: "Sr", height: "6'3\"", weight: "205", hometown: "Austin, TX", category: "offense" },
-            { number: 6, name: "Quinton Newsome", position: "CB", year: "Sr", height: "6'1\"", weight: "190", hometown: "IMG Academy, FL", category: "defense" },
-            { number: 7, name: "Jacory Barney Jr.", position: "WR", year: "Jr", height: "5'11\"", weight: "185", hometown: "Katy, TX", category: "offense" },
-            { number: 8, name: "Malachi Coleman", position: "WR", year: "So", height: "6'3\"", weight: "200", hometown: "East St. Louis, IL", category: "offense" },
-            { number: 9, name: "John Hohl", position: "P", year: "Jr", height: "6'1\"", weight: "195", hometown: "Papillion, NE", category: "special" },
-            { number: 10, name: "Nick Henrich", position: "QB", year: "Jr", height: "6'3\"", weight: "210", hometown: "Elkhorn, NE", category: "offense" },
-            { number: 11, name: "Janiran Bonner", position: "WR", year: "Fr", height: "6'2\"", weight: "190", hometown: "Tampa, FL", category: "offense" },
-            { number: 12, name: "Kwinten Ives", position: "S", year: "Sr", height: "6'2\"", weight: "200", hometown: "Las Vegas, NV", category: "defense" },
-            { number: 13, name: "Tristan Alvano", position: "K", year: "So", height: "5'11\"", weight: "180", hometown: "Kearney, NE", category: "special" },
-            { number: 14, name: "Thomas Fidone II", position: "TE", year: "Jr", height: "6'5\"", weight: "245", hometown: "Council Bluffs, IA", category: "offense" },
-            { number: 15, name: "Isaiah Garcia-Castaneda", position: "WR", year: "Fr", height: "6'0\"", weight: "175", hometown: "Gretna, NE", category: "offense" },
-            { number: 16, name: "Braxton Gottschalk", position: "QB", year: "Fr", height: "6'2\"", weight: "200", hometown: "West Point, NE", category: "offense" },
-            { number: 17, name: "Jaylen Lloyd", position: "WR", year: "Jr", height: "6'0\"", weight: "180", hometown: "Omaha, NE", category: "offense" },
-            { number: 18, name: "DeShon Singleton", position: "S", year: "Sr", height: "6'1\"", weight: "200", hometown: "Jacksonville, FL", category: "defense" },
-            { number: 19, name: "Tommi Hill", position: "CB", year: "So", height: "5'10\"", weight: "175", hometown: "Bellevue, NE", category: "defense" },
-            { number: 20, name: "Emmett Johnson", position: "RB", year: "So", height: "6'0\"", weight: "210", hometown: "Hinckley, MN", category: "offense" },
-            // Add more defensive players to balance the roster
-            { number: 21, name: "Nash Hutmacher", position: "DE", year: "Sr", height: "6'6\"", weight: "285", hometown: "Chamberlain, SD", category: "defense" },
-            { number: 22, name: "Ty Robinson", position: "DT", year: "Jr", height: "6'3\"", weight: "295", hometown: "Sunrise, FL", category: "defense" },
-            { number: 23, name: "MJ Sherman", position: "LB", year: "So", height: "6'2\"", weight: "235", hometown: "Cedar Rapids, IA", category: "defense" },
-            { number: 24, name: "Javin Wright", position: "CB", year: "Fr", height: "6'0\"", weight: "180", hometown: "Omaha, NE", category: "defense" },
-            { number: 25, name: "Isaac Gifford", position: "S", year: "Sr", height: "6'0\"", weight: "195", hometown: "Fremont, NE", category: "defense" }
-        ];
-
         // Load roster on page load
         // Function to ensure all players have correct categories based on position
         function categorizePlayer(player) {
@@ -876,9 +846,7 @@
                 displayRoster(allPlayers);
                 updateStats();
             } else {
-                // Fallback to sample data if API fails
-                console.log('API failed, using fallback sample data');
-                allPlayers = sampleRoster.map(categorizePlayer);
+                allPlayers = [];
                 displayRoster(allPlayers);
                 updateStats();
             }

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Timezone Test</title>
+</head>
+<body>
+    <h1>Timezone Conversion Test</h1>
+    <div id="results"></div>
+    
+    <script>
+        function formatGameTimeFromCT(timeString) {
+            // Handle TBD, TBA or missing time
+            if (!timeString || timeString.toLowerCase() === 'tba' || timeString.toLowerCase() === 'tbd' || timeString.trim() === '') {
+                return 'TBD';
+            }
+            
+            try {
+                // Use Central Time as default timezone (same logic as schedule page)
+                const selectedTimezone = 'America/Chicago';
+                
+                // Clean the time string and handle different formats
+                let cleanTime = timeString.trim();
+                
+                // Handle common time formats and convert to 24-hour for better parsing
+                if (cleanTime.match(/^\d{1,2}:\d{2}\s*(AM|PM)$/i)) {
+                    // Format: "3:30 PM" 
+                    const timeMatch = cleanTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+                    if (timeMatch) {
+                        let hours = parseInt(timeMatch[1]);
+                        const minutes = timeMatch[2];
+                        const ampm = timeMatch[3].toUpperCase();
+                        
+                        if (ampm === 'PM' && hours !== 12) {
+                            hours += 12;
+                        } else if (ampm === 'AM' && hours === 12) {
+                            hours = 0;
+                        }
+                        
+                        cleanTime = `${hours.toString().padStart(2, '0')}:${minutes}`;
+                    }
+                } else if (cleanTime.match(/^\d{1,2}\s*(AM|PM)$/i)) {
+                    // Format: "3 PM"
+                    const timeMatch = cleanTime.match(/^(\d{1,2})\s*(AM|PM)$/i);
+                    if (timeMatch) {
+                        let hours = parseInt(timeMatch[1]);
+                        const ampm = timeMatch[2].toUpperCase();
+                        
+                        if (ampm === 'PM' && hours !== 12) {
+                            hours += 12;
+                        } else if (ampm === 'AM' && hours === 12) {
+                            hours = 0;
+                        }
+                        
+                        cleanTime = `${hours.toString().padStart(2, '0')}:00`;
+                    }
+                }
+                
+                // Create a date with proper format for better cross-browser compatibility
+                // Use ISO format which works better on Safari
+                // Source times are in EDT (UTC-4), convert to Central Time
+                const isoDateString = `2025-09-01T${cleanTime}:00-04:00`; // Eastern Daylight Time (UTC-4)
+                const gameDate = new Date(isoDateString);
+                
+                // Check if date is valid
+                if (isNaN(gameDate.getTime())) {
+                    console.warn('Invalid date created from time:', timeString, 'cleaned to:', cleanTime);
+                    return 'TBD';
+                }
+                
+                return gameDate.toLocaleTimeString('en-US', { 
+                    hour: 'numeric', 
+                    minute: '2-digit',
+                    timeZone: selectedTimezone,
+                    timeZoneName: 'short'
+                });
+            } catch (error) {
+                console.error('Error formatting time:', timeString, error);
+                return 'TBD';
+            }
+        }
+        
+        // Test cases
+        const testTimes = [
+            "9:00 PM",  // Should become 8:00 PM CDT  
+            "6:30 PM",  // Should become 5:30 PM CDT
+            "12:00 PM", // Should become 11:00 AM CDT
+            "3:30 PM",  // Should become 2:30 PM CDT
+            "8:00 PM"   // Should become 7:00 PM CDT
+        ];
+        
+        const results = document.getElementById('results');
+        results.innerHTML = '<h2>EDT → CDT Conversions:</h2>';
+        
+        testTimes.forEach(time => {
+            const converted = formatGameTimeFromCT(time);
+            results.innerHTML += `<p>${time} EDT → ${converted}</p>`;
+        });
+    </script>
+</body>
+</html>

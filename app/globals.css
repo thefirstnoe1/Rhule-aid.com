@@ -1,0 +1,99 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f7f3ed;
+  --foreground: #171312;
+  --muted: #6f625c;
+  --border: #ded4c7;
+  --surface: rgba(255, 255, 255, 0.78);
+  --surface-strong: #fffaf3;
+  --scarlet: #d00000;
+  --scarlet-dark: #870000;
+  --scarlet-shadow: rgba(208, 0, 0, 0.28);
+  --cream: #fff7ea;
+  --charcoal: #171312;
+  --hero-panel: #171312;
+  --hero-panel-soft: rgba(23, 19, 18, 0.86);
+}
+
+[data-theme="dark"] {
+  --background: #120f0e;
+  --foreground: #f8efe4;
+  --muted: #b4a89d;
+  --border: #352c27;
+  --surface: rgba(30, 25, 22, 0.82);
+  --surface-strong: #1d1815;
+  --scarlet: #ff3333;
+  --scarlet-dark: #d00000;
+  --scarlet-shadow: rgba(255, 51, 51, 0.22);
+  --cream: #211b17;
+  --charcoal: #f8efe4;
+  --hero-panel: #1d1815;
+  --hero-panel-soft: rgba(29, 24, 21, 0.9);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  color: var(--foreground);
+  background:
+    radial-gradient(circle at top left, rgba(208, 0, 0, 0.14), transparent 32rem),
+    linear-gradient(135deg, color-mix(in srgb, var(--cream) 88%, transparent), color-mix(in srgb, var(--background) 96%, transparent)),
+    var(--background);
+  font-family: var(--font-geist-sans), Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  transition: background-color 180ms ease, color 180ms ease;
+}
+
+a {
+  color: inherit;
+}
+
+::selection {
+  color: white;
+  background: var(--scarlet);
+}
+
+.grain-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0.18;
+  background-image:
+    linear-gradient(rgba(23, 19, 18, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(23, 19, 18, 0.06) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(to bottom, black, transparent 78%);
+}
+
+.container-shell {
+  width: min(1160px, calc(100% - 32px));
+  margin-inline: auto;
+}
+
+.surface-card {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: 0 24px 80px rgba(23, 19, 18, 0.08);
+  backdrop-filter: blur(18px);
+}
+
+[data-theme="dark"] .surface-card {
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.32);
+}
+
+.eyebrow {
+  color: var(--scarlet);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}

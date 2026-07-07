@@ -9,6 +9,7 @@ export interface Env {
   CFB_SCHEDULE_CACHE: any;
   ASSETS: any;
   OPENWEATHER_API_KEY: string;
+  CFBD_API_KEY: string;
 }
 
 export interface Context {

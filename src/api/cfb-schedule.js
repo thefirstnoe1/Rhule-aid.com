@@ -75,7 +75,7 @@ export async function onRequest(context) {
         const cacheTime = hasLiveGames ? 60 : 900; // 1 minute vs 15 minutes
         const result = {
             games: processedGames,
-            weeks: weeksData ? extractWeeks({ events: [], leagues: weeksData }) : getFallbackWeeks(),
+            weeks: weeksData ? extractWeeks({ events: [], leagues: weeksData }) : [],
             lastUpdated: new Date().toISOString(),
             hasLiveGames
         };
@@ -95,14 +95,13 @@ export async function onRequest(context) {
     }
     catch (error) {
         console.error('CFB Schedule API Error:', error);
-        const fallbackData = {
-            games: getFallbackGames(),
-            weeks: getFallbackWeeks(),
+        return new Response(JSON.stringify({
+            games: [],
+            weeks: [],
             lastUpdated: new Date().toISOString(),
-            error: 'Live data unavailable, showing fallback data'
-        };
-        return new Response(JSON.stringify(fallbackData), {
-            status: 200,
+            error: 'Live data unavailable'
+        }), {
+            status: 502,
             headers: {
                 'Content-Type': 'application/json',
                 'Access-Control-Allow-Origin': '*',
@@ -171,7 +170,7 @@ function processGames(games) {
 }
 function extractWeeks(data) {
     if (!data.leagues?.[0]?.calendar?.[0]?.entries) {
-        return getFallbackWeeks();
+        return [];
     }
     return data.leagues[0].calendar[0].entries.map(entry => ({
         label: entry.label,
@@ -192,41 +191,4 @@ function getConferenceName(conferenceId) {
         '151': 'American'
     };
     return conferenceId ? conferenceMap[conferenceId] || 'Other' : 'Independent';
-}
-function getFallbackGames() {
-    return [
-        {
-            id: 'fallback-1',
-            date: new Date().toLocaleDateString(),
-            time: '12:00 PM EST',
-            datetime: new Date().toISOString(),
-            week: 1,
-            homeTeam: {
-                name: 'Nebraska Cornhuskers',
-                shortName: 'Nebraska',
-                logo: '/images/logos/nebraska-logo.png',
-                score: 0,
-                conference: 'Big Ten'
-            },
-            awayTeam: {
-                name: 'Sample Opponent',
-                shortName: 'Sample',
-                logo: '/images/logos/default-logo.png',
-                score: 0,
-                conference: 'Other'
-            },
-            venue: 'Memorial Stadium',
-            location: 'Lincoln, NE',
-            tv: 'TBD',
-            status: 'Scheduled',
-            isCompleted: false,
-            spread: null
-        }
-    ];
-}
-function getFallbackWeeks() {
-    return Array.from({ length: 16 }, (_, i) => ({
-        label: `Week ${i + 1}`,
-        value: (i + 1).toString()
-    }));
 }

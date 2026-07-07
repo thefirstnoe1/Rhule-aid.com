@@ -819,10 +819,7 @@
         window.mobileMenuOpen = false;
         
         function handleMobileMenuToggle(button) {
-            console.log('Mobile menu toggle clicked!', window.mobileMenuOpen);
-            
             try {
-                // Find the button and navigation
                 var btn = button || document.getElementById('mobile-menu-btn') || document.querySelector('.mobile-menu-toggle');
                 var nav = document.querySelector('.site-nav');
                 
@@ -836,33 +833,22 @@
                     return;
                 }
                 
-                console.log('Button:', btn, 'Nav:', nav);
-                
-                // Toggle the active state
                 window.mobileMenuOpen = !window.mobileMenuOpen;
                 
                 if (window.mobileMenuOpen) {
                     nav.classList.add('mobile-active');
-                    console.log('Menu opened - added mobile-active class');
                 } else {
                     nav.classList.remove('mobile-active');
-                    console.log('Menu closed - removed mobile-active class');
                 }
-                
-                console.log('Nav classes after toggle:', nav.className);
-                
             } catch (error) {
                 console.error('Error in handleMobileMenuToggle:', error);
             }
         }
         
-        // Fallback function for any existing toggleMobileMenu calls
         function toggleMobileMenu() {
-            console.log('Legacy toggleMobileMenu called - redirecting to handleMobileMenuToggle');
             handleMobileMenuToggle();
         }
         
-        // Close menu when clicking outside
         document.addEventListener('click', function(event) {
             if (window.mobileMenuOpen) {
                 var nav = document.querySelector('.site-nav');
@@ -871,33 +857,18 @@
                 if (nav && btn && !nav.contains(event.target) && !btn.contains(event.target)) {
                     window.mobileMenuOpen = false;
                     nav.classList.remove('mobile-active');
-                    console.log('Menu closed by outside click');
                 }
             }
         });
         
-        // Close menu on window resize to desktop
         window.addEventListener('resize', function() {
             if (window.innerWidth > 768 && window.mobileMenuOpen) {
                 var nav = document.querySelector('.site-nav');
                 if (nav) {
                     window.mobileMenuOpen = false;
                     nav.classList.remove('mobile-active');
-                    console.log('Menu closed due to window resize');
                 }
             }
-        });
-        
-        // Initialize on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            var btn = document.querySelector('.mobile-menu-toggle');
-            var nav = document.querySelector('.site-nav');
-            
-            console.log('Mobile menu initialized:', {
-                button: !!btn,
-                navigation: !!nav,
-                windowWidth: window.innerWidth
-            });
         });
     </script>
 
@@ -1057,8 +1028,6 @@
         // Load game day information
         async function loadGameDay() {
             try {
-                console.log('Loading game day information...');
-                
                 // Fetch schedule data
                 const response = await fetch('/api/schedule');
                 const data = await response.json();
@@ -1066,8 +1035,6 @@
                 if (!data.success || !data.data || data.data.length === 0) {
                     throw new Error('No schedule data available');
                 }
-
-                console.log('Schedule data loaded:', data.data.length, 'games');
 
                 // Find the next upcoming game
                 const now = new Date();
@@ -1082,7 +1049,6 @@
                 }
 
                 nextGame = upcomingGames[0];
-                console.log('Next game found:', nextGame);
 
                 displayGameInfo(nextGame);
                 
@@ -1128,14 +1094,8 @@
                         const offset = getCentralOffset(gameDate);
                         const isoDateString = `${isoDate}T${cleanTime}:00${offset}`;
                         gameDateTime = new Date(isoDateString);
-                    } else {
-                        // Fallback: assume the time is in CST
-                        gameDateTime = new Date(nextGame.date + ' ' + nextGame.time + ' CST');
                     }
                 }
-                
-                console.log('Game date/time for countdown:', gameDateTime);
-                console.log('Game date/time in CDT:', gameDateTime.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
                 
                 startCountdown(gameDateTime);
 
@@ -1328,12 +1288,10 @@
                 stadiumDescription.textContent = `${stadiumInfo.location} • Capacity`;
             }
             
-            // Make card clickable if we have a gameday link
             if (stadiumCard && stadiumInfo.gamedayLink) {
                 stadiumCard.style.cursor = 'pointer';
                 stadiumCard.title = 'Click for gameday information';
                 
-                // Remove any existing click listeners
                 stadiumCard.replaceWith(stadiumCard.cloneNode(true));
                 const newStadiumCard = document.getElementById('stadiumCard');
                 
@@ -1341,15 +1299,12 @@
                     window.open(stadiumInfo.gamedayLink, '_blank', 'noopener,noreferrer');
                 });
                 
-                // Add visual indicator that it's clickable
                 newStadiumCard.classList.add('clickable-card');
             } else if (stadiumCard) {
                 stadiumCard.style.cursor = 'default';
                 stadiumCard.title = '';
                 stadiumCard.classList.remove('clickable-card');
             }
-            
-            console.log('Updated stadium card:', stadiumInfo);
         }
         function displayNoUpcomingGames() {
             const gameInfoDiv = document.getElementById('gameInfo');
@@ -1420,10 +1375,36 @@
             countdownInterval = setInterval(updateCountdown, 1000);
         }
 
-        // Update season record (placeholder)
-        function updateSeasonRecord() {
-            // This could be enhanced to fetch real record data
-            document.getElementById('seasonRecord').textContent = '0-0';
+        async function updateSeasonRecord() {
+            try {
+                const response = await fetch('/api/schedule');
+                const data = await response.json();
+                
+                if (!data.success || !data.data) {
+                    document.getElementById('seasonRecord').textContent = '0-0';
+                    return;
+                }
+                
+                const now = new Date();
+                let wins = 0;
+                let losses = 0;
+                
+                for (const game of data.data) {
+                    const gameDate = new Date(game.date);
+                    if (gameDate < now && game.result) {
+                        if (game.result.toLowerCase() === 'w') {
+                            wins++;
+                        } else if (game.result.toLowerCase() === 'l') {
+                            losses++;
+                        }
+                    }
+                }
+                
+                document.getElementById('seasonRecord').textContent = `${wins}-${losses}`;
+            } catch (error) {
+                console.error('Error loading season record:', error);
+                document.getElementById('seasonRecord').textContent = '0-0';
+            }
         }
 
         // Mobile menu toggle function
@@ -1513,12 +1494,8 @@
         // Weather Functions
         async function loadWeather(gameLocation = null) {
             try {
-                console.log('Loading weather information for location:', gameLocation || 'Lincoln, NE (default)');
-                
-                // Determine forecast type based on proximity to game
                 const shouldUseHourly = isWithin48Hours();
                 
-                // Build the API URL with location, hourly, and game time parameters
                 let weatherUrl = '/api/weather';
                 const params = [];
                 if (gameLocation) {
@@ -1527,7 +1504,6 @@
                 if (shouldUseHourly) {
                     params.push('hourly=true');
                 }
-                // Pass game time to API for high-accuracy weather selection
                 if (nextGame && nextGame.date && nextGame.time && nextGame.time !== 'TBD') {
                     const gameDateTime = getGameDateTime();
                     if (gameDateTime) {
@@ -1537,10 +1513,6 @@
                 if (params.length > 0) {
                     weatherUrl += '?' + params.join('&');
                 }
-                
-                let forecastType = shouldUseHourly ? 'game-window' : 'daily';
-                
-                console.log(`Loading ${forecastType} weather forecast from:`, weatherUrl);
                 
                 const response = await fetch(weatherUrl);
                 const data = await response.json();
@@ -1604,8 +1576,6 @@
                 const now = new Date();
                 const timeDifference = gameDateTime - now;
                 const hoursUntilGame = timeDifference / (1000 * 60 * 60);
-                
-                console.log(`Time until game: ${hoursUntilGame.toFixed(1)} hours`);
                 
                 return hoursUntilGame <= 48 && hoursUntilGame > 0;
             } catch (error) {
@@ -1863,9 +1833,7 @@
             }
         }
 
-        // Initialize dark mode when page loads
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('Game Day page loaded');
             initDarkMode();
             loadGameDay();
             updateSeasonRecord();

@@ -40,6 +40,14 @@ interface Filters {
   rankedOnly: boolean;
 }
 
+const TIMEZONES = [
+  { value: 'America/Chicago', label: 'Central Time (CT)', short: 'CT' },
+  { value: 'America/New_York', label: 'Eastern Time (ET)', short: 'ET' },
+  { value: 'America/Denver', label: 'Mountain Time (MT)', short: 'MT' },
+  { value: 'America/Los_Angeles', label: 'Pacific Time (PT)', short: 'PT' },
+  { value: 'UTC', label: 'UTC', short: 'UTC' }
+];
+
 const CFBSchedule: React.FC = () => {
   const [scheduleData, setScheduleData] = useState<ScheduleData | null>(null);
   const [filteredGames, setFilteredGames] = useState<Game[]>([]);
@@ -49,8 +57,20 @@ const CFBSchedule: React.FC = () => {
     status: '',
     rankedOnly: false
   });
+  const [selectedTimezone, setSelectedTimezone] = useState('America/Chicago');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+
+  const formatGameTime = useCallback((datetime: string): string => {
+    const date = new Date(datetime);
+    
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      timeZone: selectedTimezone,
+      timeZoneName: 'short'
+    });
+  }, [selectedTimezone]);
 
   const getGameStatusCategory = useCallback((status: string, isCompleted: boolean): string => {
     if (isCompleted) return 'completed';
@@ -175,11 +195,12 @@ const CFBSchedule: React.FC = () => {
   const GameCard: React.FC<{ game: Game }> = ({ game }) => {
     const gameStatus = getGameStatusCategory(game.status, game.isCompleted);
     const statusClass = gameStatus === 'live' ? 'live' : gameStatus === 'completed' ? 'completed' : 'scheduled';
+    const formattedTime = formatGameTime(game.datetime);
 
     return (
       <div className={`game-card ${statusClass}`}>
         <div className="game-header">
-          <span className="game-time">{game.time}</span>
+          <span className="game-time">{formattedTime}</span>
           <span className={`game-status ${statusClass}`}>{game.status}</span>
         </div>
 
@@ -187,8 +208,8 @@ const CFBSchedule: React.FC = () => {
           <div className="team away-team">
             <div className="team-info">
               <img 
-                src={game.awayTeam.logo} 
-                alt={game.awayTeam.name} 
+                src={game.awayTeam?.logo || '/images/logos/default-logo.png'} 
+                alt={game.awayTeam?.name || 'Away Team'} 
                 className="team-logo"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = '/images/logos/default-logo.png';
@@ -196,14 +217,14 @@ const CFBSchedule: React.FC = () => {
               />
               <div className="team-details">
                 <div className="team-name">
-                  {game.awayTeam.rank && <span className="rank">#{game.awayTeam.rank}</span>}
-                  {game.awayTeam.shortName}
+                  {game.awayTeam?.rank && game.awayTeam.rank <= 25 && <span className="rank">#{game.awayTeam.rank}</span>}
+                  <span className="team-short-name">{game.awayTeam?.shortName || 'Unknown'}</span>
                 </div>
-                <div className="team-conference">{game.awayTeam.conference}</div>
+                <div className="team-conference">{game.awayTeam?.conference || 'Unknown'}</div>
               </div>
             </div>
             <div className="team-score">
-              {(game.isCompleted || gameStatus === 'live') ? game.awayTeam.score : ''}
+              {(game.isCompleted || gameStatus === 'live') ? (game.awayTeam?.score || 0) : ''}
             </div>
           </div>
 
@@ -212,8 +233,8 @@ const CFBSchedule: React.FC = () => {
           <div className="team home-team">
             <div className="team-info">
               <img 
-                src={game.homeTeam.logo} 
-                alt={game.homeTeam.name} 
+                src={game.homeTeam?.logo || '/images/logos/default-logo.png'} 
+                alt={game.homeTeam?.name || 'Home Team'} 
                 className="team-logo"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = '/images/logos/default-logo.png';
@@ -221,14 +242,14 @@ const CFBSchedule: React.FC = () => {
               />
               <div className="team-details">
                 <div className="team-name">
-                  {game.homeTeam.rank && <span className="rank">#{game.homeTeam.rank}</span>}
-                  {game.homeTeam.shortName}
+                  {game.homeTeam?.rank && game.homeTeam.rank <= 25 && <span className="rank">#{game.homeTeam.rank}</span>}
+                  <span className="team-short-name">{game.homeTeam?.shortName || 'Unknown'}</span>
                 </div>
-                <div className="team-conference">{game.homeTeam.conference}</div>
+                <div className="team-conference">{game.homeTeam?.conference || 'Unknown'}</div>
               </div>
             </div>
             <div className="team-score">
-              {(game.isCompleted || gameStatus === 'live') ? game.homeTeam.score : ''}
+              {(game.isCompleted || gameStatus === 'live') ? (game.homeTeam?.score || 0) : ''}
             </div>
           </div>
         </div>
@@ -247,8 +268,15 @@ const CFBSchedule: React.FC = () => {
     );
   };
 
-  const DateSection: React.FC<{ date: string; games: Game[] }> = ({ games }) => {
-    const dateObj = new Date(games[0]?.datetime || '');
+  const DateSection: React.FC<{ date: string; games: Game[] }> = ({ date, games }) => {
+    // Parse the date string as UTC to avoid timezone shifting
+    const dateParts = date.split('-').map(Number);
+    const year = dateParts[0] || new Date().getFullYear();
+    const month = (dateParts[1] || 1) - 1; // Month is 0-indexed
+    const day = dateParts[2] || 1;
+    
+    const dateObj = new Date(year, month, day); // Local date without timezone conversion
+    
     const formattedDate = dateObj.toLocaleDateString('en-US', { 
       weekday: 'long', 
       year: 'numeric', 
@@ -334,6 +362,19 @@ const CFBSchedule: React.FC = () => {
               Ranked Teams Only
             </label>
           </div>
+
+          <div className="filter-group">
+            <label htmlFor="timezone-filter">Time Zone</label>
+            <select
+              id="timezone-filter"
+              value={selectedTimezone}
+              onChange={(e) => setSelectedTimezone((e.target as HTMLSelectElement).value)}
+            >
+              {TIMEZONES.map(tz => (
+                <option key={tz.value} value={tz.value}>{tz.label}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <div className="refresh-controls">
@@ -376,9 +417,11 @@ const CFBSchedule: React.FC = () => {
               <p>No games found matching your filters.</p>
             </div>
           ) : (
-            Object.keys(gamesByDate).map(date => (
-              <DateSection key={date} date={date} games={gamesByDate[date] || []} />
-            ))
+            Object.keys(gamesByDate)
+              .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
+              .map(date => (
+                <DateSection key={date} date={date} games={gamesByDate[date] || []} />
+              ))
           )}
         </div>
       )}

@@ -15,6 +15,8 @@ export async function handleWeatherRequest(request: Request, env: any): Promise<
     const location = url.searchParams.get('location') || 'Lincoln, NE';
     const hourly = url.searchParams.get('hourly') === 'true';
     const gameTime = url.searchParams.get('gameTime'); // Optional game time for proximity detection
+    const source = url.searchParams.get('source');
+    const useTomorrowAPI = source === 'tomorrow';
     
     // Determine if we should use high-accuracy APIs (within 120 hours of game)
     let useHighAccuracyAPI = false;
@@ -27,7 +29,7 @@ export async function handleWeatherRequest(request: Request, env: any): Promise<
     }
     
     // Check cache first - separate cache for hourly vs daily
-    const cacheKey = `weather_${location.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${hourly ? 'hourly' : 'daily'}_${useHighAccuracyAPI ? 'precise' : 'standard'}`;
+    const cacheKey = `weather_${location.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${hourly ? 'hourly' : 'daily'}_${useTomorrowAPI ? 'tomorrow' : useHighAccuracyAPI ? 'precise' : 'standard'}`;
     const cached = await env.WEATHER_CACHE?.get(cacheKey);
     
     if (cached) {
@@ -37,10 +39,10 @@ export async function handleWeatherRequest(request: Request, env: any): Promise<
     }
 
     // Get weather data with appropriate API priority
-    const weatherData = await getWeatherForLocation(location, env, hourly, useHighAccuracyAPI);
+    const weatherData = await getWeatherForLocation(location, env, hourly, useHighAccuracyAPI, useTomorrowAPI);
     
     // Cache for 30 minutes for high-accuracy, 2 hours for standard
-    const cacheTTL = useHighAccuracyAPI ? 1800 : 7200;
+    const cacheTTL = useTomorrowAPI || useHighAccuracyAPI ? 1800 : 7200;
     if (env.WEATHER_CACHE) {
       await env.WEATHER_CACHE.put(cacheKey, JSON.stringify(weatherData), { expirationTtl: cacheTTL });
     }
@@ -51,19 +53,27 @@ export async function handleWeatherRequest(request: Request, env: any): Promise<
   } catch (error) {
     console.error('Weather API error:', error);
     
-    // Return fallback weather data
-    const requestUrl = new URL(request.url);
-    const hourly = requestUrl.searchParams.get('hourly') === 'true';
-    const fallbackData = getFallbackWeatherData(requestUrl.searchParams.get('location') || 'Lincoln, NE', hourly);
-    
-    return new Response(JSON.stringify(fallbackData), {
+    return new Response(JSON.stringify({
+      success: false,
+      error: 'Failed to fetch weather data'
+    }), {
+      status: 502,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
 }
 
-async function getWeatherForLocation(location: string, env: any, hourly: boolean = false, useHighAccuracyAPI: boolean = false) {
-  console.log('Getting weather for location:', location, 'hourly:', hourly, 'high-accuracy:', useHighAccuracyAPI);
+async function getWeatherForLocation(location: string, env: any, hourly: boolean = false, useHighAccuracyAPI: boolean = false, useTomorrowAPI: boolean = false) {
+  console.log('Getting weather for location:', location, 'hourly:', hourly, 'high-accuracy:', useHighAccuracyAPI, 'tomorrow:', useTomorrowAPI);
+  
+  if (useTomorrowAPI) {
+    if (!env.TOMORROW_API_KEY) {
+      throw new Error('Tomorrow.io API key is not configured');
+    }
+
+    console.log('Trying Tomorrow.io API for requested weather source');
+    return await getTomorrowWeatherData(location, env.TOMORROW_API_KEY, hourly);
+  }
   
   // For games within 120 hours, prefer Tomorrow.io API if available
   if (useHighAccuracyAPI && env.TOMORROW_API_KEY) {
@@ -95,13 +105,11 @@ async function getWeatherForLocation(location: string, env: any, hourly: boolean
       return await getNWSWeatherData(hourly);
     } catch (error) {
       console.error('NWS API failed:', error);
-      // Fall through to fallback
+      // Fall through to error if no live source succeeds.
     }
   }
   
-  // Fallback for other locations or if all APIs fail
-  console.log('Using fallback weather data');
-  return getFallbackWeatherData(location, hourly);
+  throw new Error(`No live weather source available for ${location}`);
 }
 
 async function getTomorrowWeatherData(location: string, apiKey: string, hourly: boolean = false) {
@@ -400,107 +408,6 @@ async function getNWSWeatherData(hourly: boolean = false) {
     console.error('NWS error:', error);
     throw error;
   }
-}
-
-function getFallbackWeatherData(location?: string, hourly: boolean = false): any {
-  const now = new Date();
-  const month = now.getMonth();
-  let baseTemp;
-  let conditions;
-  
-  // Seasonal fallback temperatures for Nebraska (more realistic for football season)
-  if (month >= 5 && month <= 8) { // Jun-Sep (summer/early fall)
-    baseTemp = 78; // Start higher for afternoon games
-    conditions = 'Partly Cloudy';
-  } else if (month >= 9 && month <= 11) { // Oct-Dec (fall)  
-    baseTemp = 65; // Cooler fall temperatures
-    conditions = 'Partly Cloudy';
-  } else if (month >= 2 && month <= 4) { // Mar-May (spring)
-    baseTemp = 68;
-    conditions = 'Partly Cloudy';
-  } else { // Dec-Feb (winter)
-    baseTemp = 38;
-    conditions = 'Overcast';
-  }
-  
-  const response: any = {
-    success: true,
-    location: location || 'Lincoln, NE',
-    current: {
-      temperature: baseTemp,
-      temperatureUnit: 'F',
-      conditions: conditions,
-      humidity: 60,
-      windSpeed: 8,
-      windDirection: 'SW',
-      lastUpdated: new Date().toISOString()
-    }
-  };
-
-  if (hourly) {
-    // Generate 48 hours of hourly data with realistic temperature progression
-    response.forecast = Array.from({ length: 48 }, (_, i) => {
-      const date = new Date(Date.now() + i * 60 * 60 * 1000); // Every hour
-      const hourOfDay = date.getHours();
-      
-      // Create realistic daily temperature curve
-      // Peak around 3-4 PM, coolest around 6-7 AM
-      let tempAdjustment;
-      if (hourOfDay >= 14 && hourOfDay <= 16) {
-        // Peak afternoon hours - warmest
-        tempAdjustment = 5;
-      } else if (hourOfDay >= 18 && hourOfDay <= 22) {
-        // Evening cooling - typical game time
-        tempAdjustment = Math.max(-8, -2 - (hourOfDay - 18) * 2);
-      } else if (hourOfDay >= 6 && hourOfDay <= 10) {
-        // Morning warming
-        tempAdjustment = -5 + (hourOfDay - 6);
-      } else {
-        // Night/early morning - coolest
-        tempAdjustment = -8;
-      }
-      
-      return {
-        name: date.toLocaleDateString('en-US', { 
-          weekday: 'short', 
-          month: 'short', 
-          day: 'numeric',
-          timeZone: 'America/Chicago'
-        }),
-        time: date.toLocaleTimeString('en-US', { 
-          hour: 'numeric', 
-          hour12: true,
-          timeZone: 'America/Chicago'
-        }),
-        datetime: date.toISOString(),
-        temperature: Math.round(baseTemp + tempAdjustment + Math.floor(Math.random() * 4) - 2),
-        temperatureUnit: 'F',
-        shortForecast: conditions,
-        precipitationProbability: Math.floor(Math.random() * 30),
-        isGameDay: false // Will be set by frontend logic
-      };
-    });
-  } else {
-    // Generate 7 days of daily data
-    response.forecast = Array.from({ length: 7 }, (_, i) => {
-      const date = new Date(Date.now() + i * 24 * 60 * 60 * 1000);
-      return {
-        name: date.toLocaleDateString('en-US', { 
-          weekday: 'short', 
-          month: 'short', 
-          day: 'numeric',
-          timeZone: 'America/Chicago'
-        }),
-        temperature: baseTemp + Math.floor(Math.random() * 10) - 5,
-        temperatureUnit: 'F',
-        shortForecast: conditions,
-        precipitationProbability: Math.floor(Math.random() * 30),
-        isGameDay: false // Will be set by frontend logic
-      };
-    });
-  }
-  
-  return response;
 }
 
 function getWindDirection(degrees: number): string {

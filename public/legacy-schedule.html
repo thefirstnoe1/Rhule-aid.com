@@ -612,11 +612,7 @@
         // Global variables to prevent conflicts
         window.mobileMenuOpen = false;
         
-        // Main toggle function
         function handleMobileMenuToggle(button) {
-            console.log('Mobile menu toggle clicked');
-            
-            // Get elements with multiple fallback methods
             var nav = document.getElementById('site-nav') || document.querySelector('.site-nav') || document.querySelector('nav');
             var btn = button || document.getElementById('mobile-menu-btn') || document.querySelector('.mobile-menu-toggle');
             
@@ -630,27 +626,19 @@
                 return;
             }
             
-            console.log('Elements found - nav:', nav, 'btn:', btn);
-            
-            // Toggle the menu
             if (window.mobileMenuOpen) {
-                // Close menu
                 nav.classList.remove('mobile-active');
                 btn.innerHTML = '☰';
                 btn.setAttribute('aria-expanded', 'false');
                 window.mobileMenuOpen = false;
-                console.log('Menu closed');
             } else {
-                // Open menu
                 nav.classList.add('mobile-active');
                 btn.innerHTML = '✕';
                 btn.setAttribute('aria-expanded', 'true');
                 window.mobileMenuOpen = true;
-                console.log('Menu opened');
             }
         }
         
-        // Close menu when clicking outside
         function handleDocumentClick(event) {
             if (!window.mobileMenuOpen) return;
             
@@ -667,11 +655,9 @@
                 btn.innerHTML = '☰';
                 btn.setAttribute('aria-expanded', 'false');
                 window.mobileMenuOpen = false;
-                console.log('Menu closed by outside click');
             }
         }
         
-        // Close menu on window resize to desktop
         function handleWindowResize() {
             if (window.innerWidth > 768 && window.mobileMenuOpen) {
                 var nav = document.getElementById('site-nav');
@@ -683,49 +669,29 @@
                     btn.setAttribute('aria-expanded', 'false');
                 }
                 window.mobileMenuOpen = false;
-                console.log('Menu closed by resize');
             }
         }
         
-        // Initialize when DOM is ready
         function initMobileMenu() {
-            console.log('Initializing mobile menu...');
-            
-            // Add event listeners
             document.addEventListener('click', handleDocumentClick);
             window.addEventListener('resize', handleWindowResize);
             
-            // Set initial button state
             var btn = document.querySelector('.mobile-menu-toggle');
             if (btn) {
                 btn.setAttribute('aria-expanded', 'false');
                 btn.setAttribute('aria-controls', 'site-nav');
-                console.log('Button initialized');
             }
-            
-            // Test elements
-            var nav = document.getElementById('site-nav');
-            console.log('Navigation found:', !!nav);
-            console.log('Button found:', !!btn);
         }
         
-        // Initialize on both DOMContentLoaded and load events for safety
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', initMobileMenu);
         } else {
             initMobileMenu();
         }
-        
-        window.addEventListener('load', function() {
-            console.log('Window loaded, double-checking mobile menu...');
-            var nav = document.getElementById('site-nav');
-            var btn = document.querySelector('.mobile-menu-toggle');
-            console.log('Final check - nav:', !!nav, 'btn:', !!btn);
-        });
     </script>
 
     <div class="schedule-hero">
-        <h1 style="font-size: 3em; margin: 0 0 10px 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">2025 Schedule</h1>
+        <h1 id="schedule-title" style="font-size: 3em; margin: 0 0 10px 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">Football Schedule</h1>
         <p style="font-size: 1.3em; margin: 0; opacity: 0.9;">Nebraska Cornhuskers Football</p>
     </div>
 
@@ -922,6 +888,9 @@
                 const response = await fetch('/api/schedule');
                 const data = await response.json();
                 const games = data.data || data.games || [];
+                if (data.season) {
+                    document.getElementById('schedule-title').textContent = `${data.season} Schedule`;
+                }
                 await displaySchedule(games);
             } catch (error) {
                 console.error('Error loading schedule:', error);
@@ -967,25 +936,11 @@
         }
 
         async function createGameCard(game) {
-            // Debug: Log the raw game data with TV network info
-            console.log('Game data:', { 
-                date: game.date, 
-                time: game.time, 
-                opponent: game.opponent,
-                tv: game.tv || game.network || game.television || 'NO TV DATA',
-                dateString: game.date + ' ' + game.time + ' CST/CDT',
-                allGameData: game
-            });
-            
-            // Check for missing or undefined date/time
-            // Validate that we have necessary data for date parsing
             if (!game.date || (!game.time && game.time !== 'TBD') || game.date === 'undefined' || (game.time === 'undefined')) {
                 console.error('Missing date/time data for game:', {
                     opponent: game.opponent,
-                    tv: game.tv || game.network || 'NO TV DATA',
                     date: game.date,
-                    time: game.time,
-                    fullGame: game
+                    time: game.time
                 });
             }
             
@@ -1028,13 +983,10 @@
                 gameDate = new Date(game.date + ' ' + (game.time || '12:00 PM'));
             }
             
-            // Debug: Check if the parsed date is valid
             if (isNaN(gameDate.getTime())) {
-                console.error('Invalid date created for TV=' + (game.tvNetwork || 'TBD') + ':', {
-                    original: game.date + ' ' + game.time,
-                    parsed: gameDate,
-                    tv: game.tvNetwork || 'TBD',
-                    game: game
+                console.error('Invalid date created:', {
+                    date: game.date,
+                    time: game.time
                 });
             }
             
@@ -1048,8 +1000,7 @@
             
             if (location.includes('memorial stadium') || location.includes('lincoln') || location.includes('nebraska')) {
                 gameType = 'home-game';
-            } else if (location.includes('neutral') || opponent.includes('cincinnati')) {
-                // Cincinnati game is neutral site
+            } else if (game.isNeutral || location.includes('neutral')) {
                 gameType = 'neutral-game';
             } else {
                 gameType = 'away-game';
@@ -1059,7 +1010,7 @@
             const cleanOpponentName = cleanTeamName(game.opponent);
             const conferenceInfo = await getConferenceInfo(game.opponent);
             
-            const logoUrl = getOpponentLogoUrl(game.opponent);
+            const logoUrl = getOpponentLogoUrl(game.opponent, game.opponentId);
             const opponentLogo = `<img src="${logoUrl}" alt="${game.opponent}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                  <div style="background: #666; color: white; width: 60px; height: 60px; border-radius: 50%; display: none; align-items: center; justify-content: center; font-size: 1.2em; font-weight: bold;">${cleanOpponentName.charAt(0)}</div>`;
 
@@ -1118,7 +1069,7 @@
                     <div class="game-details">
                         <div class="detail-item">
                             <div class="detail-label">Time</div>
-                            <div class="detail-value game-time" data-original-time="${game.time}">${formatGameTimeFromString(game.time)}</div>
+                            <div class="detail-value game-time" data-original-time="${game.time}" data-original-date="${game.date}">${formatGameTimeFromString(game.time, game.date)}</div>
                         </div>
                         <div class="detail-item">
                             <div class="detail-label">Location</div>
@@ -1163,6 +1114,7 @@
             
             gameTimeElements.forEach(element => {
                 const originalTime = element.dataset.originalTime;
+                const originalDate = element.dataset.originalDate;
                 if (originalTime && originalTime.toLowerCase() !== 'tba' && originalTime.toLowerCase() !== 'tbd' && originalTime.trim() !== '') {
                     try {
                         // Use the same parsing logic as formatGameTimeFromString
@@ -1200,9 +1152,12 @@
                             }
                         }
                         
-                        // Create date with ISO format for better Safari compatibility
-                        // Source times are in CST/CDT from API
-                        const isoDateString = `2025-09-01T${cleanTime}:00-05:00`; // Central Standard Time
+                        // Create date with ISO format for better Safari compatibility.
+                        // Source times are in Central Time from the API.
+                        const dateObj = originalDate ? new Date(originalDate) : new Date();
+                        const isoDate = dateObj.toISOString().split('T')[0];
+                        const offset = getCentralOffset(isoDate);
+                        const isoDateString = `${isoDate}T${cleanTime}:00${offset}`;
                         const gameDate = new Date(isoDateString);
                         
                         // Check if date is valid
@@ -1253,7 +1208,7 @@
             });
         }
 
-        function formatGameTimeFromString(timeString) {
+        function formatGameTimeFromString(timeString, gameDate) {
             // Handle TBD, TBA or missing time
             if (!timeString || timeString.toLowerCase() === 'tba' || timeString.toLowerCase() === 'tbd' || timeString.trim() === '') {
                 return 'TBD';
@@ -1299,19 +1254,21 @@
                     }
                 }
                 
-                // Create a date with proper format for better cross-browser compatibility
-                // Use ISO format which works better on Safari
-                // Source times are in CST/CDT from API
-                const isoDateString = `2025-09-01T${cleanTime}:00-05:00`; // Central Standard Time (UTC-5)
-                const gameDate = new Date(isoDateString);
+                // Create a date with proper format for better cross-browser compatibility.
+                // Source times are in Central Time from the API.
+                const dateObj = gameDate ? new Date(gameDate) : new Date();
+                const isoDate = dateObj.toISOString().split('T')[0];
+                const offset = getCentralOffset(isoDate);
+                const isoDateString = `${isoDate}T${cleanTime}:00${offset}`;
+                const fullGameDate = new Date(isoDateString);
                 
                 // Check if date is valid
-                if (isNaN(gameDate.getTime())) {
+                if (isNaN(fullGameDate.getTime())) {
                     console.warn('Invalid date created from time:', timeString, 'cleaned to:', cleanTime);
                     return 'TBD';
                 }
                 
-                return gameDate.toLocaleTimeString('en-US', { 
+                return fullGameDate.toLocaleTimeString('en-US', { 
                     hour: 'numeric', 
                     minute: '2-digit',
                     timeZone: selectedTimezone,
@@ -1324,9 +1281,14 @@
         }
 
         // Function to get opponent logo from our cached service
-        function getOpponentLogoUrl(opponent) {
-            // Use our Cloudflare cached logo service
-            return `/api/logo?team=${encodeURIComponent(opponent)}`;
+        function getOpponentLogoUrl(opponent, opponentId) {
+            const params = new URLSearchParams({ size: '128' });
+            if (opponentId) {
+                params.set('teamId', opponentId);
+            } else {
+                params.set('team', opponent);
+            }
+            return `/api/logo?${params.toString()}`;
         }
 
         function cleanTeamName(fullName) {

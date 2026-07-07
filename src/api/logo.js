@@ -1,5 +1,10 @@
 export async function handleLogoRequest(request, env) {
     const url = new URL(request.url);
+    const teamId = url.searchParams.get('teamId') || url.searchParams.get('id');
+    const size = getLogoSize(url.searchParams.get('size'));
+    if (teamId && /^\d+$/.test(teamId)) {
+        return redirectToLogo(`https://cdn.collegefootballdata.com/logos/${size}/${teamId}.png`);
+    }
     const teamName = url.searchParams.get('team');
     if (!teamName) {
         return new Response('Team parameter required', { status: 400 });
@@ -9,14 +14,7 @@ export async function handleLogoRequest(request, env) {
     const normalizedTeam = normalizeTeamName(teamName);
     const logoUrl = logoMap[normalizedTeam];
     if (logoUrl) {
-        // Redirect to the actual logo URL
-        return new Response(null, {
-            status: 302,
-            headers: {
-                'Location': logoUrl,
-                'Cache-Control': 'public, max-age=86400' // Cache for 24 hours
-            }
-        });
+        return redirectToLogo(logoUrl);
     }
     // Return a generic/default logo if team not found
     return new Response(null, {
@@ -27,10 +25,60 @@ export async function handleLogoRequest(request, env) {
         }
     });
 }
+function redirectToLogo(logoUrl) {
+    return new Response(null, {
+        status: 302,
+        headers: {
+            'Location': logoUrl,
+            'Cache-Control': 'public, max-age=86400'
+        }
+    });
+}
+function getLogoSize(size) {
+    const validSizes = new Set(['16', '32', '48', '64', '96', '128', '256', '500']);
+    return size && validSizes.has(size) ? size : '128';
+}
 function normalizeTeamName(teamName) {
-    return teamName
-        .toLowerCase()
-        .trim()
+    const normalized = teamName.toLowerCase().trim();
+    // Handle special cases first to avoid over-normalization
+    if (normalized.includes('michigan state')) {
+        return 'michigan state';
+    }
+    if (normalized.includes('ohio state')) {
+        return 'ohio state';
+    }
+    if (normalized.includes('penn state')) {
+        return 'penn state';
+    }
+    if (normalized.includes('iowa state')) {
+        return 'iowa state';
+    }
+    if (normalized.includes('kansas state')) {
+        return 'kansas state';
+    }
+    if (normalized.includes('oklahoma state')) {
+        return 'oklahoma state';
+    }
+    if (normalized.includes('arizona state')) {
+        return 'arizona state';
+    }
+    if (normalized.includes('washington state')) {
+        return 'washington state';
+    }
+    if (normalized.includes('oregon state')) {
+        return 'oregon state';
+    }
+    if (normalized.includes('florida state')) {
+        return 'florida state';
+    }
+    if (normalized.includes('nc state') || normalized.includes('north carolina state')) {
+        return 'nc state';
+    }
+    if (normalized.includes('mississippi state')) {
+        return 'mississippi state';
+    }
+    // Apply general normalization for other teams
+    return normalized
         // Remove common suffixes
         .replace(/\s+(bearcats|zips|panthers|wolverines|spartans|terrapins|golden gophers|wildcats|trojans|bruins|buckeyes|nittany lions|hawkeyes|cornhuskers|aggies|bulldogs|tigers|bears|eagles|cardinals|cowboys|sooners|longhorns|volunteers|commodores|rebels|crimson tide|razorbacks)$/i, '')
         // Remove "university of" and "state"

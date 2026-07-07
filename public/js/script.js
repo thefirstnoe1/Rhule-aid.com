@@ -21,31 +21,6 @@ document.addEventListener('click', function(event) {
     }
 });
 
-// Fallback data (minimal, only used if API completely fails)
-const fallbackScheduleData = [
-    {
-        date: "Thursday, August 28, 2025",
-        time: "9:00 PM",
-        opponent: "Cincinnati Bearcats",
-        location: "Arrowhead Stadium, Kansas City, MO",
-        tvNetwork: "ESPN",
-        isHome: false,
-        isNeutral: true
-    },
-    {
-        date: "Saturday, September 6, 2025", 
-        opponent: "Akron Zips",
-        time: "7:30 PM",
-        location: "Memorial Stadium, Lincoln, NE",
-        tvNetwork: "BTN",
-        isHome: true
-    }
-];
-
-const fallbackRosterData = [
-    { number: "8", name: "Dylan Raiola", position: "QB", height: "6'3\"", weight: "220", class: "Fr.", hometown: "Buford, GA", stats: "5-star recruit", group: "offense" }
-];
-
 // Current filters
 let currentScheduleFilter = 'all';
 let currentTimezone = 'America/Chicago'; // Default to Central Time (Nebraska's timezone)
@@ -78,7 +53,7 @@ function convertTimeToTimezone(timeString, targetTimezone) {
         }
         
         // Create a Central Time date for conversion
-        const centralTimeString = `2025-09-01T${hour24.toString().padStart(2, '0')}:${(minutes || 0).toString().padStart(2, '0')}:00-05:00`;
+        const centralTimeString = `2026-09-01T${hour24.toString().padStart(2, '0')}:${(minutes || 0).toString().padStart(2, '0')}:00-05:00`;
         const centralDate = new Date(centralTimeString);
         
         if (isNaN(centralDate.getTime())) {
@@ -214,8 +189,7 @@ async function fetchRosterData() {
         
     } catch (error) {
         console.error('Failed to fetch roster data:', error);
-        // Return minimal fallback data if API fails
-        return fallbackRosterData;
+        return [];
     }
 }
 
@@ -273,6 +247,7 @@ async function fetchScheduleData() {
                 date: game.date,
                 time: game.time,
                 opponent: game.opponent,
+                opponentId: game.opponentId,
                 location: game.location,
                 tvNetwork: tvNetwork,
                 isHome: game.isHome,
@@ -287,14 +262,13 @@ async function fetchScheduleData() {
         
     } catch (error) {
         console.error('Failed to fetch schedule data:', error);
-        // Return minimal fallback data if API fails
-        return fallbackScheduleData;
+        return [];
     }
 }
 
-// Global variables for current data (initialized with minimal fallback)
-let currentRosterData = fallbackRosterData;
-let currentScheduleData = fallbackScheduleData;
+// Global variables for current API data
+let currentRosterData = [];
+let currentScheduleData = [];
 
 // Function to get likely TV network based on opponent and game details
 function getLikelyTVNetwork(opponent, isHome, date) {
@@ -308,37 +282,29 @@ function getLikelyTVNetwork(opponent, isHome, date) {
         'Michigan State': 'BTN',
         'Minnesota': 'BTN',
         'Maryland': 'BTN',
+        'Indiana': 'BTN',
+        'Oregon': 'FOX',
+        'Washington': 'NBC',
+        'Illinois': 'FOX',
+        'Rutgers': 'BTN',
         'Iowa': 'CBS', // Rivalry game
-        'Cincinnati': 'ESPN',
-        'Akron': 'BTN'
+        'Ohio': 'FS1',
+        'Bowling Green': 'FS1',
+        'North Dakota': 'BTN'
     };
     
     return networkMap[opponent] || 'TBD';
 }
 
-// Function to get opponent logo from Loodibee
-function getOpponentLogoUrl(opponent) {
-    // Map opponent names to Loodibee URL naming convention
-    const loodibeeTeamMap = {
-        'Cincinnati Bearcats': 'Cincinnati_Bearcats_logo',
-        'Akron Zips': 'Akron_Zips_logo',
-        'HCU Huskies': null, // Not in Big Ten, will fall back to initial
-        'Michigan Wolverines': 'Michigan_Wolverines_logo',
-        'Michigan State Spartans': 'Michigan_State_Spartans_logo',
-        'Maryland Terrapins': 'Maryland_Terrapins_logo',
-        'Minnesota Golden Gophers': 'Minnesota_Golden_Gophers_logo',
-        'Northwestern Wildcats': 'Northwestern_Wildcats_logo',
-        'USC Trojans': 'USC_Trojans_logo',
-        'UCLA Bruins': 'UCLA_Bruins', // Note: UCLA uses different naming pattern
-        'Penn State Nittany Lions': 'Penn_State_Nittany_Lions_logo',
-        'Iowa Hawkeyes': 'Iowa_Hawkeyes_logo'
-    };
-    
-    const teamLogo = loodibeeTeamMap[opponent];
-    if (teamLogo) {
-        return `https://loodibee.com/wp-content/uploads/${teamLogo}.png`;
+// Function to get opponent logo from our API (which uses ESPN URLs)
+function getOpponentLogoUrl(opponent, opponentId) {
+    const params = new URLSearchParams({ size: '128' });
+    if (opponentId) {
+        params.set('teamId', opponentId);
+    } else {
+        params.set('team', opponent);
     }
-    return null;
+    return `/api/logo?${params.toString()}`;
 }
 
 // Function to get team initial and color (fallback)
@@ -347,9 +313,17 @@ function getTeamInitial(opponent) {
         'Cincinnati': '#e00122',
         'Akron': '#041e42',
         'Houston Christian': '#663399',
+        'Ohio': '#00694e',
+        'Bowling Green': '#fe5000',
+        'North Dakota': '#009a44',
         'Michigan': '#ffcb05',
         'Michigan State': '#18453b',
         'Maryland': '#e03a3e',
+        'Indiana': '#990000',
+        'Oregon': '#154733',
+        'Washington': '#4b2e83',
+        'Illinois': '#13294b',
+        'Rutgers': '#cc0033',
         'Minnesota': '#7a0019',
         'Northwestern': '#4e2a84',
         'USC': '#990000',
@@ -398,7 +372,7 @@ function renderSchedule(filter = 'all') {
     console.log('Filtered games:', filteredGames.length);
     
     const scheduleHTML = filteredGames.map(game => {
-        const logoUrl = getOpponentLogoUrl(game.opponent);
+        const logoUrl = getOpponentLogoUrl(game.opponent, game.opponentId);
         const teamInfo = getTeamInitial(game.opponent);
         const gameDate = new Date(game.date);
         const dayOfWeek = gameDate.toLocaleDateString('en-US', { weekday: 'short' });
@@ -587,7 +561,7 @@ function initializeCountdown() {
         if (nextGameInfo) {
             // Show time without conversion since it's already in local time
             const displayTime = nextGame.time && nextGame.time !== 'TBD' ? nextGame.time + ' CT' : 'TBD';
-            nextGameInfo.textContent = `vs ${nextGame.opponent} • ${nextGame.date.replace(', 2025', '')} • ${displayTime}`;
+            nextGameInfo.textContent = `vs ${nextGame.opponent} • ${nextGame.date.replace(/, \d{4}$/, '')} • ${displayTime}`;
         }
         
         console.log('Countdown updated:', days, 'days', hours, 'hours');
@@ -647,7 +621,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         rosterContainer.innerHTML = '<div class="loading-message">Loading roster data...</div>';
     }
     
-    // Initialize countdown with fallback data first
+    // Initialize countdown while API data loads.
     initializeCountdown();
     
     // Try to load fresh API data
@@ -665,8 +639,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         console.log('First schedule game location:', apiScheduleData[0]?.location);
         console.log('Schedule data sample:', apiScheduleData.slice(0, 2));
     } catch (error) {
-        console.error('Failed to load API data, using minimal fallback:', error);
-        // currentScheduleData and currentRosterData remain as fallback values
+        console.error('Failed to load API data:', error);
     }
     
     // Render components with whatever data we have
@@ -713,8 +686,6 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 // Export for debugging
 window.NebraskaFootball = {
-    fallbackScheduleData,
-    fallbackRosterData,
     currentScheduleData,
     currentRosterData,
     renderSchedule,
@@ -727,3 +698,70 @@ window.NebraskaFootball = {
 };
 
 console.log('Script loaded successfully!');
+
+// Dark Mode Toggle Functionality for Rhule-aid.com
+(function() {
+  const THEME_KEY = 'rhule-aid-theme';
+  
+  function getCurrentTheme() {
+    return document.documentElement.getAttribute('data-theme') || 'light';
+  }
+  
+  function setTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem(THEME_KEY, theme);
+    updateToggleButton();
+  }
+  
+  function toggleTheme() {
+    const currentTheme = getCurrentTheme();
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    setTheme(newTheme);
+  }
+  
+  function updateToggleButton() {
+    const toggleButton = document.querySelector('.dark-mode-toggle') || 
+                        document.querySelector('#theme-toggle') || 
+                        document.querySelector('.theme-toggle');
+    
+    if (toggleButton) {
+      const isDark = getCurrentTheme() === 'dark';
+      toggleButton.setAttribute('aria-pressed', isDark);
+      toggleButton.setAttribute('title', isDark ? 'Toggle Light Mode' : 'Toggle Dark Mode');
+      
+      if (toggleButton.innerHTML.includes('🌙') || toggleButton.innerHTML.includes('☀️')) {
+        toggleButton.innerHTML = isDark ? '☀️' : '🌙';
+      }
+    }
+  }
+  
+  function loadSavedTheme() {
+    const savedTheme = localStorage.getItem(THEME_KEY);
+    if (savedTheme) {
+      setTheme(savedTheme);
+    } else {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      setTheme(prefersDark ? 'dark' : 'light');
+    }
+  }
+  
+  function initDarkMode() {
+    loadSavedTheme();
+    
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem(THEME_KEY)) {
+        setTheme(e.matches ? 'dark' : 'light');
+      }
+    });
+  }
+  
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initDarkMode);
+  } else {
+    initDarkMode();
+  }
+  
+  window.toggleDarkMode = toggleTheme;
+  window.toggleTheme = toggleTheme;
+  window.setTheme = setTheme;
+})();

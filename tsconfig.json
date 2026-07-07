@@ -1,8 +1,12 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "module": "ES2022",
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "module": "esnext",
     "moduleResolution": "bundler",
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
@@ -20,10 +24,23 @@
     "jsx": "react-jsx",
     "types": [
       "@cloudflare/workers-types"
-    ]
+    ],
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "noEmit": true,
+    "incremental": true
   },
   "include": [
-    "src/**/*"
+    "next-env.d.ts",
+    ".next/types/**/*.ts",
+    "app/**/*",
+    "src/**/*",
+    "next.config.ts",
+    "open-next.config.ts",
+    ".next/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

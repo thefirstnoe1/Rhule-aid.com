@@ -36,10 +36,6 @@ export async function handleRosterRequest(request, env) {
         catch (error) {
             console.warn('Failed to scrape roster:', error);
         }
-        // If scraping failed, use comprehensive fallback roster
-        if (rosterData.length === 0) {
-            rosterData = getComprehensiveRoster();
-        }
         // Sort the roster data based on the requested sort parameter
         const sortedData = sortRosterData(rosterData, sortBy);
         // Cache the result (unsorted, we'll sort on response)
@@ -61,11 +57,10 @@ export async function handleRosterRequest(request, env) {
         // Parse query parameters for error response too
         const url = new URL(request.url);
         const sortBy = url.searchParams.get('sort') || 'number';
-        const fallbackData = sortRosterData(getComprehensiveRoster(), sortBy);
         return new Response(JSON.stringify({
             success: false,
             error: 'Failed to fetch roster',
-            data: fallbackData,
+            data: [],
             sortBy: sortBy
         }), {
             status: 200,
@@ -158,12 +153,12 @@ async function scrapeNebraskaRoster() {
                 }
             }
         }
-        // Fallback: Try list view if table view fails
+        // Try list view if table view fails.
         if (players.length === 0) {
             const listItemRegex = /<li[^>]*class="[^"]*roster-list-item[^"]*"[^>]*>[\s\S]*?<\/li>/gi;
             let cardMatches = html.match(listItemRegex);
             if (cardMatches) {
-                console.log(`Fallback: Found ${cardMatches.length} roster list items`);
+                console.log(`Found ${cardMatches.length} roster list items`);
                 for (const card of cardMatches) {
                     // Extract player number - look for jersey-number class specifically
                     const numberMatch = card.match(/roster-list-item__jersey-number[^>]*>(\d+)</i) ||
@@ -178,7 +173,7 @@ async function scrapeNebraskaRoster() {
                         card.match(/player-name[^>]*>([^<]+)</i) ||
                         card.match(/<a[^>]*href="[^"]*roster[^"]*"[^>]*>([^<]+)</i);
                     const name = nameMatch ? (nameMatch[1] || '').trim() : '';
-                    // Extract position - may not be available in list view, will use fallback  
+                    // Extract position - may not be available in list view.
                     const positionMatch = card.match(/position[^>]*>([^<]+)</i) ||
                         card.match(/>(Quarterback|Running Back|Wide Receiver|Tight End|Offensive Line|Defensive Line|Linebacker|Defensive Back|Place Kicker|Punter)/i);
                     let position = positionMatch ? (positionMatch[1] || '').trim() : '';
@@ -257,43 +252,6 @@ async function scrapeNebraskaRoster() {
                 }
             }
         }
-        // Method 3: Extract from the current 2025 roster data visible in the HTML
-        if (players.length === 0) {
-            // Based on the webfetch, extract key players we can see
-            const visiblePlayers = [
-                { number: 30, name: "Tristan Alvano", position: "Place Kicker", class: "Sophomore", height: "6′1″", weight: "210 lbs", hometown: "Omaha, Neb." },
-                { number: 2, name: "Jacory Barney Jr.", position: "Wide Receiver", class: "Sophomore", height: "6′0″", weight: "170 lbs", hometown: "Florida City, Fla." },
-                { number: 4, name: "Janiran Bonner", position: "Wide Receiver", class: "Junior", height: "6′2″", weight: "225 lbs", hometown: "Ellenwood, Ga." },
-                { number: 15, name: "Dylan Raiola", position: "Quarterback", class: "Sophomore", height: "6′3″", weight: "230 lbs", hometown: "Buford, Ga." },
-                { number: 10, name: "Heinrich Haarberg", position: "Tight End", class: "Senior", height: "6′5″", weight: "230 lbs", hometown: "Kearney, Neb." },
-                { number: 21, name: "Emmett Johnson", position: "Running Back", class: "Junior", height: "5′11″", weight: "200 lbs", hometown: "Minneapolis, Minn." },
-                { number: 6, name: "Dane Key", position: "Wide Receiver", class: "Senior", height: "6′3″", weight: "210 lbs", hometown: "Lexington, Ky." },
-                { number: 1, name: "Ceyair Wright", position: "Defensive Back", class: "Senior", height: "6′0″", weight: "190 lbs", hometown: "Los Angeles, Calif." },
-                { number: 8, name: "DeShon Singleton", position: "Defensive Back", class: "Senior", height: "6′3″", weight: "210 lbs", hometown: "Greensburg, La." },
-                { number: 5, name: "Riley Van Poppel", position: "Defensive Lineman", class: "Sophomore", height: "6′5″", weight: "295 lbs", hometown: "Argyle, Texas" },
-                { number: 0, name: "Javin Wright", position: "Linebacker", class: "Senior", height: "6′5″", weight: "230 lbs", hometown: "Chandler, Ariz." },
-                { number: 7, name: "Malcolm Hartzog Jr.", position: "Defensive Back", class: "Senior", height: "5′9″", weight: "185 lbs", hometown: "Silver Creek, Miss." },
-                { number: 9, name: "Vincent Shavers Jr.", position: "Linebacker", class: "Sophomore", height: "6′1″", weight: "225 lbs", hometown: "Miami, Fla." },
-                { number: 3, name: "Marques Buford Jr.", position: "Defensive Back", class: "Senior", height: "5′11″", weight: "190 lbs", hometown: "Chicago, Ill." },
-                { number: 69, name: "Turner Corcoran", position: "Offensive Lineman", class: "Senior", height: "6′6″", weight: "310 lbs", hometown: "Lawrence, Kan." },
-                { number: 65, name: "Teddy Prochazka", position: "Offensive Lineman", class: "Senior", height: "6′10″", weight: "320 lbs", hometown: "Elkhorn, Neb." }
-            ];
-            // Only add players that exist in the HTML to avoid stale data
-            for (const player of visiblePlayers) {
-                if (html.includes(player.name) || html.includes(player.name.replace(/[^a-zA-Z\s]/g, ''))) {
-                    players.push({
-                        number: player.number,
-                        name: player.name,
-                        position: player.position,
-                        class: player.class,
-                        height: player.height,
-                        weight: player.weight,
-                        hometown: player.hometown,
-                        category: categorizePosition(player.position)
-                    });
-                }
-            }
-        }
         console.log(`Extracted ${players.length} players from roster`);
         // Sort players by jersey number to ensure consistent ordering
         players.sort((a, b) => a.number - b.number);
@@ -347,79 +305,4 @@ function categorizePosition(position) {
     }
     // Default to offense if unknown
     return 'offense';
-}
-function getComprehensiveRoster() {
-    return [
-        // Quarterbacks
-        { number: 1, name: "Dylan Raiola", position: "QB", class: "Fr", height: "6'3\"", weight: "220", hometown: "Chandler, AZ", category: "offense" },
-        { number: 10, name: "Nick Henrich", position: "QB", class: "Jr", height: "6'3\"", weight: "210", hometown: "Elkhorn, NE", category: "offense" },
-        { number: 16, name: "Braxton Gottschalk", position: "QB", class: "Fr", height: "6'2\"", weight: "200", hometown: "West Point, NE", category: "offense" },
-        // Running Backs
-        { number: 3, name: "Rahmir Johnson", position: "RB", class: "Sr", height: "5'11\"", weight: "215", hometown: "Newark, NJ", category: "offense" },
-        { number: 4, name: "Dante Dowdell", position: "RB", class: "So", height: "6'1\"", weight: "225", hometown: "Pickerington, OH", category: "offense" },
-        { number: 20, name: "Emmett Johnson", position: "RB", class: "So", height: "6'0\"", weight: "210", hometown: "Hinckley, MN", category: "offense" },
-        { number: 25, name: "Gabe Ervin", position: "RB", class: "Fr", height: "6'0\"", weight: "205", hometown: "Blair, NE", category: "offense" },
-        { number: 32, name: "Blake Boyd", position: "FB", class: "Jr", height: "6'1\"", weight: "240", hometown: "Bellevue, NE", category: "offense" },
-        // Wide Receivers
-        { number: 5, name: "Isaiah Neyor", position: "WR", class: "Sr", height: "6'3\"", weight: "205", hometown: "Austin, TX", category: "offense" },
-        { number: 7, name: "Jacory Barney Jr.", position: "WR", class: "Jr", height: "5'11\"", weight: "185", hometown: "Katy, TX", category: "offense" },
-        { number: 8, name: "Malachi Coleman", position: "WR", class: "So", height: "6'3\"", weight: "200", hometown: "East St. Louis, IL", category: "offense" },
-        { number: 11, name: "Janiran Bonner", position: "WR", class: "Fr", height: "6'2\"", weight: "190", hometown: "Tampa, FL", category: "offense" },
-        { number: 15, name: "Isaiah Garcia-Castaneda", position: "WR", class: "Fr", height: "6'0\"", weight: "175", hometown: "Gretna, NE", category: "offense" },
-        { number: 17, name: "Jaylen Lloyd", position: "WR", class: "Jr", height: "6'0\"", weight: "180", hometown: "Omaha, NE", category: "offense" },
-        { number: 80, name: "Kaine Reilly", position: "WR", class: "So", height: "6'1\"", weight: "185", hometown: "Elkhorn, NE", category: "offense" },
-        { number: 81, name: "Carter Nelson", position: "WR", class: "Fr", height: "6'4\"", weight: "200", hometown: "Council Bluffs, IA", category: "offense" },
-        // Tight Ends
-        { number: 14, name: "Thomas Fidone II", position: "TE", class: "Jr", height: "6'5\"", weight: "245", hometown: "Council Bluffs, IA", category: "offense" },
-        { number: 85, name: "Nate Boerkircher", position: "TE", class: "Sr", height: "6'4\"", weight: "250", hometown: "Bellevue, NE", category: "offense" },
-        { number: 86, name: "Benjamin Brahmer", position: "TE", class: "So", height: "6'5\"", weight: "240", hometown: "Howells, NE", category: "offense" },
-        { number: 89, name: "AJ Rollins", position: "TE", class: "Jr", height: "6'3\"", weight: "235", hometown: "Lincoln, NE", category: "offense" },
-        // Offensive Line
-        { number: 50, name: "Bryce Benhart", position: "OT", class: "Sr", height: "6'8\"", weight: "315", hometown: "Lakeville, MN", category: "offense" },
-        { number: 55, name: "Ben Scott", position: "C", class: "Sr", height: "6'4\"", weight: "300", hometown: "Elkhorn, NE", category: "offense" },
-        { number: 58, name: "Micah Mazzccua", position: "OG", class: "Jr", height: "6'4\"", weight: "310", hometown: "Bellevue, NE", category: "offense" },
-        { number: 65, name: "Henry Lutovsky", position: "OT", class: "So", height: "6'6\"", weight: "305", hometown: "Lincoln, NE", category: "offense" },
-        { number: 70, name: "Teddy Prochazka", position: "OT", class: "Jr", height: "6'7\"", weight: "320", hometown: "Omaha, NE", category: "offense" },
-        { number: 71, name: "Gunnar Gottula", position: "OG", class: "So", height: "6'4\"", weight: "295", hometown: "Pierce, NE", category: "offense" },
-        { number: 72, name: "Brock Knutson", position: "OT", class: "Fr", height: "6'7\"", weight: "290", hometown: "Papillion, NE", category: "offense" },
-        { number: 73, name: "Justin Evans-Jenkins", position: "OT", class: "Jr", height: "6'6\"", weight: "325", hometown: "Council Bluffs, IA", category: "offense" },
-        { number: 74, name: "Maverick Noonan", position: "OG", class: "So", height: "6'3\"", weight: "300", hometown: "Bellevue, NE", category: "offense" },
-        { number: 75, name: "Corcoran Husz", position: "C", class: "Jr", height: "6'3\"", weight: "295", hometown: "Papillion, NE", category: "offense" },
-        // Defensive Line
-        { number: 21, name: "Nash Hutmacher", position: "DE", class: "Sr", height: "6'6\"", weight: "285", hometown: "Chamberlain, SD", category: "defense" },
-        { number: 22, name: "Ty Robinson", position: "DT", class: "Jr", height: "6'3\"", weight: "295", hometown: "Sunrise, FL", category: "defense" },
-        { number: 91, name: "Riley Van Poppel", position: "DE", class: "So", height: "6'4\"", weight: "265", hometown: "Elkhorn, NE", category: "defense" },
-        { number: 92, name: "Blaise Gunnerson", position: "DT", class: "Jr", height: "6'2\"", weight: "290", hometown: "Lincoln, NE", category: "defense" },
-        { number: 93, name: "Jimari Butler", position: "DE", class: "Jr", height: "6'3\"", weight: "270", hometown: "Bellevue, NE", category: "defense" },
-        { number: 94, name: "Princewill Umanmielen", position: "DE", class: "Jr", height: "6'4\"", weight: "280", hometown: "Manor, TX", category: "defense" },
-        { number: 95, name: "Cameron Lenhardt", position: "DT", class: "So", height: "6'4\"", weight: "285", hometown: "Wahoo, NE", category: "defense" },
-        { number: 97, name: "Kai Wallin", position: "DE", class: "Fr", height: "6'5\"", weight: "250", hometown: "Omaha, NE", category: "defense" },
-        { number: 99, name: "Elijah Jeudy", position: "DT", class: "So", height: "6'2\"", weight: "300", hometown: "Miami, FL", category: "defense" },
-        // Linebackers
-        { number: 23, name: "MJ Sherman", position: "LB", class: "So", height: "6'2\"", weight: "235", hometown: "Cedar Rapids, IA", category: "defense" },
-        { number: 31, name: "John Bullock", position: "LB", class: "Jr", height: "6'1\"", weight: "230", hometown: "Bellevue, NE", category: "defense" },
-        { number: 33, name: "Vincent Shavers Jr.", position: "LB", class: "Sr", height: "6'0\"", weight: "225", hometown: "Philadelphia, PA", category: "defense" },
-        { number: 34, name: "Luke Reimer", position: "LB", class: "Sr", height: "6'2\"", weight: "240", hometown: "Papillion, NE", category: "defense" },
-        { number: 35, name: "Ernest Hausmann", position: "LB", class: "Jr", height: "6'1\"", weight: "230", hometown: "Omaha, NE", category: "defense" },
-        { number: 36, name: "Stefon Thompson", position: "LB", class: "So", height: "6'3\"", weight: "225", hometown: "Lincoln, NE", category: "defense" },
-        { number: 40, name: "Randolph Kpai", position: "LB", class: "Fr", height: "6'2\"", weight: "215", hometown: "Bellevue, NE", category: "defense" },
-        // Defensive Backs
-        { number: 2, name: "Ceyair Wright", position: "CB", class: "Jr", height: "6'1\"", weight: "185", hometown: "Los Angeles, CA", category: "defense" },
-        { number: 6, name: "Quinton Newsome", position: "CB", class: "Sr", height: "6'1\"", weight: "190", hometown: "IMG Academy, FL", category: "defense" },
-        { number: 12, name: "Kwinten Ives", position: "S", class: "Sr", height: "6'2\"", weight: "200", hometown: "Las Vegas, NV", category: "defense" },
-        { number: 18, name: "DeShon Singleton", position: "S", class: "Sr", height: "6'1\"", weight: "200", hometown: "Jacksonville, FL", category: "defense" },
-        { number: 19, name: "Tommi Hill", position: "CB", class: "So", height: "5'10\"", weight: "175", hometown: "Bellevue, NE", category: "defense" },
-        { number: 24, name: "Javin Wright", position: "CB", class: "Fr", height: "6'0\"", weight: "180", hometown: "Omaha, NE", category: "defense" },
-        { number: 26, name: "Isaac Gifford", position: "S", class: "Sr", height: "6'0\"", weight: "195", hometown: "Fremont, NE", category: "defense" },
-        { number: 27, name: "Marques Buford Jr.", position: "CB", class: "Jr", height: "5'11\"", weight: "180", hometown: "Dallas, TX", category: "defense" },
-        { number: 28, name: "Malcolm Hartzog Jr.", position: "CB", class: "Jr", height: "6'0\"", weight: "185", hometown: "Millville, NJ", category: "defense" },
-        { number: 29, name: "Myles Farmer", position: "S", class: "So", height: "6'2\"", weight: "190", hometown: "Papillion, NE", category: "defense" },
-        { number: 30, name: "Koby Bretz", position: "S", class: "Jr", height: "6'1\"", weight: "195", hometown: "Kearney, NE", category: "defense" },
-        // Special Teams
-        { number: 9, name: "John Hohl", position: "P", class: "Jr", height: "6'1\"", weight: "195", hometown: "Papillion, NE", category: "special" },
-        { number: 13, name: "Tristan Alvano", position: "K", class: "So", height: "5'11\"", weight: "180", hometown: "Kearney, NE", category: "special" },
-        { number: 39, name: "John Hohl", position: "P", class: "Jr", height: "6'1\"", weight: "195", hometown: "Papillion, NE", category: "special" },
-        { number: 41, name: "Brian Buschini", position: "P", class: "Sr", height: "6'1\"", weight: "185", hometown: "Prosper, TX", category: "special" },
-        { number: 48, name: "James Carnie", position: "LS", class: "Jr", height: "6'2\"", weight: "225", hometown: "Papillion, NE", category: "special" }
-    ];
 }

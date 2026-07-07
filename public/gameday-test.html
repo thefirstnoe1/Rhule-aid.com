@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head><title>Gameday Test</title></head>
+<body>
+<div id="result">Loading...</div>
+<script>
+async function testGameDay() {
+    try {
+        console.log('Loading game day information...');
+        
+        const response = await fetch('/api/schedule');
+        const data = await response.json();
+        
+        if (!data.success || !data.data || data.data.length === 0) {
+            throw new Error('No schedule data available');
+        }
+
+        console.log('Schedule data loaded:', data.data.length, 'games');
+
+        // Find the next upcoming game
+        const now = new Date();
+        const upcomingGames = data.data.filter(game => {
+            const gameDate = new Date(game.date);
+            return gameDate > now;
+        }).sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        if (upcomingGames.length === 0) {
+            document.getElementById('result').innerHTML = 'No upcoming games';
+            return;
+        }
+
+        const nextGame = upcomingGames[0];
+        console.log('Next game found:', nextGame);
+
+        // Test time conversion
+        function formatGameTimeFromCT(timeString) {
+            if (!timeString || timeString.toLowerCase() === 'tba' || timeString.toLowerCase() === 'tbd' || timeString.trim() === '') {
+                return 'TBD';
+            }
+            
+            try {
+                const selectedTimezone = 'America/Chicago';
+                let cleanTime = timeString.trim();
+                
+                if (cleanTime.match(/^\d{1,2}:\d{2}\s*(AM|PM)$/i)) {
+                    const timeMatch = cleanTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+                    if (timeMatch) {
+                        let hours = parseInt(timeMatch[1]);
+                        const minutes = timeMatch[2];
+                        const ampm = timeMatch[3].toUpperCase();
+                        
+                        if (ampm === 'PM' && hours !== 12) {
+                            hours += 12;
+                        } else if (ampm === 'AM' && hours === 12) {
+                            hours = 0;
+                        }
+                        
+                        cleanTime = `${hours.toString().padStart(2, '0')}:${minutes}`;
+                    }
+                }
+                
+                const isoDateString = `2025-09-01T${cleanTime}:00-04:00`;
+                const gameDate = new Date(isoDateString);
+                
+                if (isNaN(gameDate.getTime())) {
+                    return 'TBD';
+                }
+                
+                return gameDate.toLocaleTimeString('en-US', { 
+                    hour: 'numeric', 
+                    minute: '2-digit',
+                    timeZone: selectedTimezone,
+                    timeZoneName: 'short'
+                });
+            } catch (error) {
+                console.error('Error formatting time:', timeString, error);
+                return 'TBD';
+            }
+        }
+
+        const convertedTime = formatGameTimeFromCT(nextGame.time);
+        
+        document.getElementById('result').innerHTML = `
+            <h2>Next Game Found!</h2>
+            <p><strong>Opponent:</strong> ${nextGame.opponent}</p>
+            <p><strong>Date:</strong> ${nextGame.date}</p>
+            <p><strong>Original Time:</strong> ${nextGame.time} EDT</p>
+            <p><strong>Converted Time:</strong> ${convertedTime}</p>
+            <p><strong>Location:</strong> ${nextGame.location}</p>
+        `;
+        
+    } catch (error) {
+        console.error('Error loading game day:', error);
+        document.getElementById('result').innerHTML = 'Error: ' + error.message;
+    }
+}
+
+testGameDay();
+</script>
+</body>
+</html>

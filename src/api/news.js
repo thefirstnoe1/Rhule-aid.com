@@ -44,7 +44,7 @@ export async function handleNewsRequest(request, env) {
         catch (error) {
             debugInfo.rssError = error instanceof Error ? error.message : 'Unknown RSS error';
             console.warn('Failed to parse RSS feed:', debugInfo.rssError);
-            // Fallback: Scrape Nebraska Athletics football news
+            // Secondary source: scrape Nebraska Athletics football news
             try {
                 console.log('Attempting to scrape athletics news...');
                 const athleticsNews = await scrapeNebraskaFootballNews();
@@ -58,15 +58,11 @@ export async function handleNewsRequest(request, env) {
                 console.warn('Failed to scrape Athletics football news:', debugInfo.scrapeError);
             }
         }
-        // If no news was scraped, use enhanced fallback with debug info
         if (newsData.length === 0) {
-            console.warn('No news scraped, using fallback. Debug info:', debugInfo);
-            newsData = getEnhancedNebraskaNews();
-            debugInfo.usingFallback = true;
+            console.warn('No news scraped. Debug info:', debugInfo);
         }
         else {
             console.log(`Successfully retrieved ${newsData.length} live news articles`);
-            debugInfo.usingFallback = false;
         }
         // Sort by date and limit to most recent 15 articles
         newsData.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
@@ -92,7 +88,7 @@ export async function handleNewsRequest(request, env) {
         return new Response(JSON.stringify({
             success: false,
             error: 'Failed to fetch news',
-            data: getEnhancedNebraskaNews(),
+            data: [],
             debug: error instanceof Error ? error.message : 'Unknown error'
         }), {
             status: 200,
@@ -152,7 +148,6 @@ async function parseNebraskaRSSFeed() {
                 }
             }
             else {
-                // Fallback: use title as description if no description available
                 description = title ? `Latest Nebraska Football news: ${title}` : 'Nebraska Football update';
             }
             // Extract publication date
@@ -188,7 +183,6 @@ async function parseNebraskaRSSFeed() {
                     thumbnail = mediaMatch[1];
                 }
             }
-            // Fallback thumbnail for Nebraska articles
             if (!thumbnail) {
                 thumbnail = 'https://huskers.com/images/logos/site/site.png';
             }
@@ -248,7 +242,7 @@ async function scrapeNebraskaFootballNews() {
                 });
             }
         }
-        // Fallback: Look for different HTML structure if first pattern fails
+        // Try a simpler HTML structure if the article card pattern fails.
         if (articles.length === 0) {
             const simpleRegex = /<h[2-4][^>]*>.*?<a[^>]*href="([^"]*)"[^>]*>([^<]+)<\/a>.*?<\/h[2-4]>/gis;
             let simpleMatch;
@@ -275,55 +269,4 @@ async function scrapeNebraskaFootballNews() {
         console.error('Nebraska Athletics scrape error:', error);
         return [];
     }
-}
-function getEnhancedNebraskaNews() {
-    const now = new Date();
-    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-    const threeHoursAgo = new Date(now.getTime() - 3 * 60 * 60 * 1000);
-    const sixHoursAgo = new Date(now.getTime() - 6 * 60 * 60 * 1000);
-    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
-    const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
-    return [
-        {
-            title: "**RSS FEED FALLBACK** Checking in with Nyziah Hunter | Nebraska Football 2025",
-            summary: "This is fallback content. The RSS feed is not working properly and needs debugging.",
-            description: "This fallback news indicates that our RSS parsing is failing. We should be getting live news from huskers.com but are falling back to static content.",
-            link: "https://huskers.com/news/2025/08/21/checking-in-with-nyziah-hunter-nebraska-football-2025",
-            source: "FALLBACK - Nebraska Athletics",
-            publishedAt: oneHourAgo.toISOString(),
-            category: "fallback",
-            thumbnail: "https://huskers.com/images/2024/8/2/Rhule_Matt_2024.jpg"
-        },
-        {
-            title: "**RSS FEED FALLBACK** Satterfield Meets the Media",
-            summary: "This is fallback content indicating RSS parsing issues.",
-            description: "Another fallback item. If you see this, it means the live RSS feed from huskers.com is not being parsed correctly.",
-            link: "https://huskers.com/news/2025/08/20/satterfield-meets-the-media",
-            source: "FALLBACK - Nebraska Athletics",
-            publishedAt: threeHoursAgo.toISOString(),
-            category: "fallback",
-            thumbnail: "https://huskers.com/images/2024/memorial-stadium-renovation.jpg"
-        },
-        {
-            title: "**RSS FEED FALLBACK** Key Named to Senior Bowl Top 300 List",
-            summary: "This is fallback content. RSS feed parsing is not working correctly.",
-            description: "This should be replaced by live RSS content from the Nebraska Athletics football feed if the API was working properly.",
-            link: "https://huskers.com/news/2025/08/20/key-named-to-senior-bowl-top-300-list",
-            source: "FALLBACK - Nebraska Athletics",
-            publishedAt: sixHoursAgo.toISOString(),
-            category: "fallback",
-            thumbnail: "https://huskers.com/images/2024/transfer-portal-success.jpg"
-        },
-        {
-            title: "**DEBUG** RSS Feed Status Check",
-            summary: "If you see this message, the RSS feed parsing is completely failing and falling back to static content.",
-            description: "This debug message should help identify that we need to fix the RSS parsing logic in the Cloudflare Worker.",
-            link: "https://huskers.com/sports/football",
-            source: "DEBUG - Rhule-Aid System",
-            publishedAt: oneDayAgo.toISOString(),
-            category: "debug",
-            thumbnail: "https://huskers.com/images/2024/academic-excellence.jpg"
-        }
-    ];
 }
