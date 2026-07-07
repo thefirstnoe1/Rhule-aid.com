@@ -18,7 +18,7 @@ export function SiteHeader() {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="container-shell sticky top-4 z-40 py-4">
+    <header className="container-shell py-4">
       <div className="surface-card rounded-[1.5rem] px-4 py-3 md:rounded-full md:px-5">
         <div className="flex items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-3 no-underline" onClick={() => setOpen(false)}>
