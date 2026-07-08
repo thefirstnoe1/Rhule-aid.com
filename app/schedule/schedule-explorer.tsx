@@ -39,6 +39,7 @@ type ScheduleExplorerProps = {
 };
 
 type Filter = 'all' | 'home' | 'away' | 'neutral' | 'conference';
+type LayoutMode = 'cards' | 'list' | 'compact';
 
 const bigTenOpponents = new Set([
   'Illinois',
@@ -75,9 +76,16 @@ const timezones = [
   { label: 'Pacific', value: 'America/Los_Angeles' }
 ];
 
+const layoutModes: Array<{ label: string; value: LayoutMode }> = [
+  { label: 'Cards', value: 'cards' },
+  { label: 'List', value: 'list' },
+  { label: 'Compact', value: 'compact' }
+];
+
 export function ScheduleExplorer({ games, standings, lastUpdated }: ScheduleExplorerProps) {
   const [filter, setFilter] = useState<Filter>('all');
   const [timezone, setTimezone] = useState('America/Chicago');
+  const [layout, setLayout] = useState<LayoutMode>('cards');
 
   const filteredGames = useMemo(() => {
     return games.filter((game) => {
@@ -104,24 +112,38 @@ export function ScheduleExplorer({ games, standings, lastUpdated }: ScheduleExpl
             </button>
           ))}
         </div>
-        <label className="flex items-center gap-3 text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">
-          Timezone
-          <select
-            value={timezone}
-            onChange={(event) => setTimezone(event.target.value)}
-            className="rounded-full border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-2 text-sm font-bold normal-case tracking-normal text-[var(--foreground)] outline-none"
-          >
-            {timezones.map((item) => (
-              <option key={item.value} value={item.value}>{item.label}</option>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="inline-flex rounded-full border border-[var(--border)] bg-[var(--surface-strong)] p-1">
+            {layoutModes.map((item) => (
+              <button
+                key={item.value}
+                type="button"
+                onClick={() => setLayout(item.value)}
+                className={`rounded-full px-3 py-2 text-xs font-black uppercase tracking-[0.14em] transition ${layout === item.value ? 'bg-[var(--foreground)] text-[var(--background)]' : 'text-[var(--muted)] hover:text-[var(--foreground)]'}`}
+              >
+                {item.label}
+              </button>
             ))}
-          </select>
-        </label>
+          </div>
+          <label className="flex items-center gap-3 text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">
+            Timezone
+            <select
+              value={timezone}
+              onChange={(event) => setTimezone(event.target.value)}
+              className="rounded-full border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-2 text-sm font-bold normal-case tracking-normal text-[var(--foreground)] outline-none"
+            >
+              {timezones.map((item) => (
+                <option key={item.value} value={item.value}>{item.label}</option>
+              ))}
+            </select>
+          </label>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-        <section className="grid gap-4">
+        <section className={layout === 'cards' ? 'grid gap-4' : layout === 'list' ? 'grid gap-3' : 'grid gap-2'}>
           {filteredGames.length > 0 ? filteredGames.map((game, index) => (
-            <GameCard key={`${game.date}-${game.opponent}-${index}`} game={game} timezone={timezone} index={index} />
+            <ScheduleGameView key={`${game.date}-${game.opponent}-${index}`} game={game} timezone={timezone} index={index} layout={layout} />
           )) : (
             <SurfaceCard className="rounded-[1.75rem] p-8 text-center">
               <h2 className="text-2xl font-black tracking-[-0.04em]">No games match this filter.</h2>
@@ -151,6 +173,12 @@ export function ScheduleExplorer({ games, standings, lastUpdated }: ScheduleExpl
       </div>
     </div>
   );
+}
+
+function ScheduleGameView({ game, timezone, index, layout }: { game: ScheduleGame; timezone: string; index: number; layout: LayoutMode }) {
+  if (layout === 'list') return <ListGame game={game} timezone={timezone} />;
+  if (layout === 'compact') return <CompactGame game={game} timezone={timezone} />;
+  return <GameCard game={game} timezone={timezone} index={index} />;
 }
 
 function GameCard({ game, timezone, index }: { game: ScheduleGame; timezone: string; index: number }) {
@@ -192,6 +220,68 @@ function GameCard({ game, timezone, index }: { game: ScheduleGame; timezone: str
         </div>
       </div>
     </SurfaceCard>
+  );
+}
+
+function ListGame({ game, timezone }: { game: ScheduleGame; timezone: string }) {
+  const matchup = getMatchupTeams(game);
+  const dateParts = getDateParts(game.date);
+  const network = game.network || game.tvNetwork || 'TBD';
+  const gameType = game.isNeutral ? 'Neutral' : game.isHome ? 'Home' : 'Away';
+
+  return (
+    <SurfaceCard className="overflow-hidden rounded-[1.5rem] transition hover:border-[var(--scarlet)]">
+      <div className="grid gap-4 p-4 md:grid-cols-[5.5rem_1fr_auto] md:items-center">
+        <div className="rounded-2xl bg-[var(--foreground)] p-3 text-center text-[var(--background)]">
+          <div className="text-xs font-black uppercase tracking-[0.16em] opacity-70">{dateParts.month}</div>
+          <div className="text-3xl font-black tracking-[-0.08em]">{dateParts.day}</div>
+        </div>
+        <div>
+          <div className="mb-2 flex flex-wrap gap-2">
+            <span className="rounded-full bg-[var(--scarlet)] px-3 py-1 text-[0.65rem] font-black uppercase tracking-[0.14em] text-white">{gameType}</span>
+            {game.result && <span className="rounded-full border border-[var(--border)] px-3 py-1 text-[0.65rem] font-black uppercase tracking-[0.14em] text-[var(--muted)]">{game.result} {game.score}</span>}
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <MiniTeam name={matchup.away.name} logo={matchup.away.logo} />
+            <span className="text-xs font-black uppercase tracking-[0.16em] text-[var(--muted)]">at</span>
+            <MiniTeam name={matchup.home.name} logo={matchup.home.logo} />
+          </div>
+        </div>
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-sm md:min-w-44 md:text-right">
+          <div className="font-black">{formatGameTime(game, timezone)}</div>
+          <div className="mt-1 text-xs font-bold text-[var(--muted)]">{network}</div>
+        </div>
+      </div>
+    </SurfaceCard>
+  );
+}
+
+function CompactGame({ game, timezone }: { game: ScheduleGame; timezone: string }) {
+  const matchup = getMatchupTeams(game);
+  const network = game.network || game.tvNetwork || 'TBD';
+
+  return (
+    <SurfaceCard className="rounded-[1.25rem] p-3 transition hover:border-[var(--scarlet)]">
+      <div className="grid gap-3 md:grid-cols-[8rem_1fr_6rem_5rem] md:items-center">
+        <div className="text-sm font-black">{formatGameTime(game, timezone)}</div>
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <span className="truncate font-black">{matchup.away.name}</span>
+          <span className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">at</span>
+          <span className="truncate font-black">{matchup.home.name}</span>
+        </div>
+        <div className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">{network}</div>
+        <div className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">{game.result ? `${game.result} ${game.score || ''}` : game.isNeutral ? 'Neutral' : game.isHome ? 'Home' : 'Away'}</div>
+      </div>
+    </SurfaceCard>
+  );
+}
+
+function MiniTeam({ name, logo }: { name: string; logo: string }) {
+  return (
+    <span className="inline-flex min-w-0 items-center gap-2">
+      <img src={logo} alt="" className="h-9 w-9 rounded-full bg-white object-contain p-1 shadow-sm" loading="lazy" />
+      <span className="truncate text-xl font-black tracking-[-0.04em]">{name}</span>
+    </span>
   );
 }
 
