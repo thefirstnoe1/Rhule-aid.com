@@ -230,6 +230,29 @@ function ListGame({ game, timezone }: { game: ScheduleGame; timezone: string }) 
   const gameType = game.isNeutral ? 'Neutral' : game.isHome ? 'Home' : 'Away';
 
   return (
+    <SurfaceCard className="rounded-[1.25rem] p-3 transition hover:border-[var(--scarlet)]">
+      <div className="grid gap-3 md:grid-cols-[7rem_8rem_1fr_6rem_5rem] md:items-center">
+        <div className="text-sm font-black">{formatShortDate(game.date)}</div>
+        <div className="text-sm font-black">{formatGameTime(game, timezone)}</div>
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <span className="truncate font-black">{matchup.away.name}</span>
+          <span className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">at</span>
+          <span className="truncate font-black">{matchup.home.name}</span>
+        </div>
+        <div className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">{network}</div>
+        <div className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">{game.result ? `${game.result} ${game.score || ''}` : gameType}</div>
+      </div>
+    </SurfaceCard>
+  );
+}
+
+function CompactGame({ game, timezone }: { game: ScheduleGame; timezone: string }) {
+  const matchup = getMatchupTeams(game);
+  const dateParts = getDateParts(game.date);
+  const network = game.network || game.tvNetwork || 'TBD';
+  const gameType = game.isNeutral ? 'Neutral' : game.isHome ? 'Home' : 'Away';
+
+  return (
     <SurfaceCard className="overflow-hidden rounded-[1.5rem] transition hover:border-[var(--scarlet)]">
       <div className="grid gap-4 p-4 md:grid-cols-[5.5rem_1fr_auto] md:items-center">
         <div className="rounded-2xl bg-[var(--foreground)] p-3 text-center text-[var(--background)]">
@@ -251,26 +274,6 @@ function ListGame({ game, timezone }: { game: ScheduleGame; timezone: string }) 
           <div className="font-black">{formatGameTime(game, timezone)}</div>
           <div className="mt-1 text-xs font-bold text-[var(--muted)]">{network}</div>
         </div>
-      </div>
-    </SurfaceCard>
-  );
-}
-
-function CompactGame({ game, timezone }: { game: ScheduleGame; timezone: string }) {
-  const matchup = getMatchupTeams(game);
-  const network = game.network || game.tvNetwork || 'TBD';
-
-  return (
-    <SurfaceCard className="rounded-[1.25rem] p-3 transition hover:border-[var(--scarlet)]">
-      <div className="grid gap-3 md:grid-cols-[8rem_1fr_6rem_5rem] md:items-center">
-        <div className="text-sm font-black">{formatGameTime(game, timezone)}</div>
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <span className="truncate font-black">{matchup.away.name}</span>
-          <span className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">at</span>
-          <span className="truncate font-black">{matchup.home.name}</span>
-        </div>
-        <div className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">{network}</div>
-        <div className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">{game.result ? `${game.result} ${game.score || ''}` : game.isNeutral ? 'Neutral' : game.isHome ? 'Home' : 'Away'}</div>
       </div>
     </SurfaceCard>
   );
@@ -319,6 +322,16 @@ function getDateParts(dateString: string) {
     day: date.toLocaleDateString('en-US', { day: 'numeric' }),
     weekday: date.toLocaleDateString('en-US', { weekday: 'short' })
   };
+}
+
+function formatShortDate(dateString: string) {
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return 'TBD';
+
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric'
+  });
 }
 
 function formatGameTime(game: ScheduleGame, timezone: string) {
