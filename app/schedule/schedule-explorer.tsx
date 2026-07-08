@@ -158,6 +158,7 @@ function GameCard({ game, timezone, index }: { game: ScheduleGame; timezone: str
   const convertedTime = formatGameTime(game, timezone);
   const dateParts = getDateParts(game.date);
   const network = game.network || game.tvNetwork || 'TBD';
+  const matchup = getMatchupTeams(game);
 
   return (
     <SurfaceCard className="overflow-hidden rounded-[1.75rem] transition hover:-translate-y-0.5 hover:border-[var(--scarlet)]">
@@ -174,10 +175,12 @@ function GameCard({ game, timezone, index }: { game: ScheduleGame; timezone: str
             {game.result && <span className="rounded-full border border-[var(--border)] px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">{game.result} {game.score}</span>}
           </div>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-            <TeamLogo src={game.nebraskaLogo} alt="Nebraska logo" />
-            <div className="text-sm font-black uppercase tracking-[0.16em] text-[var(--muted)]">{game.isHome ? 'vs' : 'at'}</div>
-            <TeamLogo src={game.opponentLogo} alt={`${game.opponent} logo`} />
-            <h2 className="text-3xl font-black tracking-[-0.06em] sm:text-4xl">{game.isHome ? 'Nebraska vs.' : 'Nebraska at'} {game.opponent}</h2>
+            <TeamLogo src={matchup.away.logo} alt={`${matchup.away.name} logo`} />
+            <div className="text-sm font-black uppercase tracking-[0.16em] text-[var(--muted)]">at</div>
+            <TeamLogo src={matchup.home.logo} alt={`${matchup.home.name} logo`} />
+            <h2 className="text-3xl font-black tracking-[-0.06em] sm:text-4xl">
+              {matchup.away.name} at {matchup.home.name}
+            </h2>
           </div>
           <p className="mt-3 text-sm leading-6 text-[var(--muted)]">{game.date} at {convertedTime}</p>
         </div>
@@ -190,6 +193,17 @@ function GameCard({ game, timezone, index }: { game: ScheduleGame; timezone: str
       </div>
     </SurfaceCard>
   );
+}
+
+function getMatchupTeams(game: ScheduleGame) {
+  const nebraska = { name: 'Nebraska', logo: game.nebraskaLogo };
+  const opponent = { name: game.opponent, logo: game.opponentLogo };
+
+  if (game.isHome) {
+    return { away: opponent, home: nebraska };
+  }
+
+  return { away: nebraska, home: opponent };
 }
 
 function TeamLogo({ src, alt }: { src: string; alt: string }) {
