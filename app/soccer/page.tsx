@@ -4,8 +4,10 @@ import { PageHero } from '../components/page-hero';
 import { SurfaceCard } from '../components/ui';
 import { handleSoccerRequest } from '../../src/api/soccer';
 import type { Env } from '../../src/types';
+import { pageMetadata } from '../seo';
 
 export const dynamic = 'force-dynamic';
+export const metadata = pageMetadata('Nebraska Soccer Schedule | Rhule Aid', 'Follow Nebraska soccer fixtures, opponents, competitions, venues, and match status.', '/soccer');
 
 type SoccerGame = {
   id: string;

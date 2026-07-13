@@ -7,8 +7,10 @@ import { handleScheduleRequest } from '../src/api/schedule';
 import { handleNewsRequest } from '../src/api/news';
 import { handleWeatherRequest } from '../src/api/weather';
 import type { Env } from '../src/types';
+import { pageMetadata } from './seo';
 
 export const dynamic = 'force-dynamic';
+export const metadata = pageMetadata('Nebraska Football Hub | Rhule Aid', 'Nebraska football schedules, game day details, roster, weather, and the latest Husker news.', '/');
 
 type HomeGame = {
   date: string;

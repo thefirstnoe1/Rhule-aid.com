@@ -9,8 +9,8 @@ type ButtonLinkProps = {
 
 export function ButtonLink({ href, children, variant = 'primary' }: ButtonLinkProps) {
   const className = variant === 'primary'
-    ? 'rounded-full bg-[var(--scarlet)] px-7 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-white shadow-[0_18px_45px_var(--scarlet-shadow)] transition hover:bg-[var(--scarlet-dark)]'
-    : 'rounded-full border border-[var(--border)] bg-[var(--surface)] px-7 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-[var(--foreground)] transition hover:border-[var(--foreground)] hover:bg-[var(--surface-strong)]';
+    ? 'rounded-full bg-[var(--scarlet)] px-7 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-white shadow-[0_18px_45px_var(--scarlet-shadow)] transition hover:bg-[var(--scarlet-dark)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--scarlet)]'
+    : 'rounded-full border border-[var(--border)] bg-[var(--surface)] px-7 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-[var(--foreground)] transition hover:border-[var(--foreground)] hover:bg-[var(--surface-strong)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--scarlet)]';
 
   return (
     <Link href={href} className={className}>

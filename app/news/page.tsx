@@ -4,8 +4,10 @@ import { PageHero } from '../components/page-hero';
 import { SurfaceCard } from '../components/ui';
 import { handleNewsRequest } from '../../src/api/news';
 import type { Env } from '../../src/types';
+import { pageMetadata } from '../seo';
 
 export const dynamic = 'force-dynamic';
+export const metadata = pageMetadata('Nebraska Football News | Rhule Aid', 'Latest Nebraska Cornhuskers football news, updates, and headlines from around Husker football.', '/news');
 
 type NewsItem = {
   title: string;

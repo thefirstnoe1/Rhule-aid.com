@@ -1,6 +1,9 @@
 import { SiteHeader } from '../components/site-header';
 import { PageHero } from '../components/page-hero';
 import { SurfaceCard } from '../components/ui';
+import { pageMetadata } from '../seo';
+
+export const metadata = pageMetadata('Matt Rhule and Nebraska Football | Rhule Aid', 'Track the Nebraska football rebuild, Matt Rhule program context, and the principles behind the Huskers project.', '/rhule-aid');
 
 const milestones = [
   { label: 'Temple', value: '2-10 to 10-4', detail: 'Built a winner from a depleted roster.' },

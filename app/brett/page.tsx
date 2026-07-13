@@ -5,8 +5,10 @@ import { SurfaceCard, ButtonLink } from '../components/ui';
 import { handleScheduleRequest } from '../../src/api/schedule';
 import type { Env } from '../../src/types';
 import type { ScheduleGame } from '../schedule/schedule-explorer';
+import { pageMetadata } from '../seo';
 
 export const dynamic = 'force-dynamic';
+export const metadata = pageMetadata('Nebraska Football Game Safety | Rhule Aid', 'A Nebraska football game-day guide for kickoff timing, matchup context, and the next Husker game.', '/brett');
 
 type ScheduleResponse = {
   success: boolean;

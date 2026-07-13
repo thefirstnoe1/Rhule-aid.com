@@ -204,10 +204,10 @@ function GameCard({ game, timezone, index }: { game: ScheduleGame; timezone: str
           </div>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
             <TeamLogo src={matchup.away.logo} alt={`${matchup.away.name} logo`} />
-            <div className="text-sm font-black uppercase tracking-[0.16em] text-[var(--muted)]">at</div>
+            <div className="text-sm font-black uppercase tracking-[0.16em] text-[var(--muted)]">{getMatchupLabel(game)}</div>
             <TeamLogo src={matchup.home.logo} alt={`${matchup.home.name} logo`} />
             <h2 className="text-3xl font-black tracking-[-0.06em] sm:text-4xl">
-              {matchup.away.name} at {matchup.home.name}
+              {matchup.away.name} {getMatchupLabel(game)} {matchup.home.name}
             </h2>
           </div>
           <p className="mt-3 text-sm leading-6 text-[var(--muted)]">{game.date} at {convertedTime}</p>
@@ -236,7 +236,7 @@ function ListGame({ game, timezone }: { game: ScheduleGame; timezone: string }) 
         <div className="text-sm font-black">{formatGameTime(game, timezone)}</div>
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <span className="truncate font-black">{matchup.away.name}</span>
-          <span className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">at</span>
+          <span className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">{getMatchupLabel(game)}</span>
           <span className="truncate font-black">{matchup.home.name}</span>
         </div>
         <div className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">{network}</div>
@@ -266,7 +266,7 @@ function CompactGame({ game, timezone }: { game: ScheduleGame; timezone: string 
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <MiniTeam name={matchup.away.name} logo={matchup.away.logo} />
-            <span className="text-xs font-black uppercase tracking-[0.16em] text-[var(--muted)]">at</span>
+            <span className="text-xs font-black uppercase tracking-[0.16em] text-[var(--muted)]">{getMatchupLabel(game)}</span>
             <MiniTeam name={matchup.home.name} logo={matchup.home.logo} />
           </div>
         </div>
@@ -297,6 +297,10 @@ function getMatchupTeams(game: ScheduleGame) {
   }
 
   return { away: nebraska, home: opponent };
+}
+
+function getMatchupLabel(game: ScheduleGame) {
+  return game.isHome || game.isNeutral ? 'vs.' : 'at';
 }
 
 function TeamLogo({ src, alt }: { src: string; alt: string }) {

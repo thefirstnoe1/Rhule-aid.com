@@ -4,8 +4,10 @@ import { ScheduleExplorer, type ScheduleGame } from './schedule-explorer';
 import { handleScheduleRequest } from '../../src/api/schedule';
 import { handleBigTenStandingsRequest } from '../../src/api/bigten-standings';
 import type { Env } from '../../src/types';
+import { pageMetadata } from '../seo';
 
 export const dynamic = 'force-dynamic';
+export const metadata = pageMetadata('Nebraska Football Schedule | Rhule Aid', 'Nebraska Cornhuskers football schedule with game times, opponents, venues, TV networks, and Big Ten standings.', '/schedule');
 
 type ScheduleResponse = {
   success: boolean;

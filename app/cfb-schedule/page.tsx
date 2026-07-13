@@ -3,8 +3,10 @@ import { SiteHeader } from '../components/site-header';
 import { onRequest as handleCFBScheduleRequest } from '../../src/api/cfb-schedule';
 import type { Env } from '../../src/types';
 import { CFBScheduleExplorer, type CFBScheduleData } from './cfb-schedule-explorer';
+import { pageMetadata } from '../seo';
 
 export const dynamic = 'force-dynamic';
+export const metadata = pageMetadata('College Football Schedule | Rhule Aid', 'Live college football schedule with scores, rankings, kickoff times, TV networks, and conference filters.', '/cfb-schedule');
 
 export default async function CFBSchedulePage() {
   const { env } = getCloudflareContext();

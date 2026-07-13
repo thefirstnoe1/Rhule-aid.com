@@ -5,8 +5,10 @@ import { SurfaceCard, ButtonLink } from '../components/ui';
 import { handleScheduleRequest } from '../../src/api/schedule';
 import type { Env } from '../../src/types';
 import type { ScheduleGame } from '../schedule/schedule-explorer';
+import { pageMetadata } from '../seo';
 
 export const dynamic = 'force-dynamic';
+export const metadata = pageMetadata('Nebraska Football Game Day | Rhule Aid', 'Nebraska football game day details, including the next matchup, kickoff, venue, and where to watch.', '/gameday');
 
 type ScheduleResponse = {
   success: boolean;
@@ -16,7 +18,7 @@ type ScheduleResponse = {
 export default async function GameDayPage() {
   const { env } = getCloudflareContext();
   const games = await getSchedule(env as Env);
-  const nextGame = getNextGame(games) || games[0];
+  const nextGame = getNextGame(games);
 
   return (
     <main>
@@ -55,12 +57,12 @@ function NextGamePanel({ game }: { game: ScheduleGame }) {
           <div>
             <div className="mb-8 flex items-center gap-5">
               <Logo src={game.nebraskaLogo} alt="Nebraska" />
-              <span className="text-sm font-black uppercase tracking-[0.2em] text-white/55">{game.isHome ? 'vs' : 'at'}</span>
+              <span className="text-sm font-black uppercase tracking-[0.2em] text-white/55">{getMatchupLabel(game)}</span>
               <Logo src={game.opponentLogo} alt={game.opponent} />
             </div>
             <p className="text-sm font-bold uppercase tracking-[0.2em] text-white/60">{game.date} / {game.time}</p>
             <h2 className="mt-4 text-5xl font-black leading-[0.9] tracking-[-0.075em] md:text-7xl">
-              Nebraska {game.isHome ? 'vs.' : 'at'} {game.opponent}
+              Nebraska {getMatchupLabel(game)} {game.opponent}
             </h2>
           </div>
         </div>
@@ -97,8 +99,68 @@ function NoGamePanel() {
 }
 
 function getNextGame(games: ScheduleGame[]) {
-  const now = Date.now();
-  return games.find((game) => new Date(game.date).getTime() >= now);
+  return games.find((game) => {
+    if (isCompleted(game)) return false;
+    const kickoff = getKickoffTime(game);
+    if (kickoff === null) {
+      return isOnOrAfterChicagoToday(game.date);
+    }
+
+    // Keep the current game visible after kickoff until its result is available.
+    return true;
+  });
+}
+
+function isCompleted(game: ScheduleGame) {
+  return Boolean(game.result?.trim() || game.score?.trim());
+}
+
+function getMatchupLabel(game: ScheduleGame) {
+  return game.isHome || game.isNeutral ? 'vs.' : 'at';
+}
+
+function getKickoffTime(game: ScheduleGame): number | null {
+  if (!game.date || game.date === 'TBD' || !game.time || game.time === 'TBD') return null;
+
+  const date = new Date(game.date);
+  const time = game.time.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?(?:\s+(CST|CDT))?$/i);
+  if (Number.isNaN(date.getTime()) || !time) return null;
+
+  let hour = Number(time[1]);
+  const minute = Number(time[2] || 0);
+  const period = time[3]?.toUpperCase();
+  if (period === 'PM' && hour !== 12) hour += 12;
+  if (period === 'AM' && hour === 12) hour = 0;
+  if (hour > 23 || minute > 59) return null;
+
+  const abbreviation = time[4]?.toUpperCase();
+  const offset = abbreviation === 'CST' ? 6 : abbreviation === 'CDT' ? 5 : getCentralOffset(date);
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), hour + offset, minute);
+}
+
+function getCentralOffset(date: Date) {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', timeZoneName: 'short' }).formatToParts(date);
+  return parts.find((part) => part.type === 'timeZoneName')?.value === 'CDT' ? 5 : 6;
+}
+
+function isOnOrAfterChicagoToday(dateString: string) {
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return false;
+
+  const chicagoToday = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Chicago',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(new Date());
+  const scheduledDate = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'UTC',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(date);
+
+  return scheduledDate >= chicagoToday;
 }
 
 async function getSchedule(env: Env): Promise<ScheduleGame[]> {

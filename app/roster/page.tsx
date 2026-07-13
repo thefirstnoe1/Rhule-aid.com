@@ -4,8 +4,10 @@ import { PageHero } from '../components/page-hero';
 import { RosterBrowser, type Player } from './roster-browser';
 import { handleRosterRequest } from '../../src/api/roster';
 import type { Env } from '../../src/types';
+import { pageMetadata } from '../seo';
 
 export const dynamic = 'force-dynamic';
+export const metadata = pageMetadata('Nebraska Football Roster | Rhule Aid', 'Browse the Nebraska Cornhuskers football roster, players, positions, and jersey numbers.', '/roster');
 
 type RosterResponse = {
   success: boolean;

@@ -40,10 +40,10 @@ export function ThemeToggle() {
       type="button"
       onClick={toggleTheme}
       className="inline-flex h-10 items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 text-xs font-black uppercase tracking-[0.12em] text-[var(--foreground)] shadow-sm transition hover:border-[var(--scarlet)]"
-      aria-label="Toggle color theme"
+      aria-label={mounted ? `Switch to ${theme === 'dark' ? 'light' : 'dark'} mode` : 'Switch color theme'}
     >
       <span className="h-2.5 w-2.5 rounded-full bg-[var(--scarlet)]" />
-      {mounted && theme === 'dark' ? 'Dark' : 'Light'}
+      {mounted ? `Switch to ${theme === 'dark' ? 'light' : 'dark'}` : 'Theme'}
     </button>
   );
 }
