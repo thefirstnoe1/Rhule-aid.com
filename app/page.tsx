@@ -8,6 +8,7 @@ import { handleNewsRequest } from '../src/api/news';
 import { handleWeatherRequest } from '../src/api/weather';
 import type { Env } from '../src/types';
 import { pageMetadata } from './seo';
+import { selectNextGame } from './schedule/schedule-utils';
 
 export const dynamic = 'force-dynamic';
 export const metadata = pageMetadata('Nebraska Football Hub | Rhule Aid', 'Nebraska football schedules, game day details, roster, weather, and the latest Husker news.', '/');
@@ -21,6 +22,8 @@ type HomeGame = {
   tvNetwork?: string;
   isHome: boolean;
   isNeutral?: boolean;
+  result?: string;
+  score?: string;
   nebraskaLogo: string;
   opponentLogo: string;
 };
@@ -74,7 +77,7 @@ export default async function Home() {
     getNews(env as Env),
     getWeather(env as Env)
   ]);
-  const nextGame = getNextGame(games) || games[0];
+  const nextGame = selectNextGame(games, new Date());
   const leadNews = news[0];
 
   return (
@@ -182,12 +185,12 @@ function NextGameCard({ game }: { game: HomeGame }) {
           <div>
             <div className="mb-8 flex items-center gap-5">
               <Logo src={game.nebraskaLogo} alt="Nebraska logo" />
-              <span className="text-sm font-black uppercase tracking-[0.2em] text-white/55">{game.isHome ? 'vs' : 'at'}</span>
+              <span className="text-sm font-black uppercase tracking-[0.2em] text-white/55">{game.isHome || game.isNeutral ? 'vs' : 'at'}</span>
               <Logo src={game.opponentLogo} alt={`${game.opponent} logo`} />
             </div>
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-white/60">{game.date} / {game.time}</p>
             <h2 className="mt-3 text-5xl font-black leading-[0.9] tracking-[-0.075em] md:text-6xl">
-              Nebraska {game.isHome ? 'vs.' : 'at'} {game.opponent}
+              Nebraska {game.isHome || game.isNeutral ? 'vs.' : 'at'} {game.opponent}
             </h2>
             <p className="mt-5 text-sm font-bold uppercase tracking-[0.16em] text-white/65">{game.location}</p>
           </div>
@@ -217,12 +220,6 @@ function Logo({ src, alt }: { src: string; alt: string }) {
       <img src={src} alt={alt} className="max-h-full max-w-full object-contain" />
     </div>
   );
-}
-
-function getNextGame(games: HomeGame[]) {
-  const today = new Date();
-  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
-  return games.find((game) => new Date(game.date).getTime() >= todayStart);
 }
 
 function formatDate(value: string) {

@@ -32,7 +32,7 @@ export async function handleRosterRequest(request: Request, env: any): Promise<R
     
     if (cached) {
       const cachedData = JSON.parse(cached);
-      if (cachedData.timestamp && (Date.now() - cachedData.timestamp) < 14400000) { // 4 hours
+      if (Array.isArray(cachedData.data) && cachedData.data.length > 0 && cachedData.timestamp && (Date.now() - cachedData.timestamp) < 14400000) { // 4 hours
         const sortedData = sortRosterData(cachedData.data, sortBy);
         return new Response(JSON.stringify({
           success: true,
@@ -153,7 +153,7 @@ async function scrapeNebraskaRoster(): Promise<Player[]> {
       
       for (const row of playerRows) {
         // Extract all table cells
-        const cellMatches = row.match(/<td[^>]*class="roster-table-cell"[^>]*>([\s\S]*?)<\/td>/gi);
+        const cellMatches = row.match(/<(?:td|th)\b[^>]*class="[^"]*\broster-table-cell\b[^"]*"[^>]*>[\s\S]*?<\/(?:td|th)>/gi);
         
         if (!cellMatches || cellMatches.length < 6) continue;
         
@@ -165,15 +165,15 @@ async function scrapeNebraskaRoster(): Promise<Player[]> {
         const nameMatch = row.match(/table__roster-name[^>]*><span>([^<]+)<\/span>/);
         const name = nameMatch?.[1]?.trim() || '';
         
-        // Extract position from second cell
-        const positionText = cellMatches[1]?.replace(/<[^>]*>/g, '').trim() || '';
+        // Name is a table header cell, so position starts at cell three.
+        const positionText = cellMatches[2]?.replace(/<[^>]*>/g, '').trim() || '';
         const position = positionText || 'Unknown';
         
         // Extract other fields from remaining cells
-        const height = cellMatches[2] ? cellMatches[2].replace(/<[^>]*>/g, '').trim() : '';
-        const weight = cellMatches[3] ? cellMatches[3].replace(/<[^>]*>/g, '').trim() : '';
-        const playerClass = cellMatches[4] ? cellMatches[4].replace(/<[^>]*>/g, '').trim() : '';
-        const hometown = cellMatches[5] ? cellMatches[5].replace(/<[^>]*>/g, '').trim() : '';
+        const height = cellMatches[3] ? cellMatches[3].replace(/<[^>]*>/g, '').trim() : '';
+        const weight = cellMatches[4] ? cellMatches[4].replace(/<[^>]*>/g, '').trim() : '';
+        const playerClass = cellMatches[5] ? cellMatches[5].replace(/<[^>]*>/g, '').trim() : '';
+        const hometown = cellMatches[6] ? cellMatches[6].replace(/<[^>]*>/g, '').trim() : '';
 
         if (number >= 0 && name) {
           players.push({

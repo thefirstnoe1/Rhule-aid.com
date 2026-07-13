@@ -12,28 +12,29 @@ export const metadata = pageMetadata('Nebraska Football Roster | Rhule Aid', 'Br
 type RosterResponse = {
   success: boolean;
   data: Player[];
+  error?: string;
 };
 
 export default async function RosterPage() {
   const { env } = getCloudflareContext();
-  const players = await getRoster(env as Env);
+  const roster = await getRoster(env as Env);
 
   return (
     <main>
       <SiteHeader />
       <PageHero eyebrow="Nebraska Football" title="Roster" />
-      <RosterBrowser players={players} />
+      <RosterBrowser players={roster.players} error={roster.error} />
     </main>
   );
 }
 
-async function getRoster(env: Env): Promise<Player[]> {
+async function getRoster(env: Env): Promise<{ players: Player[]; error?: string }> {
   try {
     const response = await handleRosterRequest(new Request('https://rhule-aid.com/api/roster'), env);
     const payload = await response.json() as RosterResponse;
-    return payload.success ? payload.data : [];
+    return payload.success ? { players: payload.data } : { players: [], error: payload.error || 'Roster data is unavailable right now.' };
   } catch (error) {
     console.error('Roster page data error:', error);
-    return [];
+    return { players: [], error: 'Roster data is unavailable right now.' };
   }
 }

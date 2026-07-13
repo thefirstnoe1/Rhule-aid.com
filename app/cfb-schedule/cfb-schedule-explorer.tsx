@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SurfaceCard } from '../components/ui';
 
 type Team = {
@@ -68,6 +68,8 @@ export function CFBScheduleExplorer({ initialData }: { initialData: CFBScheduleD
   const [layout, setLayout] = useState<LayoutMode>('cards');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(Boolean(initialData.error));
+  const [announcement, setAnnouncement] = useState(initialData.error ? 'Unable to load schedule data.' : '');
+  const loadingRef = useRef(false);
 
   const filteredGames = useMemo(() => {
     return scheduleData.games.filter((game) => {
@@ -97,13 +99,22 @@ export function CFBScheduleExplorer({ initialData }: { initialData: CFBScheduleD
     }, { live: 0, completed: 0, ranked: 0, networks: new Set<string>() });
   }, [filteredGames]);
 
-  async function loadSchedule() {
+  const hasLiveGames = useMemo(() => scheduleData.games.some((game) => {
+    if (filters.week && game.week.toString() !== filters.week) return false;
+    return getGameStatus(game) === 'live';
+  }), [filters.week, scheduleData.games]);
+
+  const loadSchedule = useCallback(async (week = filters.week) => {
+    if (loadingRef.current) return;
+
+    loadingRef.current = true;
     setLoading(true);
     setError(false);
+    setAnnouncement(week ? `Loading week ${week}.` : 'Refreshing current board.');
 
     try {
       const url = new URL('/api/cfb-schedule', window.location.origin);
-      if (filters.week) url.searchParams.set('week', filters.week);
+      if (week) url.searchParams.set('week', week);
 
       const response = await fetch(url);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -115,16 +126,23 @@ export function CFBScheduleExplorer({ initialData }: { initialData: CFBScheduleD
         lastUpdated: data.lastUpdated,
         hasLiveGames: Boolean(data.hasLiveGames)
       });
+      setFilters((current) => ({ ...current, week }));
+      setAnnouncement(week ? `Week ${week} loaded.` : 'Current board refreshed.');
     } catch (loadError) {
       console.error('Error loading CFB schedule:', loadError);
       setError(true);
+      setAnnouncement(week ? `Unable to load week ${week}. Existing schedule data remains displayed.` : 'Unable to refresh the current board. Existing schedule data remains displayed.');
     } finally {
+      loadingRef.current = false;
       setLoading(false);
     }
+  }, [filters.week]);
+
+  function selectWeek(week: string) {
+    void loadSchedule(week);
   }
 
   useEffect(() => {
-    const hasLiveGames = filteredGames.some((game) => getGameStatus(game) === 'live');
     if (!hasLiveGames) return undefined;
 
     const interval = window.setInterval(() => {
@@ -132,7 +150,7 @@ export function CFBScheduleExplorer({ initialData }: { initialData: CFBScheduleD
     }, 300000);
 
     return () => window.clearInterval(interval);
-  }, [filteredGames, filters.week]);
+  }, [hasLiveGames, loadSchedule]);
 
   return (
     <div className="container-shell pb-20">
@@ -146,30 +164,31 @@ export function CFBScheduleExplorer({ initialData }: { initialData: CFBScheduleD
 
         <div className="grid gap-4 p-4 md:p-5 xl:grid-cols-[1fr_auto] xl:items-center">
           <div className="flex flex-wrap gap-2">
-            <PillSelect label="Week" value={filters.week} onChange={(value) => setFilters((current) => ({ ...current, week: value }))}>
-              <option value="">All Weeks</option>
+            <PillSelect id="cfb-week" label="Week" value={filters.week} onChange={selectWeek} disabled={loading}>
+              <option value="">Current Board</option>
               {scheduleData.weeks.map((week) => <option key={week.value} value={week.value}>{week.label}</option>)}
             </PillSelect>
 
-            <PillSelect label="Conference" value={filters.conference} onChange={(value) => setFilters((current) => ({ ...current, conference: value }))}>
+            <PillSelect id="cfb-conference" label="Conference" value={filters.conference} onChange={(value) => setFilters((current) => ({ ...current, conference: value }))}>
               <option value="">All Conferences</option>
               {conferences.map((conference) => <option key={conference} value={conference}>{conference}</option>)}
             </PillSelect>
 
-            <PillSelect label="Status" value={filters.status} onChange={(value) => setFilters((current) => ({ ...current, status: value }))}>
+            <PillSelect id="cfb-status" label="Status" value={filters.status} onChange={(value) => setFilters((current) => ({ ...current, status: value }))}>
               <option value="">All Games</option>
               <option value="scheduled">Scheduled</option>
               <option value="live">Live</option>
               <option value="completed">Completed</option>
             </PillSelect>
 
-            <PillSelect label="Time" value={timezone} onChange={setTimezone}>
+            <PillSelect id="cfb-timezone" label="Time" value={timezone} onChange={setTimezone}>
               {timezones.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
             </PillSelect>
 
             <button
               type="button"
               onClick={() => setFilters((current) => ({ ...current, rankedOnly: !current.rankedOnly }))}
+              aria-pressed={filters.rankedOnly}
               className={`rounded-full px-4 py-2 text-xs font-black uppercase tracking-[0.14em] transition ${filters.rankedOnly ? 'bg-[var(--scarlet)] text-white shadow-[0_14px_30px_var(--scarlet-shadow)]' : 'border border-[var(--border)] bg-[var(--surface-strong)] text-[var(--muted)] hover:text-[var(--foreground)]'}`}
             >
               Ranked Only
@@ -177,12 +196,13 @@ export function CFBScheduleExplorer({ initialData }: { initialData: CFBScheduleD
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center xl:justify-end">
-            <div className="inline-flex rounded-full border border-[var(--border)] bg-[var(--surface-strong)] p-1">
+            <div role="group" aria-label="Schedule layout" className="inline-flex rounded-full border border-[var(--border)] bg-[var(--surface-strong)] p-1">
               {layoutModes.map((mode) => (
                 <button
                   key={mode.value}
                   type="button"
                   onClick={() => setLayout(mode.value)}
+                  aria-pressed={layout === mode.value}
                   className={`rounded-full px-3 py-2 text-xs font-black uppercase tracking-[0.14em] transition ${layout === mode.value ? 'bg-[var(--foreground)] text-[var(--background)]' : 'text-[var(--muted)] hover:text-[var(--foreground)]'}`}
                 >
                   {mode.label}
@@ -202,6 +222,8 @@ export function CFBScheduleExplorer({ initialData }: { initialData: CFBScheduleD
         </div>
       </SurfaceCard>
 
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">{announcement}</div>
+
       {error && (
         <SurfaceCard className="mb-6 rounded-[1.75rem] p-6 text-center">
           <h2 className="text-2xl font-black tracking-[-0.04em]">Unable to load schedule data.</h2>
@@ -209,7 +231,7 @@ export function CFBScheduleExplorer({ initialData }: { initialData: CFBScheduleD
         </SurfaceCard>
       )}
 
-      {!error && filteredGames.length === 0 && (
+      {!loading && filteredGames.length === 0 && (
         <SurfaceCard className="rounded-[1.75rem] p-8 text-center">
           <h2 className="text-2xl font-black tracking-[-0.04em]">No games match these filters.</h2>
           <p className="mt-2 text-sm text-[var(--muted)]">Try another week, conference, or status.</p>
@@ -234,11 +256,14 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: 'sc
   );
 }
 
-function PillSelect({ label, value, onChange, children }: { label: string; value: string; onChange: (value: string) => void; children: React.ReactNode }) {
+function PillSelect({ id, label, value, onChange, disabled = false, children }: { id: string; label: string; value: string; onChange: (value: string) => void; disabled?: boolean; children: React.ReactNode }) {
   return (
-    <label className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-strong)] py-1 pl-4 pr-2 text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">
+    <label htmlFor={id} className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-strong)] py-1 pl-4 pr-2 text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">
       <span>{label}</span>
       <select
+        id={id}
+        aria-label={label}
+        disabled={disabled}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         className="max-w-40 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-bold normal-case tracking-normal text-[var(--foreground)] outline-none"

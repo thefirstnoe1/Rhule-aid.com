@@ -21,7 +21,7 @@ const groups = [
   { label: 'Special', value: 'special' }
 ];
 
-export function RosterBrowser({ players }: { players: Player[] }) {
+export function RosterBrowser({ players, error }: { players: Player[]; error?: string }) {
   const [query, setQuery] = useState('');
   const [group, setGroup] = useState('all');
 
@@ -37,18 +37,22 @@ export function RosterBrowser({ players }: { players: Player[] }) {
   return (
     <section className="container-shell pb-20">
       <div className="mb-6 flex flex-col gap-4 rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-4 backdrop-blur lg:flex-row lg:items-center lg:justify-between">
+        <label htmlFor="roster-search" className="sr-only">Search roster</label>
         <input
+          id="roster-search"
+          type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search player, position, hometown..."
           className="min-h-12 flex-1 rounded-full border border-[var(--border)] bg-[var(--surface-strong)] px-5 text-sm font-semibold text-[var(--foreground)] outline-none placeholder:text-[var(--muted)]"
         />
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Roster groups">
           {groups.map((item) => (
             <button
               key={item.value}
               type="button"
               onClick={() => setGroup(item.value)}
+              aria-pressed={group === item.value}
               className={`rounded-full px-4 py-2 text-xs font-black uppercase tracking-[0.14em] transition ${group === item.value ? 'bg-[var(--foreground)] text-[var(--background)]' : 'border border-[var(--border)] text-[var(--muted)] hover:border-[var(--foreground)] hover:text-[var(--foreground)]'}`}
             >
               {item.label}
@@ -57,11 +61,20 @@ export function RosterBrowser({ players }: { players: Player[] }) {
         </div>
       </div>
 
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        Showing {filteredPlayers.length} of {players.length} {players.length === 1 ? 'player' : 'players'}.
+      </div>
+
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {filteredPlayers.map((player) => <PlayerCard key={`${player.number}-${player.name}`} player={player} />)}
       </div>
 
-      {filteredPlayers.length === 0 && (
+      {error ? (
+        <SurfaceCard className="rounded-[1.75rem] p-8 text-center">
+          <h2 className="text-2xl font-black tracking-[-0.04em]">Roster unavailable.</h2>
+          <p className="mt-2 text-sm text-[var(--muted)]">{error}</p>
+        </SurfaceCard>
+      ) : filteredPlayers.length === 0 && (
         <SurfaceCard className="rounded-[1.75rem] p-8 text-center">
           <h2 className="text-2xl font-black tracking-[-0.04em]">No players match that search.</h2>
           <p className="mt-2 text-sm text-[var(--muted)]">Try a name, position, class, or hometown.</p>

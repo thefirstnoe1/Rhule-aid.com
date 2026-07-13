@@ -100,12 +100,13 @@ export function ScheduleExplorer({ games, standings, lastUpdated }: ScheduleExpl
   return (
     <div className="container-shell pb-20">
       <div className="mb-6 flex flex-col gap-4 rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-4 backdrop-blur md:flex-row md:items-center md:justify-between">
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Schedule filters">
           {filters.map((item) => (
             <button
               key={item.value}
               type="button"
               onClick={() => setFilter(item.value)}
+              aria-pressed={filter === item.value}
               className={`rounded-full px-4 py-2 text-xs font-black uppercase tracking-[0.14em] transition ${filter === item.value ? 'bg-[var(--foreground)] text-[var(--background)]' : 'border border-[var(--border)] text-[var(--muted)] hover:border-[var(--foreground)] hover:text-[var(--foreground)]'}`}
             >
               {item.label}
@@ -113,12 +114,13 @@ export function ScheduleExplorer({ games, standings, lastUpdated }: ScheduleExpl
           ))}
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="inline-flex rounded-full border border-[var(--border)] bg-[var(--surface-strong)] p-1">
+          <div className="inline-flex rounded-full border border-[var(--border)] bg-[var(--surface-strong)] p-1" role="group" aria-label="Schedule layout">
             {layoutModes.map((item) => (
               <button
                 key={item.value}
                 type="button"
                 onClick={() => setLayout(item.value)}
+                aria-pressed={layout === item.value}
                 className={`rounded-full px-3 py-2 text-xs font-black uppercase tracking-[0.14em] transition ${layout === item.value ? 'bg-[var(--foreground)] text-[var(--background)]' : 'text-[var(--muted)] hover:text-[var(--foreground)]'}`}
               >
                 {item.label}
@@ -128,6 +130,7 @@ export function ScheduleExplorer({ games, standings, lastUpdated }: ScheduleExpl
           <label className="flex items-center gap-3 text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">
             Timezone
             <select
+              id="schedule-timezone"
               value={timezone}
               onChange={(event) => setTimezone(event.target.value)}
               className="rounded-full border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-2 text-sm font-bold normal-case tracking-normal text-[var(--foreground)] outline-none"
@@ -138,6 +141,10 @@ export function ScheduleExplorer({ games, standings, lastUpdated }: ScheduleExpl
             </select>
           </label>
         </div>
+      </div>
+
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        Showing {filteredGames.length} of {games.length} {games.length === 1 ? 'game' : 'games'}.
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
