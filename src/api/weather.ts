@@ -30,7 +30,7 @@ export async function handleWeatherRequest(request: Request, env: any): Promise<
     
     // Check cache first - separate cache for hourly vs daily
     const cacheKey = `weather_${location.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${hourly ? 'hourly' : 'daily'}_${useTomorrowAPI ? 'tomorrow' : useHighAccuracyAPI ? 'precise' : 'standard'}`;
-    const cached = await env.WEATHER_CACHE?.get(cacheKey);
+    const cached = await readWeatherCache(env, cacheKey);
     
     if (cached) {
       return new Response(cached, {
@@ -44,7 +44,7 @@ export async function handleWeatherRequest(request: Request, env: any): Promise<
     // Cache for 30 minutes for high-accuracy, 2 hours for standard
     const cacheTTL = useTomorrowAPI || useHighAccuracyAPI ? 1800 : 7200;
     if (env.WEATHER_CACHE) {
-      await env.WEATHER_CACHE.put(cacheKey, JSON.stringify(weatherData), { expirationTtl: cacheTTL });
+      await writeWeatherCache(env, cacheKey, JSON.stringify(weatherData), cacheTTL);
     }
     
     return new Response(JSON.stringify(weatherData), {
@@ -72,14 +72,14 @@ async function getWeatherForLocation(location: string, env: any, hourly: boolean
     }
 
     console.log('Trying Tomorrow.io API for requested weather source');
-    return await getTomorrowWeatherData(location, env.TOMORROW_API_KEY, hourly);
+    return await getTomorrowWeatherData(location, env, env.TOMORROW_API_KEY, hourly);
   }
   
   // For games within 120 hours, prefer Tomorrow.io API if available
   if (useHighAccuracyAPI && env.TOMORROW_API_KEY) {
     try {
       console.log('Trying Tomorrow.io API for high-accuracy forecast');
-      return await getTomorrowWeatherData(location, env.TOMORROW_API_KEY, hourly);
+      return await getTomorrowWeatherData(location, env, env.TOMORROW_API_KEY, hourly);
     } catch (error) {
       console.error('Tomorrow.io API failed:', error);
       // Fall through to other APIs
@@ -112,86 +112,235 @@ async function getWeatherForLocation(location: string, env: any, hourly: boolean
   throw new Error(`No live weather source available for ${location}`);
 }
 
-async function getTomorrowWeatherData(location: string, apiKey: string, hourly: boolean = false) {
+interface ResolvedLocation {
+  latitude: number;
+  longitude: number;
+  name: string;
+  timezone: string;
+}
+
+const STATE_NAMES: Record<string, string> = {
+  AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California', CO: 'Colorado', CT: 'Connecticut',
+  DE: 'Delaware', FL: 'Florida', GA: 'Georgia', HI: 'Hawaii', ID: 'Idaho', IL: 'Illinois', IN: 'Indiana', IA: 'Iowa',
+  KS: 'Kansas', KY: 'Kentucky', LA: 'Louisiana', ME: 'Maine', MD: 'Maryland', MA: 'Massachusetts', MI: 'Michigan',
+  MN: 'Minnesota', MS: 'Mississippi', MO: 'Missouri', MT: 'Montana', NE: 'Nebraska', NV: 'Nevada', NH: 'New Hampshire',
+  NJ: 'New Jersey', NM: 'New Mexico', NY: 'New York', NC: 'North Carolina', ND: 'North Dakota', OH: 'Ohio', OK: 'Oklahoma',
+  OR: 'Oregon', PA: 'Pennsylvania', RI: 'Rhode Island', SC: 'South Carolina', SD: 'South Dakota', TN: 'Tennessee',
+  TX: 'Texas', UT: 'Utah', VT: 'Vermont', VA: 'Virginia', WA: 'Washington', WV: 'West Virginia', WI: 'Wisconsin', WY: 'Wyoming'
+};
+
+async function readWeatherCache(env: any, key: string): Promise<string | null> {
+  if (!env.WEATHER_CACHE) return null;
   try {
-    // For Nebraska games, use Lincoln coordinates
-    const lat = location.includes('Lincoln') || location.includes('NE') || location.includes('Nebraska') ? 40.8136 : null;
-    const lon = location.includes('Lincoln') || location.includes('NE') || location.includes('Nebraska') ? -96.7026 : null;
-    
-    if (!lat || !lon) {
-      throw new Error('Tomorrow.io API requires coordinates - location not supported');
+    return await env.WEATHER_CACHE.get(key);
+  } catch (error) {
+    console.error(`Weather cache read failed for ${key}:`, error);
+    return null;
+  }
+}
+
+async function writeWeatherCache(env: any, key: string, value: string, expirationTtl: number): Promise<void> {
+  if (!env.WEATHER_CACHE) return;
+  try {
+    await env.WEATHER_CACHE.put(key, value, { expirationTtl });
+  } catch (error) {
+    console.error(`Weather cache write failed for ${key}:`, error);
+  }
+}
+
+async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}, timeoutMs: number = 10000): Promise<Response> {
+  return fetch(input, { ...init, signal: AbortSignal.timeout(timeoutMs) });
+}
+
+function isLincolnNebraska(location: string): boolean {
+  const normalized = location.toLowerCase();
+  return normalized.includes('lincoln') &&
+    (normalized.includes('nebraska') || /\bne\b/.test(normalized));
+}
+
+function locationCacheKey(location: string): string {
+  return `weather_coordinates_${location.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+}
+
+function validCoordinates(latitude: unknown, longitude: unknown): latitude is number {
+  return typeof latitude === 'number' && Number.isFinite(latitude) && latitude >= -90 && latitude <= 90 &&
+    typeof longitude === 'number' && Number.isFinite(longitude) && longitude >= -180 && longitude <= 180;
+}
+
+function parseCityState(location: string): { city: string; state: string } {
+  const parts = location.split(',').map((part) => part.trim()).filter(Boolean);
+  if (parts.length < 2) {
+    throw new Error(`Location must include city and state: ${location}`);
+  }
+  const city = parts[0];
+  const stateValue = parts[parts.length - 1];
+  if (!city || !stateValue) {
+    throw new Error(`Location must include city and state: ${location}`);
+  }
+  const stateInput = stateValue.toUpperCase();
+  const state = STATE_NAMES[stateInput] || stateValue;
+  return { city, state };
+}
+
+function localDateKey(date: Date, timezone: string): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(date).reduce<Record<string, string>>((values, part) => {
+    if (part.type !== 'literal') values[part.type] = part.value;
+    return values;
+  }, {});
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+async function resolveTomorrowLocation(location: string, env: any): Promise<ResolvedLocation> {
+  if (isLincolnNebraska(location)) {
+    return { latitude: 40.8136, longitude: -96.7026, name: 'Lincoln, NE', timezone: 'America/Chicago' };
+  }
+
+  const cacheKey = locationCacheKey(location);
+  const cached = await readWeatherCache(env, cacheKey);
+  if (cached) {
+    try {
+      const parsed = JSON.parse(cached) as Partial<ResolvedLocation>;
+      if (validCoordinates(parsed.latitude, parsed.longitude) && typeof parsed.name === 'string' && !!parsed.name &&
+        typeof parsed.timezone === 'string' && !!parsed.timezone) {
+        return parsed as ResolvedLocation;
+      }
+    } catch (error) {
+      console.error('Invalid cached weather coordinates:', error);
     }
+  }
+
+  const { city, state } = parseCityState(location);
+  const params = new URLSearchParams({
+    name: city,
+    count: '10',
+    language: 'en',
+    countryCode: 'US',
+    format: 'json'
+  });
+  const response = await fetchWithTimeout(`https://geocoding-api.open-meteo.com/v1/search?${params.toString()}`);
+  const data = await response.json() as any;
+  if (!response.ok) {
+    throw new Error(`Open-Meteo geocoding error: ${data.reason || response.statusText}`);
+  }
+
+  const result = data.results?.find((candidate: any) =>
+    candidate?.country_code === 'US' && typeof candidate.admin1 === 'string' && candidate.admin1.toLowerCase() === state.toLowerCase()
+  );
+  if (!result || !validCoordinates(result.latitude, result.longitude) || typeof result.timezone !== 'string' || !result.timezone) {
+    throw new Error(`Unable to resolve US location: ${location}`);
+  }
+
+  const name = [result.name, result.admin1].filter((part: unknown): part is string => typeof part === 'string' && !!part).join(', ') || location;
+  const resolved = { latitude: result.latitude, longitude: result.longitude, name, timezone: result.timezone };
+  await writeWeatherCache(env, cacheKey, JSON.stringify(resolved), 30 * 24 * 60 * 60);
+  return resolved;
+}
+
+async function getTomorrowWeatherData(location: string, env: any, apiKey: string, hourly: boolean = false) {
+  try {
+    const resolvedLocation = await resolveTomorrowLocation(location, env);
+    const { latitude: lat, longitude: lon } = resolvedLocation;
     
-    // Get current weather and forecast
-    const forecastUrl = `https://api.tomorrow.io/v4/timelines?location=${lat},${lon}&fields=temperature,weatherCode,precipitationProbability,windSpeed,windDirection,humidity&timesteps=${hourly ? '1h' : '1d'}&units=imperial&apikey=${apiKey}`;
-    
-    const response = await fetch(forecastUrl);
-    const data = await response.json() as any;
-    
-    if (!response.ok) {
-      throw new Error(`Tomorrow.io API error: ${data.message || response.statusText}`);
-    }
-    
-    const timeline = data.data.timelines[0];
-    if (!timeline || !timeline.intervals) {
-      throw new Error('Invalid Tomorrow.io API response structure');
-    }
-    
-    const current = timeline.intervals[0].values;
+    const fetchTimeline = async (timestep: 'current' | '1h' | '1d', fields: string) => {
+      const params = new URLSearchParams({
+        location: `${lat},${lon}`,
+        fields,
+        timesteps: timestep,
+        units: 'imperial',
+        timezone: resolvedLocation.timezone,
+        apikey: apiKey
+      });
+      const response = await fetchWithTimeout(`https://api.tomorrow.io/v4/timelines?${params.toString()}`, {}, 15000);
+      const data = await response.json() as any;
+
+      if (!response.ok) {
+        throw new Error(`Tomorrow.io API error: ${data.message || response.statusText}`);
+      }
+
+      const timeline = data.data?.timelines?.find((item: any) => item.timestep === timestep);
+      if (!timeline?.intervals?.length) {
+        throw new Error(`Invalid Tomorrow.io ${timestep} response structure`);
+      }
+      return timeline;
+    };
+
+    const currentTimeline = await fetchTimeline(
+      'current',
+      'temperature,weatherCode,windSpeed,windDirection,humidity'
+    );
+    const currentInterval = currentTimeline.intervals[0];
+    const current = currentInterval.values || {};
     
     const response_data: any = {
       success: true,
-      location: 'Lincoln, NE',
+      location: resolvedLocation.name,
       current: {
-        temperature: Math.round(current.temperature),
+        temperature: Math.round(current.temperature ?? 0),
         temperatureUnit: 'F',
         conditions: getWeatherDescription(current.weatherCode),
-        humidity: Math.round(current.humidity),
-        windSpeed: Math.round(current.windSpeed),
+        humidity: Math.round(current.humidity ?? 0),
+        windSpeed: Math.round(current.windSpeed ?? 0),
         windDirection: getWindDirection(current.windDirection),
-        lastUpdated: new Date().toISOString()
+        lastUpdated: currentInterval.startTime || new Date().toISOString()
       }
     };
     
     if (hourly) {
+      const timeline = await fetchTimeline(
+        '1h',
+        'temperature,weatherCode,precipitationProbability'
+      );
       // Return 48 hours of hourly data
       response_data.forecast = timeline.intervals.slice(0, 48).map((interval: any) => {
         const date = new Date(interval.startTime);
+        const values = interval.values || {};
         return {
           name: date.toLocaleDateString('en-US', { 
             weekday: 'short', 
             month: 'short', 
             day: 'numeric',
-            timeZone: 'America/Chicago'
+            timeZone: resolvedLocation.timezone
           }),
           time: date.toLocaleTimeString('en-US', { 
             hour: 'numeric', 
             hour12: true,
-            timeZone: 'America/Chicago'
+            timeZone: resolvedLocation.timezone
           }),
           datetime: interval.startTime,
-          temperature: Math.round(interval.values.temperature),
+          temperature: Math.round(values.temperature ?? 0),
           temperatureUnit: 'F',
-          shortForecast: getWeatherDescription(interval.values.weatherCode),
-          precipitationProbability: Math.round(interval.values.precipitationProbability || 0),
+          shortForecast: getWeatherDescription(values.weatherCode),
+          precipitationProbability: Math.round(values.precipitationProbability ?? 0),
           isGameDay: false // Will be set by frontend logic
         };
       });
     } else {
+      const timeline = await fetchTimeline(
+        '1d',
+        'temperatureMax,temperatureMin,weatherCodeMax,precipitationProbabilityAvg'
+      );
       // Return daily forecast
       response_data.forecast = timeline.intervals.slice(0, 7).map((interval: any) => {
         const date = new Date(interval.startTime);
+        const values = interval.values || {};
         return {
           name: date.toLocaleDateString('en-US', { 
             weekday: 'short', 
             month: 'short', 
             day: 'numeric',
-            timeZone: 'America/Chicago'
+            timeZone: resolvedLocation.timezone
           }),
-          temperature: Math.round(interval.values.temperature),
+          datetime: interval.startTime,
+          dateKey: localDateKey(date, resolvedLocation.timezone),
+          temperature: Math.round(values.temperatureMax ?? values.temperatureAvg ?? values.temperatureMin ?? 0),
           temperatureUnit: 'F',
-          shortForecast: getWeatherDescription(interval.values.weatherCode),
-          precipitationProbability: Math.round(interval.values.precipitationProbability || 0),
+          shortForecast: getWeatherDescription(values.weatherCodeMax ?? values.weatherCode),
+          precipitationProbability: Math.round(values.precipitationProbabilityAvg ?? 0),
           isGameDay: false // Will be set by frontend logic
         };
       });
