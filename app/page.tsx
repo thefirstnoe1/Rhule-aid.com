@@ -251,7 +251,7 @@ async function getNews(env: Env): Promise<NewsItem[]> {
 
 async function getWeather(env: Env): Promise<WeatherData | null> {
   try {
-    const response = await handleWeatherRequest(new Request('https://rhule-aid.com/api/weather?location=Lincoln%2C%20NE&source=tomorrow'), env);
+    const response = await handleWeatherRequest(new Request('https://rhule-aid.com/api/weather?location=Lincoln%2C%20NE&source=nws'), env);
     const payload = await response.json() as { success: boolean } & WeatherData;
     return payload.success ? payload : null;
   } catch (error) {

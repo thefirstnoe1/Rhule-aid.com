@@ -17,6 +17,7 @@ export async function handleWeatherRequest(request: Request, env: any): Promise<
     const gameTime = url.searchParams.get('gameTime'); // Optional game time for proximity detection
     const source = url.searchParams.get('source');
     const useTomorrowAPI = source === 'tomorrow';
+    const useNWSAPI = source === 'nws';
     
     // Determine if we should use high-accuracy APIs (within 120 hours of game)
     let useHighAccuracyAPI = false;
@@ -29,7 +30,7 @@ export async function handleWeatherRequest(request: Request, env: any): Promise<
     }
     
     // Check cache first - separate cache for hourly vs daily
-    const cacheKey = `weather_${location.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${hourly ? 'hourly' : 'daily'}_${useTomorrowAPI ? 'tomorrow' : useHighAccuracyAPI ? 'precise' : 'standard'}`;
+    const cacheKey = `weather_${location.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${hourly ? 'hourly' : 'daily'}_${useTomorrowAPI ? 'tomorrow' : useNWSAPI ? 'nws' : useHighAccuracyAPI ? 'precise' : 'standard'}`;
     const cached = await readWeatherCache(env, cacheKey);
     
     if (cached) {
@@ -39,10 +40,10 @@ export async function handleWeatherRequest(request: Request, env: any): Promise<
     }
 
     // Get weather data with appropriate API priority
-    const weatherData = await getWeatherForLocation(location, env, hourly, useHighAccuracyAPI, useTomorrowAPI);
+    const weatherData = await getWeatherForLocation(location, env, hourly, useHighAccuracyAPI, useTomorrowAPI, useNWSAPI);
     
     // Cache for 30 minutes for high-accuracy, 2 hours for standard
-    const cacheTTL = useTomorrowAPI || useHighAccuracyAPI ? 1800 : 7200;
+    const cacheTTL = useNWSAPI ? 300 : useTomorrowAPI || useHighAccuracyAPI ? 1800 : 7200;
     if (env.WEATHER_CACHE) {
       await writeWeatherCache(env, cacheKey, JSON.stringify(weatherData), cacheTTL);
     }
@@ -63,8 +64,13 @@ export async function handleWeatherRequest(request: Request, env: any): Promise<
   }
 }
 
-async function getWeatherForLocation(location: string, env: any, hourly: boolean = false, useHighAccuracyAPI: boolean = false, useTomorrowAPI: boolean = false) {
+async function getWeatherForLocation(location: string, env: any, hourly: boolean = false, useHighAccuracyAPI: boolean = false, useTomorrowAPI: boolean = false, useNWSAPI: boolean = false) {
   console.log('Getting weather for location:', location, 'hourly:', hourly, 'high-accuracy:', useHighAccuracyAPI, 'tomorrow:', useTomorrowAPI);
+
+  if (useNWSAPI) {
+    console.log('Trying NWS latest observation for requested weather source');
+    return await getNWSObservationData();
+  }
   
   if (useTomorrowAPI) {
     if (!env.TOMORROW_API_KEY) {
@@ -482,6 +488,91 @@ async function getOpenWeatherData(location: string, apiKey: string, hourly: bool
   }
 }
 
+const NWS_HEADERS = {
+  'User-Agent': 'Rhule Aid weather service (https://rhule-aid.com)',
+  'Accept': 'application/geo+json'
+};
+
+async function fetchNWSJson(url: string): Promise<any> {
+  const response = await fetchWithTimeout(url, { headers: NWS_HEADERS }, 10000);
+  const data = await response.json() as any;
+  if (!response.ok) {
+    throw new Error(`NWS API error: ${data?.title || response.statusText}`);
+  }
+  return data;
+}
+
+function requiredMeasurement(value: unknown, unitCode: unknown, expectedUnit: string, field: string): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || unitCode !== expectedUnit) {
+    throw new Error(`Invalid NWS observation ${field}`);
+  }
+  return value;
+}
+
+function windSpeedMph(value: unknown, unitCode: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new Error('Invalid NWS observation wind speed');
+  }
+  if (unitCode === 'wmoUnit:m_s-1') return value * 2.236936;
+  if (unitCode === 'wmoUnit:km_h-1') return value * 0.621371;
+  if (unitCode === 'wmoUnit:mi_h-1') return value;
+  throw new Error(`Unsupported NWS wind speed unit: ${String(unitCode)}`);
+}
+
+async function getNWSObservationData() {
+  try {
+    const lat = 40.8136;
+    const lon = -96.7026;
+    const pointsData = await fetchNWSJson(`https://api.weather.gov/points/${lat},${lon}`);
+    const observationStations = pointsData?.properties?.observationStations;
+    if (typeof observationStations !== 'string' || !observationStations) {
+      throw new Error('Invalid NWS points response');
+    }
+
+    const stationsData = await fetchNWSJson(observationStations);
+    const station = stationsData?.features?.[0]?.properties;
+    const stationId = station?.stationIdentifier;
+    if (typeof stationId !== 'string' || !/^[A-Z0-9-]+$/.test(stationId)) {
+      throw new Error('Invalid NWS observation station response');
+    }
+
+    const observation = await fetchNWSJson(`https://api.weather.gov/stations/${encodeURIComponent(stationId)}/observations/latest`);
+    const properties = observation?.properties;
+    if (!properties || typeof properties !== 'object') {
+      throw new Error('Invalid NWS latest observation response');
+    }
+
+    const temperatureC = requiredMeasurement(properties.temperature?.value, properties.temperature?.unitCode, 'wmoUnit:degC', 'temperature');
+    const windSpeed = windSpeedMph(properties.windSpeed?.value, properties.windSpeed?.unitCode);
+    const windDirection = requiredMeasurement(properties.windDirection?.value, properties.windDirection?.unitCode, 'wmoUnit:degree_(angle)', 'wind direction');
+    const humidityValue = properties.relativeHumidity?.value;
+    const humidity = humidityValue === null
+      ? 'N/A'
+      : Math.round(requiredMeasurement(humidityValue, properties.relativeHumidity?.unitCode, 'wmoUnit:percent', 'humidity'));
+    if (typeof properties.textDescription !== 'string' || !properties.textDescription ||
+      typeof properties.timestamp !== 'string' || !properties.timestamp || Number.isNaN(Date.parse(properties.timestamp))) {
+      throw new Error('Invalid NWS observation description or timestamp');
+    }
+
+    return {
+      success: true,
+      location: 'Lincoln, NE',
+      current: {
+        temperature: Math.round((temperatureC * 9 / 5) + 32),
+        temperatureUnit: 'F',
+        conditions: properties.textDescription,
+        humidity,
+        windSpeed: Math.round(windSpeed),
+        windDirection: getWindDirection(windDirection),
+        lastUpdated: properties.timestamp
+      }
+    };
+  } catch (error) {
+    console.error('NWS latest observation error:', error);
+    throw error;
+  }
+}
+
 async function getNWSWeatherData(hourly: boolean = false) {
   try {
     // Lincoln, NE coordinates
@@ -560,7 +651,7 @@ async function getNWSWeatherData(hourly: boolean = false) {
 }
 
 function getWindDirection(degrees: number): string {
-  if (!degrees) return 'N/A';
+  if (!Number.isFinite(degrees)) return 'N/A';
   
   const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
   const index = Math.round(degrees / 22.5) % 16;
