@@ -124,3 +124,6 @@ wrangler.toml.backup
 
 # AI Assistant documentation
 CLAUDE.md
+
+# Local deepwork state
+.slim/deepwork/

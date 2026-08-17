@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { siteUrl } from './seo';
+import { createSportsTeamStructuredData, createWebSiteStructuredData, serializeStructuredData, stableSportsTeamId } from '../src/lib/structured-data';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -31,10 +32,32 @@ export const metadata: Metadata = {
   }
 };
 
+const sportsTeamStructuredData = createSportsTeamStructuredData({
+  name: 'Nebraska Cornhuskers',
+  url: siteUrl,
+  id: stableSportsTeamId('nebraska-cornhuskers', siteUrl),
+  logo: `${siteUrl}/images/logos/nebraska-logo.png`,
+  sameAs: ['https://huskers.com/sports/football']
+});
+
+const websiteStructuredData = createWebSiteStructuredData(siteUrl, 'Rhule Aid');
+
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {websiteStructuredData && (
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: serializeStructuredData(websiteStructuredData) }}
+          />
+        )}
+        {sportsTeamStructuredData && (
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: serializeStructuredData(sportsTeamStructuredData) }}
+          />
+        )}
         <script
           dangerouslySetInnerHTML={{
             __html: `try{var t=localStorage.getItem('theme');if(!t){t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'}document.documentElement.dataset.theme=t}catch(e){document.documentElement.dataset.theme='light'}`

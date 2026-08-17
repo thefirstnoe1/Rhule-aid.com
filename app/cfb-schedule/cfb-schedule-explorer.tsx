@@ -26,6 +26,7 @@ type Game = {
   status: string;
   isCompleted: boolean;
   spread: string | null;
+  division?: string;
 };
 
 export type CFBScheduleData = {
@@ -39,6 +40,7 @@ export type CFBScheduleData = {
 type Filters = {
   week: string;
   conference: string;
+  division: 'FBS' | 'all';
   status: string;
   rankedOnly: boolean;
 };
@@ -63,13 +65,15 @@ const layoutModes: Array<{ value: LayoutMode; label: string }> = [
 
 export function CFBScheduleExplorer({ initialData }: { initialData: CFBScheduleData }) {
   const [scheduleData, setScheduleData] = useState(initialData);
-  const [filters, setFilters] = useState<Filters>({ week: '', conference: '', status: '', rankedOnly: false });
+  const [filters, setFilters] = useState<Filters>({ week: '', conference: '', division: 'FBS', status: '', rankedOnly: false });
   const [timezone, setTimezone] = useState('America/Chicago');
   const [layout, setLayout] = useState<LayoutMode>('cards');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(Boolean(initialData.error));
   const [announcement, setAnnouncement] = useState(initialData.error ? 'Unable to load schedule data.' : '');
   const loadingRef = useRef(false);
+  const requestIdRef = useRef(0);
+  const divisionRef = useRef<Filters['division']>('FBS');
 
   const filteredGames = useMemo(() => {
     return scheduleData.games.filter((game) => {
@@ -107,6 +111,9 @@ export function CFBScheduleExplorer({ initialData }: { initialData: CFBScheduleD
   const loadSchedule = useCallback(async (week = filters.week) => {
     if (loadingRef.current) return;
 
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    const division = filters.division;
     loadingRef.current = true;
     setLoading(true);
     setError(false);
@@ -115,11 +122,15 @@ export function CFBScheduleExplorer({ initialData }: { initialData: CFBScheduleD
     try {
       const url = new URL('/api/cfb-schedule', window.location.origin);
       if (week) url.searchParams.set('week', week);
+      if (division === 'all') url.searchParams.set('division', 'all');
 
       const response = await fetch(url);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
       const data = await response.json() as CFBScheduleData;
+      if (data.error) throw new Error(data.error);
+      if (requestId !== requestIdRef.current) return;
+
       setScheduleData({
         games: Array.isArray(data.games) ? data.games : [],
         weeks: Array.isArray(data.weeks) ? data.weeks : [],
@@ -136,7 +147,13 @@ export function CFBScheduleExplorer({ initialData }: { initialData: CFBScheduleD
       loadingRef.current = false;
       setLoading(false);
     }
-  }, [filters.week]);
+  }, [filters.division, filters.week]);
+
+  useEffect(() => {
+    if (divisionRef.current === filters.division) return;
+    divisionRef.current = filters.division;
+    void loadSchedule(filters.week);
+  }, [filters.division, filters.week, loadSchedule]);
 
   function selectWeek(week: string) {
     void loadSchedule(week);
@@ -172,6 +189,14 @@ export function CFBScheduleExplorer({ initialData }: { initialData: CFBScheduleD
             <PillSelect id="cfb-conference" label="Conference" value={filters.conference} onChange={(value) => setFilters((current) => ({ ...current, conference: value }))}>
               <option value="">All Conferences</option>
               {conferences.map((conference) => <option key={conference} value={conference}>{conference}</option>)}
+            </PillSelect>
+
+            <PillSelect id="cfb-division" label="Division" value={filters.division} disabled={loading} onChange={(value) => {
+              requestIdRef.current += 1;
+              setFilters((current) => ({ ...current, division: value as Filters['division'] }));
+            }}>
+              <option value="FBS">FBS</option>
+              <option value="all">All Games</option>
             </PillSelect>
 
             <PillSelect id="cfb-status" label="Status" value={filters.status} onChange={(value) => setFilters((current) => ({ ...current, status: value }))}>
@@ -231,7 +256,7 @@ export function CFBScheduleExplorer({ initialData }: { initialData: CFBScheduleD
         </SurfaceCard>
       )}
 
-      {!loading && filteredGames.length === 0 && (
+      {!error && !loading && filteredGames.length === 0 && (
         <SurfaceCard className="rounded-[1.75rem] p-8 text-center">
           <h2 className="text-2xl font-black tracking-[-0.04em]">No games match these filters.</h2>
           <p className="mt-2 text-sm text-[var(--muted)]">Try another week, conference, or status.</p>

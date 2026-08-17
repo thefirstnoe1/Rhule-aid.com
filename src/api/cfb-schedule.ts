@@ -1,303 +1,294 @@
-import { ScheduleMatch, Context } from '../types';
+import type { ScheduleMatch, Context } from '../types';
 
+interface CFBDGame {
+  id?: number | string;
+  week?: number;
+  startDate?: string;
+  startTimeTBD?: boolean;
+  homeTeam?: string;
+  awayTeam?: string;
+  homeId?: number;
+  awayId?: number;
+  homePoints?: number;
+  awayPoints?: number;
+  venue?: string;
+  neutralSite?: boolean;
+  status?: string;
+  homeDivision?: string;
+  awayDivision?: string;
+}
+interface CFBDMedia { id?: number | string; outlet?: string }
+type FBSTeamMetadata = { ids: Set<number>; conferences: Map<number, string> };
+
+type GameDivision = 'FBS' | 'FCS' | 'unknown';
+type ClassifiedScheduleMatch = ScheduleMatch & {
+  division: GameDivision;
+  homeDivision: GameDivision;
+  awayDivision: GameDivision;
+  homeTeamId?: number;
+  awayTeamId?: number;
+};
+
+interface ESPNResponse { events: ESPNGame[]; leagues: unknown[] }
 interface ESPNGame {
   id: string;
-  date: string;
-  name: string;
-  shortName: string;
-  season: {
-    year: number;
-    type: number;
-  };
-  week: {
-    number: number;
-  };
-  competitions: Array<{
-    id: string;
-    date: string;
-    competitors: Array<{
-      id: string;
-      type: string;
-      order: number;
-      homeAway: 'home' | 'away';
-      team: {
-        id: string;
-        location: string;
-        name: string;
-        abbreviation: string;
-        displayName: string;
-        shortDisplayName: string;
-        color: string;
-        logo: string;
-        conferenceId?: string;
-      };
-      score: string;
-      curatedRank?: {
-        current: number;
-      };
-    }>;
-    status: {
-      type: {
-        id: string;
-        name: string;
-        state: string;
-        completed: boolean;
-        description: string;
-        detail: string;
-        shortDetail: string;
-      };
-    };
-    venue?: {
-      fullName: string;
-      address: {
-        city: string;
-        state?: string;
-        country: string;
-      };
-    };
-    broadcasts?: Array<{
-      names: string[];
-    }>;
-    odds?: Array<{
-      details: string;
-      spread: number;
-    }>;
+  date?: string;
+  week?: { number?: number };
+  competitions?: Array<{
+    date?: string;
+    competitors?: Array<{ homeAway: 'home' | 'away'; score?: string; team: { displayName?: string; shortDisplayName?: string; name?: string; abbreviation?: string; logo?: string; conferenceId?: string; location?: string } }>;
+    status?: { type?: { description?: string; completed?: boolean } };
+    venue?: { fullName?: string; address?: { city?: string; state?: string; country?: string } };
+    broadcasts?: Array<{ names?: string[] }>;
+    odds?: Array<{ details?: string }>;
   }>;
 }
 
-interface ESPNResponse {
-  events: ESPNGame[];
-  leagues: Array<{
-    calendar: Array<{
-      entries: Array<{
-        label: string;
-        value: string;
-      }>;
-    }>;
-  }>;
-}
+interface CoreEventList { items: Array<{ $ref?: string }> }
+interface CoreCompetition { $ref?: string; id?: string; date?: string; competitors?: CoreCompetitor[]; venue?: { fullName?: string }; status?: { type?: { description?: string; completed?: boolean } } }
+interface CoreEvent { id: string; date?: string; name?: string; shortName?: string; week?: { number?: number }; competitions?: CoreCompetition[] }
+interface CoreCompetitor { homeAway: 'home' | 'away'; score?: unknown; team?: { id?: string; displayName?: string; name?: string; abbreviation?: string; shortDisplayName?: string; conferenceId?: string; division?: string; subdivision?: string; classification?: string; logos?: Array<{ href?: string }> } }
+
+const CFBD_BASE = 'https://api.collegefootballdata.com/games';
+const CORE_BASE = 'https://sports.core.api.espn.com/v2/sports/football/leagues/college-football';
+const CACHE_SCHEMA = 'v10';
+const CORE_MAX_DETAIL_REQUESTS = 8;
+const FBS_TEAM_CACHE_TTL = 86400;
 
 export async function onRequest(context: Context): Promise<Response> {
   const { request, env } = context;
   const url = new URL(request.url);
-  const week = url.searchParams.get('week') || '';
+  const season = getSeason(url);
+  const week = url.searchParams.get('week') || '1';
   const date = url.searchParams.get('date') || '';
-  
-  const cacheKey = `cfb-schedule:${week}:${date}`;
-  
-  try {
-    let cachedData = null;
-    if (env.CFB_SCHEDULE_CACHE) {
-      cachedData = await env.CFB_SCHEDULE_CACHE.get(cacheKey);
-    }
-    
-    if (cachedData) {
-      return new Response(cachedData, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          'Cache-Control': 'public, max-age=900'
-        }
-      });
-    }
+  const division = url.searchParams.get('division') === 'all' ? 'all' : 'fbs';
+  const cacheKey = `cfb-schedule:${CACHE_SCHEMA}:${season}:${week}:${date || 'current'}:${division}`;
+  const cached = await readCache(env, cacheKey);
+  if (cached) return jsonResponse(cached, 200, 900);
 
-    // Fetch from all conference groups to get complete game coverage
-    const groupIds = [0, 1, 151, 4, 5, 8, 9, 15, 18]; // top25, acc, american, big12, big10, sec, pac12, mac, independent
-    const allGames: ESPNGame[] = [];
-    let weeksData: any = null;
-
-    for (const groupId of groupIds) {
-      const params = new URLSearchParams();
-      params.append('groups', groupId.toString());
-      
-      if (week) {
-        params.append('week', week);
-      }
-      if (date) {
-        params.append('dates', date);
-      }
-
-      const apiUrl = `https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?${params.toString()}`;
-
-      try {
-        const response = await fetch(apiUrl, {
-          headers: {
-            'User-Agent': 'Rhule-aid.com/1.0'
-          }
+  let games: ScheduleMatch[] = [];
+  if (env.CFBD_API_KEY) {
+    try {
+      const [cfbdGames, fbsTeams, media] = await Promise.all([
+        fetchCFBD(season, week, env.CFBD_API_KEY, division),
+        getFBSTeamMetadata(env, season, env.CFBD_API_KEY),
+        fetchCFBDMedia(season, week, env.CFBD_API_KEY),
+      ]);
+      games = cfbdGames.map(game => normalizeCFBDGame(game, season, week, fbsTeams?.conferences, media)).filter(isGame).sort(sortGames);
+      if (division === 'fbs' && fbsTeams) {
+        games = games.filter(game => {
+          const classified = game as ClassifiedScheduleMatch;
+          return classified.homeTeamId !== undefined && classified.awayTeamId !== undefined && fbsTeams.ids.has(classified.homeTeamId) && fbsTeams.ids.has(classified.awayTeamId);
         });
-
-        if (response.ok) {
-          const data: ESPNResponse = await response.json();
-          if (data.events) {
-            allGames.push(...data.events);
-          }
-          // Capture weeks data from the first successful response
-          if (!weeksData && data.leagues) {
-            weeksData = data.leagues;
-          }
-        }
-      } catch (groupError) {
-        console.warn(`Failed to fetch group ${groupId}:`, groupError);
-        // Continue with other groups
       }
+    } catch (error) {
+      console.warn('CFBD schedule unavailable; using bounded ESPN Core fallback:', error);
     }
+  }
 
-    // Remove duplicate games (same game might appear in multiple groups)
-    const uniqueGames = allGames.reduce((acc: ESPNGame[], game: ESPNGame) => {
-      if (!acc.find(existing => existing.id === game.id)) {
-        acc.push(game);
-      }
-      return acc;
-    }, []);
-
-    const processedGames = processGames(uniqueGames);
-    
-    // Determine if there are live games for adaptive caching
-    const hasLiveGames = processedGames.some(game => {
-      const status = game.status.toLowerCase();
-      return !game.isCompleted && (
-        status.includes('q') || 
-        status.includes('half') || 
-        status.includes('ot') ||
-        status.includes('quarter') ||
-        status.includes('halftime')
-      );
-    });
-    
-    // Adaptive cache time: shorter for live games, longer for scheduled/completed
-    const cacheTime = hasLiveGames ? 60 : 900; // 1 minute vs 15 minutes
-    
-    const result = {
-      games: processedGames,
-      weeks: weeksData ? extractWeeks({ events: [], leagues: weeksData }) : [],
-      lastUpdated: new Date().toISOString(),
-      hasLiveGames
-    };
-
-    const resultString = JSON.stringify(result);
-    
-    if (env.CFB_SCHEDULE_CACHE) {
-      await env.CFB_SCHEDULE_CACHE.put(cacheKey, resultString, {
-        expirationTtl: cacheTime
-      });
+  if (games.length === 0) {
+    try {
+      games = await fetchCoreFallback(season, week);
+    } catch (error) {
+      console.warn('ESPN Core schedule fallback unavailable:', error);
     }
+  }
 
-    return new Response(resultString, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Cache-Control': `public, max-age=${cacheTime}`
-      }
-    });
-
+  // ESPN is advisory only. It can add current scores/status without becoming required.
+  try {
+    const overlay = await fetchScoreboard(season, week, date);
+    games = mergeOverlay(games, overlay);
   } catch (error) {
-    console.error('CFB Schedule API Error:', error);
-    
-    return new Response(JSON.stringify({
-      games: [],
-      weeks: [],
-      lastUpdated: new Date().toISOString(),
-      error: 'Live data unavailable'
-    }), {
-      status: 502,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Cache-Control': 'public, max-age=300'
-      }
-    });
+    console.warn('ESPN scoreboard overlay unavailable:', error);
+  }
+
+  if (division === 'fbs') games = games.filter(game => isFBSGame(game as ClassifiedScheduleMatch));
+
+  if (games.length === 0) return jsonResponse({ games: [], weeks: [], lastUpdated: new Date().toISOString(), hasLiveGames: false, error: 'Schedule data unavailable from CFBD and ESPN' }, 502, 0);
+
+  const result = makeResult(games, week);
+  const ttl = result.hasLiveGames ? 60 : 900;
+  await writeCache(env, cacheKey, result, ttl);
+  return jsonResponse(result, 200, ttl);
+}
+
+async function fetchCFBD(season: number, week: string, key: string, division: 'fbs' | 'all'): Promise<CFBDGame[]> {
+  const params = new URLSearchParams({ year: String(season), seasonType: 'regular', week });
+  if (division === 'fbs') params.set('classification', 'fbs');
+  const endpoint = `${CFBD_BASE}?${params}`;
+  const response = await fetch(endpoint, { headers: { Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(8000) });
+  if (!response.ok) throw new Error(`CFBD request failed: ${response.status}`);
+  const data: unknown = await response.json();
+  if (!Array.isArray(data)) throw new Error('Invalid CFBD games response');
+  return data as CFBDGame[];
+}
+
+async function fetchCFBDMedia(season: number, week: string, key: string): Promise<Map<string, string>> {
+  const params = new URLSearchParams({ year: String(season), seasonType: 'regular', week, mediaType: 'tv' });
+  try {
+    const response = await fetch(`https://api.collegefootballdata.com/games/media?${params}`, { headers: { Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(8000) });
+    if (!response.ok) throw new Error(`CFBD media failed: ${response.status}`);
+    const data: unknown = await response.json();
+    if (!Array.isArray(data)) throw new Error('Invalid CFBD media response');
+    return new Map(data.flatMap(row => {
+      const media = row as CFBDMedia;
+      return media.id !== undefined && media.outlet ? [[String(media.id), media.outlet] as [string, string]] : [];
+    }));
+  } catch (error) {
+    console.warn('CFBD game media unavailable; retaining TBD TV values:', error);
+    return new Map();
   }
 }
 
-function processGames(games: ESPNGame[]): ScheduleMatch[] {
-  return games.map(game => {
-    const competition = game.competitions[0];
-    if (!competition) {
-      throw new Error('Invalid game data: missing competition');
+async function getFBSTeamMetadata(env: Context['env'], season: number, key: string): Promise<FBSTeamMetadata | null> {
+  const cacheKey = `cfb-schedule:${CACHE_SCHEMA}:fbs-team-metadata:v1:${season}`;
+  try {
+    const cached = await env.CFB_SCHEDULE_CACHE?.get(cacheKey);
+    if (cached) {
+      const data = JSON.parse(cached) as { teams?: Array<{ id: number; conference?: string }> };
+      if (Array.isArray(data.teams)) return makeFBSTeamMetadata(data.teams);
     }
-    
-    const homeTeam = competition.competitors.find(c => c.homeAway === 'home');
-    const awayTeam = competition.competitors.find(c => c.homeAway === 'away');
-    
-    if (!homeTeam || !awayTeam) {
-      throw new Error('Invalid game data: missing home or away team');
-    }
+    const response = await fetch(`https://api.collegefootballdata.com/teams/fbs?year=${season}`, { headers: { Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(8000) });
+    if (!response.ok) throw new Error(`CFBD FBS teams failed: ${response.status}`);
+    const data: unknown = await response.json();
+    if (!Array.isArray(data)) throw new Error('Invalid CFBD FBS teams response');
+    const teams = data.map(team => ({ id: Number((team as { id?: number }).id), conference: (team as { conference?: string }).conference })).filter(team => Number.isInteger(team.id));
+    if (!teams.length) throw new Error('CFBD FBS teams response was empty');
+    await env.CFB_SCHEDULE_CACHE?.put(cacheKey, JSON.stringify({ teams }), { expirationTtl: FBS_TEAM_CACHE_TTL });
+    return makeFBSTeamMetadata(teams);
+  } catch (error) {
+    console.warn('CFBD FBS team lookup unavailable; retaining permissive schedule:', error);
+    return null;
+  }
+}
 
-    const gameDate = new Date(competition.date);
-    
-    const dateInCentral = new Date(gameDate.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
-    const year = dateInCentral.getFullYear();
-    const month = String(dateInCentral.getMonth() + 1).padStart(2, '0');
-    const day = String(dateInCentral.getDate()).padStart(2, '0');
-    const dateString = `${year}-${month}-${day}`;
-    
-    const getRank = (rank?: number): number | undefined => {
-      return rank && rank <= 25 ? rank : undefined;
-    };
-    
-    return {
-      id: game.id,
-      date: dateString,
-      time: gameDate.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        timeZone: 'America/Chicago',
-        timeZoneName: 'short'
-      }),
-      datetime: competition.date,
-      week: game.week.number,
-      homeTeam: {
-        name: homeTeam.team.displayName || homeTeam.team.name || 'Unknown Team',
-        shortName: homeTeam.team.shortDisplayName || homeTeam.team.abbreviation || homeTeam.team.name || 'Unknown',
-        logo: homeTeam.team.logo || '/images/logos/default-logo.png',
-        score: parseInt(homeTeam.score) || 0,
-        rank: getRank(homeTeam.curatedRank?.current),
-        conference: getConferenceName(homeTeam.team.conferenceId)
-      },
-      awayTeam: {
-        name: awayTeam.team.displayName || awayTeam.team.name || 'Unknown Team',
-        shortName: awayTeam.team.shortDisplayName || awayTeam.team.abbreviation || awayTeam.team.name || 'Unknown',
-        logo: awayTeam.team.logo || '/images/logos/default-logo.png',
-        score: parseInt(awayTeam.score) || 0,
-        rank: getRank(awayTeam.curatedRank?.current),
-        conference: getConferenceName(awayTeam.team.conferenceId)
-      },
-      venue: competition.venue?.fullName || 'TBD',
-      location: competition.venue ? 
-        `${competition.venue.address.city}, ${competition.venue.address.state || competition.venue.address.country}` : 
-        'TBD',
-      tv: competition.broadcasts?.[0]?.names?.[0] || 'TBD',
-      status: competition.status.type.description,
-      isCompleted: competition.status.type.completed,
-      spread: competition.odds?.[0]?.details || null
-    };
+function makeFBSTeamMetadata(teams: Array<{ id: number; conference?: string }>): FBSTeamMetadata {
+  return { ids: new Set(teams.map(team => team.id)), conferences: new Map(teams.filter(team => team.conference).map(team => [team.id, team.conference!])) };
+}
+
+function normalizeCFBDGame(game: CFBDGame, season: number, requestedWeek: string, conferences?: Map<number, string>, media?: Map<string, string>): ScheduleMatch | null {
+  if (!game.homeTeam || !game.awayTeam) return null;
+  const datetime = game.startDate || '';
+  const parsed = datetime ? new Date(datetime) : null;
+  const validDate = parsed && !Number.isNaN(parsed.getTime());
+  const completed = typeof game.homePoints === 'number' && typeof game.awayPoints === 'number';
+  const status = game.status || (completed ? 'Final' : 'Scheduled');
+  const homeDivision = normalizeDivision(game.homeDivision);
+  const awayDivision = normalizeDivision(game.awayDivision);
+  return {
+    id: String(game.id || `${season}-${requestedWeek}-${game.awayTeam}-${game.homeTeam}`),
+    date: validDate ? centralDate(parsed!) : 'TBD',
+    time: validDate && game.startTimeTBD !== true ? centralTime(parsed!) : 'TBD',
+    datetime,
+    week: Number(game.week) || Number(requestedWeek) || 0,
+    homeTeam: scheduleTeam(game.homeTeam, game.homeId, game.homePoints, conferences?.get(game.homeId ?? 0)),
+    awayTeam: scheduleTeam(game.awayTeam, game.awayId, game.awayPoints, conferences?.get(game.awayId ?? 0)),
+    venue: game.venue || 'TBD',
+    location: game.venue || 'TBD',
+    tv: media?.get(String(game.id)) || 'TBD', status, isCompleted: completed || /final|completed/i.test(status), spread: null,
+    homeDivision, awayDivision, division: gameDivision(homeDivision, awayDivision),
+    homeTeamId: game.homeId,
+    awayTeamId: game.awayId,
+  } as ClassifiedScheduleMatch;
+}
+
+function scheduleTeam(name: string, id?: number, score?: number, conference?: string) {
+  return { name, shortName: name, logo: id ? `/api/logo?teamId=${id}&size=128` : `/api/logo?team=${encodeURIComponent(name)}&size=128`, score: typeof score === 'number' ? score : 0, conference: conference || 'Independent' };
+}
+
+async function fetchScoreboard(season: number, week: string, date: string): Promise<ESPNGame[]> {
+  const params = new URLSearchParams({ groups: '80', limit: '1000', week, dates: date || String(season), seasontype: '2' });
+  const response = await fetch(`https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?${params}`, { signal: AbortSignal.timeout(5000) });
+  if (!response.ok) throw new Error(`ESPN scoreboard failed: ${response.status}`);
+  const data: unknown = await response.json();
+  if (!data || typeof data !== 'object' || !Array.isArray((data as ESPNResponse).events)) throw new Error('Invalid ESPN scoreboard response');
+  return (data as ESPNResponse).events;
+}
+
+async function fetchCoreFallback(season: number, week: string): Promise<ScheduleMatch[]> {
+  const response = await fetch(`${CORE_BASE}/seasons/${season}/types/2/weeks/${encodeURIComponent(week)}/events?limit=1000`, { signal: AbortSignal.timeout(8000) });
+  if (!response.ok) throw new Error(`ESPN Core week failed: ${response.status}`);
+  const list: unknown = await response.json();
+  if (!list || typeof list !== 'object' || !Array.isArray((list as CoreEventList).items)) throw new Error('Invalid ESPN Core week response');
+  const refs = (list as CoreEventList).items.filter(item => typeof item.$ref === 'string').slice(0, Math.floor(CORE_MAX_DETAIL_REQUESTS / 2));
+  const games: ScheduleMatch[] = [];
+  for (const item of refs) {
+    try {
+      const event = await fetchCoreJson(item.$ref!) as CoreEvent;
+      const competitionRef = event.competitions?.[0];
+      const competition = competitionRef?.$ref ? await fetchCoreJson(competitionRef.$ref) as CoreCompetition : competitionRef;
+      const game = normalizeCore(event, competition, week);
+      if (game) games.push(game);
+    } catch (error) { console.warn('Skipping invalid Core event:', error); }
+  }
+  return games.sort(sortGames);
+}
+
+async function fetchCoreJson(ref: string): Promise<unknown> {
+  const url = new URL(ref.replace(/^http:/, 'https:'));
+  if (url.hostname !== 'sports.core.api.espn.com') throw new Error('Invalid Core reference');
+  const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+  if (!response.ok) throw new Error(`ESPN Core detail failed: ${response.status}`);
+  return await response.json() as CoreEvent;
+}
+
+function normalizeCore(event: CoreEvent, competition: CoreCompetition | undefined, requestedWeek: string): ScheduleMatch | null {
+  const home = competition?.competitors?.find(team => team.homeAway === 'home');
+  const away = competition?.competitors?.find(team => team.homeAway === 'away');
+  const datetime = competition?.date || event.date || '';
+  if (!competition || !home || !away || !datetime || !home.team || !away.team) return null;
+  const parsed = new Date(datetime); if (Number.isNaN(parsed.getTime())) return null;
+  const homeDivision = coreDivision(home);
+  const awayDivision = coreDivision(away);
+  return { id: event.id, date: centralDate(parsed), time: centralTime(parsed), datetime, week: event.week?.number || Number(requestedWeek) || 0, homeTeam: coreTeam(home), awayTeam: coreTeam(away), venue: competition.venue?.fullName || 'TBD', location: 'TBD', tv: 'TBD', status: competition.status?.type?.description || 'Scheduled', isCompleted: competition.status?.type?.completed || false, spread: null, homeDivision, awayDivision, division: gameDivision(homeDivision, awayDivision) } as ClassifiedScheduleMatch;
+}
+
+function coreTeam(competitor: CoreCompetitor) { const team = competitor.team!; return { name: team.displayName || team.name || 'Unknown Team', shortName: team.shortDisplayName || team.abbreviation || team.name || 'Unknown', logo: team.logos?.[0]?.href || '/images/logos/default-logo.png', score: Number(competitor.score) || 0, conference: 'Independent' }; }
+function centralDate(date: Date): string { return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago' }).format(date); }
+function centralTime(date: Date): string { return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago', timeZoneName: 'short' }); }
+function sortGames(a: ScheduleMatch, b: ScheduleMatch): number { return a.datetime.localeCompare(b.datetime); }
+function isGame(game: ScheduleMatch | null): game is ScheduleMatch { return game !== null; }
+
+function normalizeDivision(value?: string): GameDivision {
+  if (!value) return 'unknown';
+  const normalized = value.toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (normalized === 'fbs' || normalized === 'division1fbs' || normalized === 'd1fbs') return 'FBS';
+  if (normalized === 'fcs' || normalized === 'division1fcs' || normalized === 'd1fcs') return 'FCS';
+  return 'unknown';
+}
+
+function coreDivision(competitor: CoreCompetitor): GameDivision {
+  const team = competitor.team;
+  if (!team) return 'unknown';
+  const supplied = normalizeDivision(team.division || team.subdivision || team.classification);
+  if (supplied !== 'unknown') return supplied;
+  // ESPN Core commonly exposes conferenceId rather than an explicit subdivision.
+  return FBS_CONFERENCE_IDS.has(String(team.conferenceId)) ? 'FBS' : 'unknown';
+}
+
+const FBS_CONFERENCE_IDS = new Set(['7', '8', '9', '12', '15', '16', '17', '18', '23', '25', '37']);
+function gameDivision(home: GameDivision, away: GameDivision): GameDivision {
+  return home === 'FBS' || away === 'FBS' ? 'FBS' : home === 'FCS' || away === 'FCS' ? 'FCS' : 'unknown';
+}
+function isFBSGame(game: ClassifiedScheduleMatch): boolean {
+  // CFBD's games endpoint can omit division metadata. Treat that absence as
+  // advisory rather than as evidence that a game is non-FBS, while retaining
+  // the explicit FCS exclusion.
+  if (game.homeDivision === 'FBS' || game.awayDivision === 'FBS') return true;
+  return game.homeDivision !== 'FCS' && game.awayDivision !== 'FCS';
+}
+
+function mergeOverlay(games: ScheduleMatch[], events: ESPNGame[]): ScheduleMatch[] {
+  return games.map(game => {
+    const match = events.find(event => event.id === game.id || event.competitions?.[0]?.competitors?.every(c => [game.homeTeam.name, game.awayTeam.name].some(name => name.toLowerCase() === (c.team.displayName || '').toLowerCase())));
+    const competition = match?.competitions?.[0]; if (!competition) return game;
+    const home = competition.competitors?.find(c => c.homeAway === 'home'); const away = competition.competitors?.find(c => c.homeAway === 'away');
+    return { ...game, ...(home ? { homeTeam: { ...game.homeTeam, score: Number(home.score) || 0 } } : {}), ...(away ? { awayTeam: { ...game.awayTeam, score: Number(away.score) || 0 } } : {}), ...(competition.status?.type?.description ? { status: competition.status.type.description } : {}), ...(competition.status?.type?.completed !== undefined ? { isCompleted: competition.status.type.completed } : {}), tv: game.tv !== 'TBD' ? game.tv : competition.broadcasts?.[0]?.names?.[0] || game.tv, spread: competition.odds?.[0]?.details || game.spread };
   });
 }
 
-function extractWeeks(data: ESPNResponse): Array<{label: string, value: string}> {
-  if (!data.leagues?.[0]?.calendar?.[0]?.entries) {
-    return [];
-  }
-  
-  return data.leagues[0].calendar[0].entries.map(entry => ({
-    label: entry.label,
-    value: entry.value
-  }));
-}
-
-function getConferenceName(conferenceId?: string): string {
-  const conferenceMap: { [key: string]: string } = {
-    '1': 'ACC',
-    '4': 'Big 12',
-    '5': 'Big Ten',
-    '8': 'SEC',
-    '9': 'Big East',
-    '12': 'Pac-12',
-    '17': 'Mountain West',
-    '18': 'Independent',
-    '37': 'Sun Belt',
-    '151': 'American'
-  };
-  
-  return conferenceId ? conferenceMap[conferenceId] || 'Other' : 'Independent';
-}
+function makeResult(games: ScheduleMatch[], week: string) { return { games, weeks: [{ label: `Week ${week}`, value: week }], lastUpdated: new Date().toISOString(), hasLiveGames: games.some(game => !game.isCompleted && /q|half|ot|quarter/i.test(game.status)) }; }
+async function readCache(env: Context['env'], key: string): Promise<any | null> { if (!env.CFB_SCHEDULE_CACHE) return null; try { const value = await env.CFB_SCHEDULE_CACHE.get(key); return value ? JSON.parse(value) : null; } catch { return null; } }
+async function writeCache(env: Context['env'], key: string, value: unknown, ttl: number): Promise<void> { if (env.CFB_SCHEDULE_CACHE && Array.isArray((value as { games?: unknown[] }).games) && (value as { games: unknown[] }).games.length) try { await env.CFB_SCHEDULE_CACHE.put(key, JSON.stringify(value), { expirationTtl: ttl }); } catch (error) { console.warn('Failed to write CFB schedule cache:', error); } }
+function jsonResponse(body: unknown, status: number, maxAge: number): Response { return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': maxAge ? `public, max-age=${maxAge}` : 'no-store' } }); }
+function getSeason(url: URL): number { const requested = url.searchParams.get('season'); if (requested && /^\d{4}$/.test(requested)) return Number(requested); const now = new Date(); return now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear(); }

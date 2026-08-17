@@ -4,7 +4,7 @@ interface NewsItem {
   summary: string;
   link: string;
   source: string;
-  publishedAt: string;
+  publishedAt?: string;
   category: string;
   thumbnail?: string;
   description?: string;
@@ -84,7 +84,7 @@ export async function handleNewsRequest(request: Request, env: any): Promise<Res
     }
     
     // Sort by date and limit to most recent 15 articles
-    newsData.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+    newsData.sort((a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime());
     newsData = newsData.slice(0, 15);
     
     // Cache the result unless bypassed
@@ -183,7 +183,7 @@ async function parseNebraskaRSSFeed(): Promise<NewsItem[]> {
       // Extract publication date
       const pubDateMatch = itemContent.match(/<pubDate>(.*?)<\/pubDate>/i);
       const pubDateStr = pubDateMatch?.[1]?.trim();
-      let publishedAt = new Date().toISOString();
+      let publishedAt: string | undefined;
       
       if (pubDateStr) {
         try {
@@ -276,7 +276,7 @@ async function scrapeNebraskaFootballNews(): Promise<NewsItem[]> {
           description: cleanDescription,
           link: fullLink,
           source: 'Nebraska Athletics',
-          publishedAt: datetime || new Date().toISOString(),
+          publishedAt: datetime || undefined,
           category: 'official',
           thumbnail: fullImageUrl
         });
@@ -300,7 +300,7 @@ async function scrapeNebraskaFootballNews(): Promise<NewsItem[]> {
             description: `Latest update from Nebraska Athletics about ${title.toLowerCase()}`,
             link: fullLink,
             source: 'Nebraska Athletics',
-            publishedAt: new Date().toISOString(),
+            publishedAt: undefined,
             category: 'official',
             thumbnail: 'https://huskers.com/images/logos/site/site.png'
           });

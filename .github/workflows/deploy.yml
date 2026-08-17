@@ -27,9 +27,6 @@ jobs:
       - name: Install Wrangler
         run: npm install -g wrangler@latest
 
-      - name: Build TypeScript
-        run: npm run build
-
       - name: Substitute environment variables in wrangler.jsonc
         run: |
           sed -i 's/\$SCHEDULE_CACHE_ID/${{ secrets.SCHEDULE_CACHE_ID }}/g' wrangler.jsonc
@@ -40,8 +37,8 @@ jobs:
           sed -i 's/\$STANDINGS_CACHE_ID/${{ secrets.STANDINGS_CACHE_ID }}/g' wrangler.jsonc
           sed -i 's/\$OPENWEATHER_API_KEY/${{ secrets.OPENWEATHER_API_KEY }}/g' wrangler.jsonc
 
-      - name: Deploy to Cloudflare Workers
-        run: wrangler deploy
+      - name: Build and deploy OpenNext
+        run: npm run deploy:next
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

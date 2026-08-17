@@ -34,34 +34,98 @@ export async function handleWeatherRequest(request: Request, env: any): Promise<
     const cached = await readWeatherCache(env, cacheKey);
     
     if (cached) {
-      return new Response(cached, {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      const cachedPayload = parseWeatherPayload(cached);
+      if (cachedPayload) {
+        return weatherResponse(addWeatherMetadata(cachedPayload, {
+          cached: true,
+          stale: false,
+          source: requestedSource(useTomorrowAPI, useNWSAPI, useHighAccuracyAPI, cachedPayload),
+          sourceState: 'fresh-cache'
+        }), corsHeaders);
+      }
     }
 
-    // Get weather data with appropriate API priority
-    const weatherData = await getWeatherForLocation(location, env, hourly, useHighAccuracyAPI, useTomorrowAPI, useNWSAPI);
-    
+    let weatherResult: { data: any; source: string };
+    try {
+      weatherResult = await getWeatherForLocation(location, env, hourly, useHighAccuracyAPI, useTomorrowAPI, useNWSAPI);
+    } catch (error) {
+      // A cache value is safer than leaking provider details or returning an empty forecast.
+      if (cached) {
+        const cachedPayload = parseWeatherPayload(cached);
+        if (cachedPayload) {
+          return weatherResponse(addWeatherMetadata(cachedPayload, {
+            cached: true,
+            stale: true,
+            source: requestedSource(useTomorrowAPI, useNWSAPI, useHighAccuracyAPI, cachedPayload),
+            sourceState: 'stale-cache'
+          }), corsHeaders);
+        }
+      }
+      throw error;
+    }
+
+    const weatherData = addWeatherMetadata(weatherResult.data, {
+      cached: false,
+      stale: false,
+      source: weatherResult.source,
+      sourceState: 'live'
+    });
+
     // Cache for 30 minutes for high-accuracy, 2 hours for standard
     const cacheTTL = useNWSAPI ? 300 : useTomorrowAPI || useHighAccuracyAPI ? 1800 : 7200;
     if (env.WEATHER_CACHE) {
       await writeWeatherCache(env, cacheKey, JSON.stringify(weatherData), cacheTTL);
     }
-    
-    return new Response(JSON.stringify(weatherData), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    return weatherResponse(weatherData, corsHeaders);
   } catch (error) {
     console.error('Weather API error:', error);
-    
-    return new Response(JSON.stringify({
+    return weatherResponse({
       success: false,
-      error: 'Failed to fetch weather data'
-    }), {
-      status: 502,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+      error: 'Failed to fetch weather data',
+      meta: weatherMetadata(false, true, 'unavailable', 'unavailable')
+    }, corsHeaders, 502);
   }
+}
+
+function weatherResponse(body: unknown, corsHeaders: Record<string, string>, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+  });
+}
+
+function parseWeatherPayload(value: string): any | null {
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function requestedSource(tomorrow: boolean, nws: boolean, precise: boolean, payload: any): string {
+  return payload?.meta?.freshness?.source || (nws ? 'nws' : tomorrow || precise ? 'tomorrow' : 'weather');
+}
+
+function weatherMetadata(cached: boolean, stale: boolean, source: string, sourceState: string, updated?: string) {
+  const dataUpdatedAt = updated || new Date().toISOString();
+  return {
+    freshness: { cached, stale, source, dataUpdatedAt, servedAt: new Date().toISOString(), sourceState },
+    sourceHealth: { [source]: { state: sourceState, stale } }
+  };
+}
+
+function addWeatherMetadata(payload: any, options: { cached: boolean; stale: boolean; source: string; sourceState: string }): any {
+  const updated = payload?.meta?.freshness?.dataUpdatedAt || payload?.current?.lastUpdated;
+  const metadata = weatherMetadata(options.cached, options.stale, options.source, options.sourceState, updated);
+  return {
+    ...payload,
+    cached: options.cached,
+    stale: options.stale,
+    source: options.source,
+    freshness: metadata.freshness,
+    meta: metadata
+  };
 }
 
 async function getWeatherForLocation(location: string, env: any, hourly: boolean = false, useHighAccuracyAPI: boolean = false, useTomorrowAPI: boolean = false, useNWSAPI: boolean = false) {
@@ -69,7 +133,7 @@ async function getWeatherForLocation(location: string, env: any, hourly: boolean
 
   if (useNWSAPI) {
     console.log('Trying NWS latest observation for requested weather source');
-    return await getNWSObservationData();
+    return { data: await getNWSObservationData(), source: 'nws' };
   }
   
   if (useTomorrowAPI) {
@@ -78,14 +142,14 @@ async function getWeatherForLocation(location: string, env: any, hourly: boolean
     }
 
     console.log('Trying Tomorrow.io API for requested weather source');
-    return await getTomorrowWeatherData(location, env, env.TOMORROW_API_KEY, hourly);
+    return { data: await getTomorrowWeatherData(location, env, env.TOMORROW_API_KEY, hourly), source: 'tomorrow' };
   }
   
   // For games within 120 hours, prefer Tomorrow.io API if available
   if (useHighAccuracyAPI && env.TOMORROW_API_KEY) {
     try {
       console.log('Trying Tomorrow.io API for high-accuracy forecast');
-      return await getTomorrowWeatherData(location, env, env.TOMORROW_API_KEY, hourly);
+      return { data: await getTomorrowWeatherData(location, env, env.TOMORROW_API_KEY, hourly), source: 'tomorrow' };
     } catch (error) {
       console.error('Tomorrow.io API failed:', error);
       // Fall through to other APIs
@@ -97,7 +161,7 @@ async function getWeatherForLocation(location: string, env: any, hourly: boolean
     try {
       console.log('Trying OpenWeather API');
       const apiKey = env.OPENWEATHER_API_KEY || env.WEATHER_API_KEY;
-      return await getOpenWeatherData(location, apiKey, hourly);
+      return { data: await getOpenWeatherData(location, apiKey, hourly), source: 'openweather' };
     } catch (error) {
       console.error('OpenWeather API failed:', error);
       // Fall through to NWS
@@ -108,7 +172,7 @@ async function getWeatherForLocation(location: string, env: any, hourly: boolean
   if (location.includes('NE') || location.includes('Nebraska') || location.includes('Lincoln')) {
     try {
       console.log('Trying NWS API for Lincoln, NE');
-      return await getNWSWeatherData(hourly);
+      return { data: await getNWSWeatherData(hourly), source: 'nws' };
     } catch (error) {
       console.error('NWS API failed:', error);
       // Fall through to error if no live source succeeds.

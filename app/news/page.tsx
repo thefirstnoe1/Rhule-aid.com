@@ -5,6 +5,7 @@ import { SurfaceCard } from '../components/ui';
 import { handleNewsRequest } from '../../src/api/news';
 import type { Env } from '../../src/types';
 import { pageMetadata } from '../seo';
+import { createExternalNewsItemListStructuredData, serializeStructuredData } from '../../src/lib/structured-data';
 
 export const dynamic = 'force-dynamic';
 export const metadata = pageMetadata('Nebraska Football News | Rhule Aid', 'Latest Nebraska Cornhuskers football news, updates, and headlines from around Husker football.', '/news');
@@ -15,7 +16,7 @@ type NewsItem = {
   description?: string;
   link: string;
   source: string;
-  publishedAt: string;
+  publishedAt?: string;
   category?: string;
   thumbnail?: string;
 };
@@ -30,9 +31,25 @@ export default async function NewsPage() {
   const { env } = getCloudflareContext();
   const news = await getNews(env as Env);
   const [lead, ...articles] = news.data;
+  const structuredData = createExternalNewsItemListStructuredData(
+    news.data
+      .filter((article) => isValidExternalNewsItem(article))
+      .map((article) => ({
+        headline: article.title,
+        url: article.link,
+        ...(article.publishedAt ? { datePublished: article.publishedAt } : {}),
+      })),
+    ['huskers.com', 'www.huskers.com'],
+  );
 
   return (
     <main>
+      {structuredData.itemListElement.length > 0 ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: serializeStructuredData(structuredData) }}
+        />
+      ) : null}
       <SiteHeader />
       <PageHero eyebrow="Nebraska Football" title="Latest News" />
       <section className="container-shell pb-20">
@@ -108,9 +125,18 @@ function EmptyNews() {
   );
 }
 
-function formatDate(value: string) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? 'Recently' : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+function formatDate(value?: string) {
+  const date = value ? new Date(value) : null;
+  return !date || Number.isNaN(date.getTime()) ? 'Recently' : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function isValidExternalNewsItem(article: NewsItem): boolean {
+  if (!article.title?.trim() || !article.source?.trim() || !article.link?.trim()) return false;
+  if (!/^https?:\/\/[^\s]+$/i.test(article.link)) return false;
+  const publishedAt = article.publishedAt;
+  if (!publishedAt) return true;
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})$/.test(publishedAt)) return false;
+  return Number.isFinite(Date.parse(publishedAt));
 }
 
 async function getNews(env: Env): Promise<NewsResponse> {

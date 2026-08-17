@@ -14,6 +14,8 @@ type ScheduleResponse = {
   data: ScheduleGame[];
   season?: number;
   lastUpdated?: string;
+  stale?: boolean;
+  meta?: { dataUpdatedAt?: string | null; stale?: boolean; providers?: Record<string, string> };
 };
 
 type StandingsResponse = {
@@ -49,12 +51,13 @@ export default async function SchedulePage() {
         games={schedule.data}
         standings={standings.data}
         lastUpdated={schedule.lastUpdated}
+        health={schedule.health}
       />
     </main>
   );
 }
 
-async function getSchedule(env: Env): Promise<{ data: ScheduleGame[]; season: number; lastUpdated?: string }> {
+async function getSchedule(env: Env): Promise<{ data: ScheduleGame[]; season: number; lastUpdated?: string; health: { updatedAt?: string; stale?: boolean; providers?: Record<string, string> } }> {
   try {
     const response = await handleScheduleRequest(new Request('https://rhule-aid.com/api/schedule'), env);
     const payload = await response.json() as ScheduleResponse;
@@ -62,11 +65,12 @@ async function getSchedule(env: Env): Promise<{ data: ScheduleGame[]; season: nu
     return {
       data: payload.success ? payload.data : [],
       season: payload.season || new Date().getFullYear(),
-      lastUpdated: payload.lastUpdated
+      lastUpdated: payload.lastUpdated,
+      health: { updatedAt: payload.meta?.dataUpdatedAt || payload.lastUpdated, stale: payload.meta?.stale ?? payload.stale, providers: payload.meta?.providers }
     };
   } catch (error) {
     console.error('Schedule page data error:', error);
-    return { data: [], season: new Date().getFullYear() };
+    return { data: [], season: new Date().getFullYear(), health: {} };
   }
 }
 

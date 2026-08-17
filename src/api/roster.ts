@@ -7,8 +7,11 @@ interface Player {
   height: string;
   weight: string;
   hometown: string;
-  category?: string;
+  category: RosterCategory;
 }
+
+export type RosterCategory = 'offense' | 'defense' | 'special' | 'other';
+const ROSTER_CACHE_SCHEMA = 'v5';
 
 export async function handleRosterRequest(request: Request, env: any): Promise<Response> {
   const corsHeaders = {
@@ -27,12 +30,10 @@ export async function handleRosterRequest(request: Request, env: any): Promise<R
     const sortBy = url.searchParams.get('sort') || 'number';
     
     // Check cache (4 hour cache for roster)
-    const cacheKey = 'nebraska-roster-v4';
-    const cached = await env.ROSTER_CACHE?.get(cacheKey);
-    
-    if (cached) {
-      const cachedData = JSON.parse(cached);
-      if (Array.isArray(cachedData.data) && cachedData.data.length > 0 && cachedData.timestamp && (Date.now() - cachedData.timestamp) < 14400000) { // 4 hours
+    const cacheKey = 'nebraska-roster-v5';
+    const cachedData = await readCachedRoster(env.ROSTER_CACHE, cacheKey);
+    if (cachedData) {
+      if (cachedData.data.length > 0) { // 4 hours
         const sortedData = sortRosterData(cachedData.data, sortBy);
         return new Response(JSON.stringify({
           success: true,
@@ -59,6 +60,7 @@ export async function handleRosterRequest(request: Request, env: any): Promise<R
     
     // Cache the result (unsorted, we'll sort on response)
     await env.ROSTER_CACHE?.put(cacheKey, JSON.stringify({
+      schema: ROSTER_CACHE_SCHEMA,
       data: rosterData,
       timestamp: Date.now()
     }));
@@ -111,9 +113,9 @@ function sortRosterData(players: Player[], sortBy: string): Player[] {
     default:
       // Default sort: by position category first, then by number (maintains original behavior)
       return sortedPlayers.sort((a, b) => {
-        const categoryOrder: Record<string, number> = { 'offense': 1, 'defense': 2, 'special': 3 };
-        const aCat = categoryOrder[a.category || 'offense'] || 4;
-        const bCat = categoryOrder[b.category || 'offense'] || 4;
+        const categoryOrder: Record<RosterCategory, number> = { offense: 1, defense: 2, special: 3, other: 4 };
+        const aCat = categoryOrder[a.category];
+        const bCat = categoryOrder[b.category];
         
         if (aCat !== bCat) return aCat - bCat;
         return a.number - b.number;
@@ -184,7 +186,7 @@ async function scrapeNebraskaRoster(): Promise<Player[]> {
             height: height,
             weight: weight,
             hometown: hometown,
-            category: categorizePosition(position)
+            category: classifyRosterPosition(position)
           });
         }
       }
@@ -256,7 +258,7 @@ async function scrapeNebraskaRoster(): Promise<Player[]> {
             height: height,
             weight: weight,
             hometown: hometown,
-            category: categorizePosition(position)
+            category: classifyRosterPosition(position)
           });
         }
         }
@@ -287,7 +289,7 @@ async function scrapeNebraskaRoster(): Promise<Player[]> {
                       height: player.height || '',
                       weight: player.weight || '',
                       hometown: player.hometown || '',
-                      category: categorizePosition(player.position || '')
+                      category: classifyRosterPosition(player.position || '')
                     });
                   }
                 }
@@ -312,8 +314,8 @@ async function scrapeNebraskaRoster(): Promise<Player[]> {
   }
 }
 
-function categorizePosition(position: string): string {
-  const pos = position.toLowerCase();
+export function classifyRosterPosition(position: unknown): RosterCategory {
+  const pos = String(position ?? '').trim().toLowerCase().replace(/[&/_.-]+/g, ' ').replace(/\s+/g, ' ');
   
   // Offense positions
   if (pos.includes('quarterback') || pos === 'qb') {
@@ -328,12 +330,12 @@ function categorizePosition(position: string): string {
   if (pos.includes('tight end') || pos === 'te') {
     return 'offense';
   }
-  if (pos.includes('offensive lineman') || pos.includes('offensive line') || ['ot', 'og', 'c', 'ol'].includes(pos)) {
+  if (pos.includes('offensive lineman') || pos.includes('offensive line') || pos === 'o line' || ['ot', 'og', 'c', 'ol'].includes(pos)) {
     return 'offense';
   }
   
   // Defense positions  
-  if (pos.includes('defensive lineman') || pos.includes('defensive line') || ['de', 'dt', 'nt', 'dl'].includes(pos)) {
+  if (pos.includes('cornerback') || pos === 'corner back' || pos.includes('safety') || pos === 'defensive tackle' || pos === 'd tackle' || pos === 'edge' || pos.includes('edge rusher') || pos.includes('defensive lineman') || pos.includes('defensive line') || ['de', 'dt', 'nt', 'dl'].includes(pos)) {
     return 'defense';
   }
   if (pos.includes('linebacker') || pos === 'lb' || ['olb', 'mlb', 'ilb'].includes(pos)) {
@@ -357,6 +359,23 @@ function categorizePosition(position: string): string {
     return 'special';
   }
   
-  // Default to offense if unknown
-  return 'offense';
+  return 'other';
+}
+
+function isValidCachedPlayer(player: any): player is Player {
+  return Boolean(player && typeof player === 'object' && Number.isFinite(player.number) && typeof player.name === 'string' && typeof player.position === 'string' && typeof player.class === 'string' && typeof player.height === 'string' && typeof player.weight === 'string' && typeof player.hometown === 'string' && typeof player.category === 'string' && ['offense', 'defense', 'special', 'other'].includes(player.category));
+}
+
+async function readCachedRoster(cache: any, key: string): Promise<{ data: Player[]; timestamp: number } | null> {
+  if (!cache) return null;
+  try {
+    const raw = await cache.get(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const timestamp = parsed?.timestamp;
+    if (parsed?.schema !== ROSTER_CACHE_SCHEMA || !Number.isFinite(timestamp) || timestamp <= 0 || timestamp > Date.now() || !Array.isArray(parsed.data) || !parsed.data.every(isValidCachedPlayer) || parsed.data.length === 0 || Date.now() - timestamp >= 14400000) return null;
+    return { data: parsed.data, timestamp };
+  } catch {
+    return null;
+  }
 }

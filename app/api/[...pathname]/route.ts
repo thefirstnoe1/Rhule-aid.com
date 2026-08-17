@@ -8,6 +8,9 @@ import { handleConferencesRequest } from '../../../src/api/conferences';
 import { onRequest as handleCFBScheduleRequest } from '../../../src/api/cfb-schedule';
 import { handleBigTenStandingsRequest } from '../../../src/api/bigten-standings';
 import { handleSoccerRequest } from '../../../src/api/soccer';
+import { handleGameStatusRequest } from '../../../src/api/nebraska-game-status';
+import { handleGameCalendarRequest } from '../../../src/api/game-calendar';
+import { handleWeatherAlertsRequest } from '../../../src/api/weather-alerts';
 import type { Env } from '../../../src/types';
 
 type RouteContext = {
@@ -33,6 +36,8 @@ async function routeAPIRequest(request: Request, context: RouteContext): Promise
         return await handleRosterRequest(request, env);
       case '/api/weather':
         return await handleWeatherRequest(request, env);
+      case '/api/weather/alerts':
+        return await handleWeatherAlertsRequest(request, env);
       case '/api/logo':
         return await handleLogoRequest(request, env);
       case '/api/conferences':
@@ -41,6 +46,10 @@ async function routeAPIRequest(request: Request, context: RouteContext): Promise
         return await handleBigTenStandingsRequest(request, env);
       case '/api/soccer':
         return await handleSoccerRequest(request, env);
+      case '/api/games/status':
+        return await handleGameStatusRequest(request, env);
+      case '/api/games/calendar':
+        return await handleGameCalendarRequest(request, env);
       default:
         return Response.json({ error: 'Not Found' }, { status: 404 });
     }

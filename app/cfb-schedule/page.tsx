@@ -55,6 +55,16 @@ async function getCFBSchedule(env: Env): Promise<CFBScheduleData> {
     });
     const payload = await response.json() as CFBScheduleData;
 
+    if (!response.ok || payload.error) {
+      return {
+        games: [],
+        weeks: [],
+        lastUpdated: payload.lastUpdated,
+        hasLiveGames: false,
+        error: payload.error || `Live data unavailable (HTTP ${response.status})`
+      };
+    }
+
     return {
       games: Array.isArray(payload.games) ? payload.games : [],
       weeks: Array.isArray(payload.weeks) ? payload.weeks : [],

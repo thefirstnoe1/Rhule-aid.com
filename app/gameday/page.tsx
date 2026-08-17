@@ -1,21 +1,42 @@
 import { getCloudflareContext } from '@opennextjs/cloudflare';
+import type { Metadata } from 'next';
 import { SiteHeader } from '../components/site-header';
 import { PageHero } from '../components/page-hero';
 import { SurfaceCard, ButtonLink } from '../components/ui';
+import { DataHealth } from '../components/ui';
+import { WeatherAlerts } from '../components/weather-alerts';
+import { GameStatusClient } from './game-status-client';
 import { handleScheduleRequest } from '../../src/api/schedule';
 import { handleWeatherRequest } from '../../src/api/weather';
 import type { Env } from '../../src/types';
-import type { ScheduleGame } from '../schedule/schedule-explorer';
+import type { ScheduleGame } from '../../src/contracts/gameday';
+import { createVerifiedSportsEventStructuredData, serializeStructuredData, stableGameUrl, stableSportsTeamId } from '../../src/lib/structured-data';
 import { pageMetadata } from '../seo';
 import { selectNextGame } from '../schedule/schedule-utils';
 
 export const dynamic = 'force-dynamic';
-export const metadata = pageMetadata('Nebraska Football Game Day | Rhule Aid', 'Nebraska football game day details, including the next matchup, kickoff, venue, and where to watch.', '/gameday');
+const gameDayDescription = 'Nebraska football game day details, including the next matchup, kickoff, venue, and where to watch.';
+
+type GameDayPageProps = { searchParams?: Promise<{ game?: string | string[]; season?: string | string[] }> };
+
+export async function generateMetadata({ searchParams }: GameDayPageProps): Promise<Metadata> {
+  const selector = getGameSelector(await searchParams);
+  const schedule = await getScheduleFromContext(selector?.season);
+  const game = selector ? schedule.data.find((candidate) => candidate.gameKey === selector.gameKey && candidate.season === selector.season) : undefined;
+  const pathname = game ? new URL(stableGameUrl(game.gameKey, game.season)).pathname + new URL(stableGameUrl(game.gameKey, game.season)).search : '/gameday';
+  return pageMetadata(game ? `Nebraska ${getMatchupLabel(game)} ${game.opponent} | Rhule Aid` : 'Nebraska Football Game Day | Rhule Aid', gameDayDescription, pathname);
+}
 
 type ScheduleResponse = {
   success: boolean;
-  data: ScheduleGame[];
+  data: GameDayScheduleGame[];
+  season?: number;
+  lastUpdated?: string;
+  stale?: boolean;
+  meta?: { dataUpdatedAt?: string | null; stale?: boolean; providers?: Record<string, string> };
 };
+
+type GameDayScheduleGame = ScheduleGame;
 
 type ForecastDay = {
   dateKey: string;
@@ -23,13 +44,19 @@ type ForecastDay = {
   temperatureUnit: string;
   shortForecast: string;
   precipitationProbability: number;
+  source?: string;
 };
 
 type WeatherResponse = {
   success: boolean;
   location?: string;
+  source?: string;
+  current?: { lastUpdated?: string };
   forecast?: ForecastDay[];
   error?: string;
+  stale?: boolean;
+  freshness?: { cached?: boolean; stale?: boolean; source?: string; dataUpdatedAt?: string; sourceState?: string };
+  meta?: { freshness?: WeatherResponse['freshness']; sourceHealth?: Record<string, { state?: string; stale?: boolean }> };
 };
 
 type WeatherState = 'outside-window' | 'unavailable' | 'loaded';
@@ -53,24 +80,30 @@ const opponentCities: Record<string, GameVenue> = {
   Iowa: { city: 'Iowa City', state: 'IA' }
 };
 
-export default async function GameDayPage() {
+export default async function GameDayPage({ searchParams }: GameDayPageProps) {
   const { env } = getCloudflareContext();
-  const games = await getSchedule(env as Env);
-  const nextGame = selectNextGame(games, new Date());
+  const selector = getGameSelector(await searchParams);
+  const schedule = await getSchedule(env as Env, selector?.season);
+  const games = schedule.data;
+  const selectedGame = selector ? games.find((game) => game.gameKey === selector.gameKey && game.season === selector.season) : undefined;
+  const hasExplicitSelector = (await searchParams)?.game !== undefined;
+  const nextGame = hasExplicitSelector ? selectedGame : selectNextGame<GameDayScheduleGame>(games, new Date());
   const withinForecastWindow = nextGame ? isWithinForecastWindow(nextGame) : false;
   const weather = withinForecastWindow && nextGame ? await getGameDayWeather(nextGame, env as Env) : null;
   const weatherState: WeatherState = !withinForecastWindow ? 'outside-window' : weather ? 'loaded' : 'unavailable';
+  const structuredData = nextGame ? getGameDayStructuredData(nextGame) : null;
 
   return (
     <main>
+      {structuredData ? <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeStructuredData(structuredData) }} /> : null}
       <SiteHeader />
       <PageHero eyebrow="Nebraska Football" title="Game Day" />
       <section className="container-shell grid gap-6 pb-20 lg:grid-cols-[1.1fr_0.9fr]">
-        {nextGame ? <NextGamePanel game={nextGame} /> : <NoGamePanel />}
+        {nextGame ? <NextGamePanel game={nextGame} season={schedule.season} health={schedule.health} /> : <NoGamePanel requested={hasExplicitSelector} />}
         <div className="grid content-start gap-4">
           <WeatherCard game={nextGame} weather={weather} state={weatherState} />
           <InfoCard label="Where To Watch" value={nextGame?.network || nextGame?.tvNetwork || 'TBD'} detail="Broadcast information comes from the official Huskers schedule when available." />
-          <InfoCard label="Venue" value={nextGame?.location || 'TBD'} detail={nextGame?.isHome ? 'Home game' : nextGame?.isNeutral ? 'Neutral site' : 'Road game'} />
+          <InfoCard label="Venue" value={nextGame?.location || 'TBD'} detail={getVenueDetail(nextGame)} />
           <SurfaceCard className="rounded-[1.75rem] p-6">
             <p className="eyebrow mb-3">Useful Links</p>
             <div className="grid gap-3">
@@ -84,6 +117,63 @@ export default async function GameDayPage() {
       </section>
     </main>
   );
+}
+
+function getGameDayStructuredData(game: GameDayScheduleGame) {
+  const venueAddress = game.venue?.address;
+  const venueVerified = Boolean(game.venue?.name?.trim() && game.location?.trim() && venueAddress && game.fieldProvenance?.venue && game.fieldProvenance.venue !== 'unknown');
+  if (!venueVerified || !venueAddress) return null;
+
+  const event = createVerifiedSportsEventStructuredData({
+    gameKey: game.gameKey,
+    name: `Nebraska ${getMatchupLabel(game)} ${game.opponent}`,
+    homeTeam: game.homeTeam,
+    awayTeam: game.awayTeam,
+    homeTeamId: isNebraskaTeam(game.homeTeam) ? stableSportsTeamId('nebraska-cornhuskers') : undefined,
+    awayTeamId: isNebraskaTeam(game.awayTeam) ? stableSportsTeamId('nebraska-cornhuskers') : undefined,
+    kickoffAt: game.kickoffAt,
+    kickoffStatus: game.kickoffStatus,
+    venue: {
+      name: game.location,
+      verified: true,
+      address: venueAddress,
+    },
+    url: stableGameUrl(game.gameKey, game.season),
+    season: game.season,
+  });
+
+  return event;
+}
+
+function getGameSelector(searchParams: { game?: string | string[]; season?: string | string[] } | undefined): { gameKey: string; season: number } | undefined {
+  const value = searchParams?.game;
+  if (typeof value !== 'string' || !value.trim() || value.length > 200) return undefined;
+  const seasonValue = searchParams?.season;
+  if (Array.isArray(seasonValue) || Array.isArray(value)) return undefined;
+  const season = typeof seasonValue === 'string' && /^\d{4}$/.test(seasonValue) ? Number(seasonValue) : deriveSeasonFromGameKey(value);
+  if (!season || season < 1900 || season > 2100) return undefined;
+  return { gameKey: value.trim(), season };
+}
+
+function deriveSeasonFromGameKey(gameKey: string): number | undefined {
+  const match = /^nebraska:(\d{4}):/.exec(gameKey.trim());
+  return match ? Number(match[1]) : undefined;
+}
+
+function getVenueDetail(game?: GameDayScheduleGame): string {
+  const type = game?.isHome ? 'Home game' : game?.isNeutral ? 'Neutral site' : 'Road game';
+  const address = game?.venue?.address;
+  if (!address) return type;
+  return `${type} · ${address.street}, ${address.city}, ${address.region} ${address.postalCode}`;
+}
+
+async function getScheduleFromContext(season?: number): Promise<{ data: GameDayScheduleGame[]; season: number; health: ScheduleHealth }> {
+  const { env } = getCloudflareContext();
+  return getSchedule(env as Env, season);
+}
+
+function isNebraskaTeam(team: string): boolean {
+  return team.toLowerCase().includes('nebraska');
 }
 
 function WeatherCard({ game, weather, state }: { game?: ScheduleGame; weather: WeatherResponse | null; state: WeatherState }) {
@@ -111,6 +201,8 @@ function WeatherCard({ game, weather, state }: { game?: ScheduleGame; weather: W
           <WeatherStat label="Rain chance" value={`${forecast.precipitationProbability}%`} />
         </div>
       ) : null}
+      {weather ? <DataHealth updatedAt={weather.current?.lastUpdated} stale={weather.stale} source={weather.source} freshness={weather.freshness || weather.meta?.freshness} sourceHealth={weather.meta?.sourceHealth} label="Forecast" /> : null}
+      <WeatherAlerts />
       <a href="https://www.tomorrow.io/weather-api/" target="_blank" rel="noreferrer" className="mt-5 inline-block text-xs text-[var(--muted)] underline decoration-[var(--border)] underline-offset-4 transition hover:text-[var(--foreground)]">
         Weather by Tomorrow.io
       </a>
@@ -127,7 +219,7 @@ function WeatherStat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function NextGamePanel({ game }: { game: ScheduleGame }) {
+function NextGamePanel({ game, season, health }: { game: GameDayScheduleGame; season: number; health: ScheduleHealth }) {
   return (
     <SurfaceCard className="overflow-hidden rounded-[2rem]">
       <div className="relative min-h-[500px] bg-[var(--hero-panel)] p-7 text-white md:p-9">
@@ -143,7 +235,18 @@ function NextGamePanel({ game }: { game: ScheduleGame }) {
               <span className="text-sm font-black uppercase tracking-[0.2em] text-white/55">{getMatchupLabel(game)}</span>
               <Logo src={game.opponentLogo} alt={game.opponent} />
             </div>
-            <p className="text-sm font-bold uppercase tracking-[0.2em] text-white/60">{game.date} / {game.time}</p>
+            <GameStatusClient
+              season={season}
+              gameKey={game.gameKey}
+              kickoffAt={game.kickoffAt}
+              kickoffStatus={game.kickoffStatus}
+              gameDate={game.date}
+              gameTime={game.time}
+              isHome={game.isHome}
+              opponent={game.opponent}
+              className="mb-5"
+            />
+            <DataHealth updatedAt={health.updatedAt} stale={health.stale} providers={health.providers} label="Schedule" />
             <h2 className="mt-4 text-5xl font-black leading-[0.9] tracking-[-0.075em] md:text-7xl">
               Nebraska {getMatchupLabel(game)} {game.opponent}
             </h2>
@@ -172,11 +275,11 @@ function Logo({ src, alt }: { src: string; alt: string }) {
   );
 }
 
-function NoGamePanel() {
+function NoGamePanel({ requested = false }: { requested?: boolean }) {
   return (
     <SurfaceCard className="rounded-[2rem] p-8">
-      <h2 className="text-3xl font-black tracking-[-0.05em]">No upcoming game found.</h2>
-      <p className="mt-3 text-[var(--muted)]">Check the schedule page for the latest updates.</p>
+      <h2 className="text-3xl font-black tracking-[-0.05em]">{requested ? 'Requested game unavailable.' : 'No upcoming game found.'}</h2>
+      <p className="mt-3 text-[var(--muted)]">{requested ? 'Check the schedule page for the latest updates.' : 'Check the schedule page for the latest updates.'}</p>
     </SurfaceCard>
   );
 }
@@ -242,13 +345,16 @@ async function getGameDayWeather(game: ScheduleGame, env: Env): Promise<WeatherR
   }
 }
 
-async function getSchedule(env: Env): Promise<ScheduleGame[]> {
+type ScheduleHealth = { updatedAt?: string; stale?: boolean; providers?: Record<string, string> };
+
+async function getSchedule(env: Env, requestedSeason?: number): Promise<{ data: GameDayScheduleGame[]; season: number; health: ScheduleHealth }> {
   try {
-    const response = await handleScheduleRequest(new Request('https://rhule-aid.com/api/schedule'), env);
+    const url = requestedSeason ? `https://rhule-aid.com/api/schedule?season=${requestedSeason}` : 'https://rhule-aid.com/api/schedule';
+    const response = await handleScheduleRequest(new Request(url), env);
     const payload = await response.json() as ScheduleResponse;
-    return payload.success ? payload.data : [];
+    return { data: payload.success ? payload.data : [], season: payload.season || new Date().getFullYear(), health: { updatedAt: payload.meta?.dataUpdatedAt || payload.lastUpdated, stale: payload.meta?.stale ?? payload.stale, providers: payload.meta?.providers } };
   } catch (error) {
     console.error('Game day schedule error:', error);
-    return [];
+    return { data: [], season: new Date().getFullYear(), health: {} };
   }
 }

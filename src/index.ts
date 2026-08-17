@@ -9,6 +9,9 @@ import { handleConferencesRequest } from './api/conferences';
 import { onRequest as handleCFBScheduleRequest } from './api/cfb-schedule';
 import { handleBigTenStandingsRequest } from './api/bigten-standings';
 import { handleSoccerRequest } from './api/soccer';
+import { handleGameStatusRequest } from './api/nebraska-game-status';
+import { handleGameCalendarRequest } from './api/game-calendar';
+import { handleWeatherAlertsRequest } from './api/weather-alerts';
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -50,6 +53,8 @@ async function handleAPIRequest(request: Request, env: Env, pathname: string): P
         return await handleRosterRequest(request, env);
       case '/api/weather':
         return await handleWeatherRequest(request, env);
+      case '/api/weather/alerts':
+        return await handleWeatherAlertsRequest(request, env);
       case '/api/logo':
         return await handleLogoRequest(request, env);
       case '/api/conferences':
@@ -62,6 +67,10 @@ async function handleAPIRequest(request: Request, env: Env, pathname: string): P
         return await handleBigTenStandingsRequest(request, env);
       case '/api/soccer':
         return await handleSoccerRequest(request, env);
+      case '/api/games/status':
+        return await handleGameStatusRequest(request, env);
+      case '/api/games/calendar':
+        return await handleGameCalendarRequest(request, env);
       case '/api/update/rankings':
         if (request.method === 'POST') {
           await updateRankingsAndStandings(env);

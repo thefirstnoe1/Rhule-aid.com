@@ -2,7 +2,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { SiteHeader } from './components/site-header';
-import { ButtonLink, SurfaceCard } from './components/ui';
+import { ButtonLink, DataHealth, SurfaceCard } from './components/ui';
+import { WeatherAlerts } from './components/weather-alerts';
 import { handleScheduleRequest } from '../src/api/schedule';
 import { handleNewsRequest } from '../src/api/news';
 import { handleWeatherRequest } from '../src/api/weather';
@@ -44,8 +45,15 @@ type WeatherData = {
     humidity: number | string;
     windSpeed: number;
     windDirection: string;
+    lastUpdated?: string;
   };
+  stale?: boolean;
+  source?: string;
+  freshness?: { cached?: boolean; stale?: boolean; source?: string; dataUpdatedAt?: string; sourceState?: string };
+  meta?: { freshness?: WeatherData['freshness']; sourceHealth?: Record<string, { state?: string; stale?: boolean }> };
 };
+
+type ScheduleHealth = { updatedAt?: string; stale?: boolean; providers?: Record<string, string> };
 
 const quickLinks = [
   {
@@ -72,12 +80,12 @@ const quickLinks = [
 
 export default async function Home() {
   const { env } = getCloudflareContext();
-  const [games, news, weather] = await Promise.all([
+  const [schedule, news, weather] = await Promise.all([
     getSchedule(env as Env),
     getNews(env as Env),
     getWeather(env as Env)
   ]);
-  const nextGame = selectNextGame(games, new Date());
+  const nextGame = selectNextGame(schedule.data, new Date());
   const leadNews = news[0];
 
   return (
@@ -96,7 +104,7 @@ export default async function Home() {
           </div>
         </div>
 
-        {nextGame ? <NextGameCard game={nextGame} /> : <FallbackHeroCard />}
+        {nextGame ? <NextGameCard game={nextGame} health={schedule.health} /> : <FallbackHeroCard />}
       </section>
 
       <section className="container-shell grid gap-5 pb-10 md:grid-cols-4">
@@ -164,6 +172,8 @@ function WeatherCard({ weather }: { weather: WeatherData | null }) {
               <div className="mt-2 text-[var(--foreground)]">{weather.current.humidity}{typeof weather.current.humidity === 'number' ? '%' : ''}</div>
             </div>
           </div>
+          <DataHealth updatedAt={weather.current.lastUpdated} stale={weather.stale} source={weather.source} freshness={weather.freshness || weather.meta?.freshness} sourceHealth={weather.meta?.sourceHealth} label="Weather" />
+          <WeatherAlerts />
         </>
       ) : (
         <h2 className="text-3xl font-black tracking-[-0.05em]">Lincoln weather is unavailable right now.</h2>
@@ -172,7 +182,7 @@ function WeatherCard({ weather }: { weather: WeatherData | null }) {
   );
 }
 
-function NextGameCard({ game }: { game: HomeGame }) {
+function NextGameCard({ game, health }: { game: HomeGame; health: ScheduleHealth }) {
   return (
     <SurfaceCard className="overflow-hidden rounded-[2rem]">
       <div className="relative min-h-[470px] bg-[var(--hero-panel)] p-7 text-white sm:p-8">
@@ -193,6 +203,7 @@ function NextGameCard({ game }: { game: HomeGame }) {
               Nebraska {game.isHome || game.isNeutral ? 'vs.' : 'at'} {game.opponent}
             </h2>
             <p className="mt-5 text-sm font-bold uppercase tracking-[0.16em] text-white/65">{game.location}</p>
+            <DataHealth updatedAt={health.updatedAt} stale={health.stale} providers={health.providers} label="Schedule" />
           </div>
         </div>
       </div>
@@ -227,14 +238,14 @@ function formatDate(value: string) {
   return Number.isNaN(date.getTime()) ? 'Recently' : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-async function getSchedule(env: Env): Promise<HomeGame[]> {
+async function getSchedule(env: Env): Promise<{ data: HomeGame[]; health: ScheduleHealth }> {
   try {
     const response = await handleScheduleRequest(new Request('https://rhule-aid.com/api/schedule'), env);
-    const payload = await response.json() as { success: boolean; data: HomeGame[] };
-    return payload.success ? payload.data : [];
+    const payload = await response.json() as { success: boolean; data: HomeGame[]; lastUpdated?: string; stale?: boolean; meta?: { dataUpdatedAt?: string | null; stale?: boolean; providers?: Record<string, string> } };
+    return { data: payload.success ? payload.data : [], health: { updatedAt: payload.meta?.dataUpdatedAt || payload.lastUpdated, stale: payload.meta?.stale ?? payload.stale, providers: payload.meta?.providers } };
   } catch (error) {
     console.error('Homepage schedule error:', error);
-    return [];
+    return { data: [], health: {} };
   }
 }
 

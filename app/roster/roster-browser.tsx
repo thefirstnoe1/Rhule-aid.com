@@ -3,6 +3,8 @@
 import { useMemo, useState } from 'react';
 import { SurfaceCard } from '../components/ui';
 
+export type PlayerCategory = 'offense' | 'defense' | 'special' | 'other';
+
 export type Player = {
   number: number;
   name: string;
@@ -11,14 +13,15 @@ export type Player = {
   height: string;
   weight: string;
   hometown: string;
-  category?: string;
+  category?: PlayerCategory;
 };
 
 const groups = [
   { label: 'All', value: 'all' },
   { label: 'Offense', value: 'offense' },
   { label: 'Defense', value: 'defense' },
-  { label: 'Special', value: 'special' }
+  { label: 'Special', value: 'special' },
+  { label: 'Other', value: 'other' }
 ];
 
 export function RosterBrowser({ players, error }: { players: Player[]; error?: string }) {
@@ -28,7 +31,7 @@ export function RosterBrowser({ players, error }: { players: Player[]; error?: s
   const filteredPlayers = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return players.filter((player) => {
-      const matchesGroup = group === 'all' || player.category === group;
+      const matchesGroup = group === 'all' || normalizeCategory(player.category) === group;
       const haystack = `${player.name} ${player.position} ${player.hometown} ${player.class}`.toLowerCase();
       return matchesGroup && (!normalizedQuery || haystack.includes(normalizedQuery));
     });
@@ -82,6 +85,11 @@ export function RosterBrowser({ players, error }: { players: Player[]; error?: s
       )}
     </section>
   );
+}
+
+function normalizeCategory(category?: string): PlayerCategory {
+  if (category === 'offense' || category === 'defense' || category === 'special') return category;
+  return 'other';
 }
 
 function PlayerCard({ player }: { player: Player }) {

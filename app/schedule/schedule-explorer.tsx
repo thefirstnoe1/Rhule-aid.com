@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { SurfaceCard } from '../components/ui';
+import { DataHealth, SurfaceCard } from '../components/ui';
 
 export type ScheduleGame = {
   date: string;
@@ -36,6 +36,7 @@ type ScheduleExplorerProps = {
   games: ScheduleGame[];
   standings: Standing[];
   lastUpdated?: string;
+  health?: { updatedAt?: string; stale?: boolean; providers?: Record<string, string> };
 };
 
 type Filter = 'all' | 'home' | 'away' | 'neutral' | 'conference';
@@ -82,7 +83,7 @@ const layoutModes: Array<{ label: string; value: LayoutMode }> = [
   { label: 'Compact', value: 'compact' }
 ];
 
-export function ScheduleExplorer({ games, standings, lastUpdated }: ScheduleExplorerProps) {
+export function ScheduleExplorer({ games, standings, lastUpdated, health }: ScheduleExplorerProps) {
   const [filter, setFilter] = useState<Filter>('all');
   const [timezone, setTimezone] = useState('America/Chicago');
   const [layout, setLayout] = useState<LayoutMode>('cards');
@@ -142,6 +143,8 @@ export function ScheduleExplorer({ games, standings, lastUpdated }: ScheduleExpl
           </label>
         </div>
       </div>
+
+      <DataHealth updatedAt={health?.updatedAt || lastUpdated} stale={health?.stale} providers={health?.providers} label="Schedule" />
 
       <div className="sr-only" aria-live="polite" aria-atomic="true">
         Showing {filteredGames.length} of {games.length} {games.length === 1 ? 'game' : 'games'}.

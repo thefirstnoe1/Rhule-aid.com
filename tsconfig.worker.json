@@ -3,6 +3,8 @@
   "compilerOptions": {
     "module": "ES2022",
     "noEmit": false,
+    "rootDir": "./src",
+    "outDir": "./dist",
     "incremental": false,
     "plugins": []
   },
