@@ -32,7 +32,7 @@ export function RosterBrowser({ players, error }: { players: Player[]; error?: s
     const normalizedQuery = query.trim().toLowerCase();
     return players.filter((player) => {
       const matchesGroup = group === 'all' || normalizeCategory(player.category) === group;
-      const haystack = `${player.name} ${player.position} ${player.hometown} ${player.class}`.toLowerCase();
+      const haystack = `${player.number} ${player.name} ${player.position} ${player.hometown} ${player.class}`.toLowerCase();
       return matchesGroup && (!normalizedQuery || haystack.includes(normalizedQuery));
     });
   }, [group, players, query]);
@@ -46,7 +46,7 @@ export function RosterBrowser({ players, error }: { players: Player[]; error?: s
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search player, position, hometown..."
+          placeholder="Search number, player, position, hometown..."
           className="min-h-12 flex-1 rounded-full border border-[var(--border)] bg-[var(--surface-strong)] px-5 text-sm font-semibold text-[var(--foreground)] outline-none placeholder:text-[var(--muted)]"
         />
         <div className="flex flex-wrap gap-2" role="group" aria-label="Roster groups">
