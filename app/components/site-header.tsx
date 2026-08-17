@@ -11,7 +11,6 @@ const navItems = [
   { label: 'Game Day', href: '/gameday' },
   { label: 'Roster', href: '/roster' },
   { label: 'News', href: '/news' },
-  { label: 'Coach Rhule', href: '/rhule-aid' }
 ];
 
 export function SiteHeader() {
